@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>GameVault · Interface proposal</title>
+  <link rel="stylesheet" href="prototype.css">
+  <script src="prototype.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <div class="review-bar">
+    <span><strong>Interface proposal</strong> · Sample data; actions are simulated. Refresh to reset.</span>
+    <label>Preview state <select id="preview-state">
+      <option value="normal">Normal</option><option value="empty">Empty library</option>
+      <option value="loading">Loading</option><option value="missing">Missing executable</option>
+      <option value="nosaves">Save location needed</option><option value="running">Running game</option>
+      <option value="backing">Backup in progress</option><option value="failed">Backup failed</option>
+    </select></label>
+  </div>
+  <div class="shell">
+    <aside class="sidebar">
+      <a href="#" class="brand" data-nav="library"><span class="brand-mark" aria-hidden="true">G</span>GameVault</a>
+      <p class="sidebar-note">Your games. Your progress.</p>
+      <nav aria-label="Main navigation">
+        <button id="nav-library" data-nav="library" aria-current="page"><span aria-hidden="true">▦</span> Library</button>
+        <button id="nav-activity" data-nav="activity"><span aria-hidden="true">◷</span> Activity</button>
+        <button id="nav-settings" data-nav="settings"><span aria-hidden="true">⚙</span> Settings</button>
+      </nav>
+      <div class="local-note"><span class="dot" aria-hidden="true"></span><strong>Stored on your device</strong><p>Profiles and backups stay together in your GameVault folder.</p></div>
+    </aside>
+    <main id="main">
+      <header class="page-header"><div><p class="eyebrow" id="context">Your collection</p><h1 id="heading">Library</h1></div>
+        <div class="header-actions"><label id="search-wrap" class="search"><span class="sr-only">Search games</span><input id="search" type="search" placeholder="Search your games" autocomplete="off"></label><button class="primary" id="add-game" data-action="add">＋ Add game</button></div>
+      </header>
+      <div id="content" tabindex="-1"></div>
+      <footer>GameVault · Local library · Design preview</footer>
+    </main>
+  </div>
+  <div id="notice" class="notice" role="status" aria-live="polite"></div>
+  <dialog id="modal" aria-labelledby="modal-title"><form id="modal-form"><div id="modal-content"></div></form></dialog>
+</body>
+</html>
