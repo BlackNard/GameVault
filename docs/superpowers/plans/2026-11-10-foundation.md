@@ -1,6 +1,6 @@
 # GameVault Foundation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Complete issue #2 with a tested Windows starter executable and reproducible build, without implementing later game features.
 
@@ -33,11 +33,11 @@
 
 **Interfaces:** `ApplicationPaths.FromRoot(string root)` returns Root, Data, Profiles. `ApplicationWorkspace.Open(ApplicationPaths paths)` returns a disposable exclusive lease; filesystem failures throw IOException/UnauthorizedAccessException. The caller passes AppContext.BaseDirectory, never Environment.CurrentDirectory.
 
-- [ ] Scaffold projects and pin SDK/dependencies; remove template example classes/tests.
-- [ ] Write tests first: absolute root with spaces/trailing slash yields correct child directories; relative/blank roots are rejected; opening workspace creates no Data/Profiles or leftover probe files; opening twice fails; disposal permits reopening; distinct roots can coexist; nonexistent/file-as-directory roots fail without redirection.
-- [ ] Run tests against API stubs and confirm expected NotImplementedException failures.
-- [ ] Implement root normalization and a disposable exclusive `.gamevault.lock` lease with an actual write/flush probe in the application root. Avoid touching game files or creating feature data.
-- [ ] Run the suite and confirm all tests pass. Commit the verified foundation.
+- [x] Scaffold projects and pin SDK/dependencies; remove template example classes/tests.
+- [x] Write tests first: absolute root with spaces/trailing slash yields correct child directories; relative/blank roots are rejected; opening workspace creates no Data/Profiles or leftover probe files; opening twice fails; disposal permits reopening; distinct roots can coexist; nonexistent/file-as-directory roots fail without redirection.
+- [x] Run tests against API stubs and confirm expected NotImplementedException failures.
+- [x] Implement root normalization and a disposable exclusive `.gamevault.lock` lease with an actual write/flush probe in the application root. Avoid touching game files or creating feature data.
+- [x] Run the suite and confirm all tests pass. Commit the verified foundation.
 
 ### Task 2: Launch a minimal desktop shell
 
@@ -45,11 +45,11 @@
 
 **Interfaces:** consumes task 1 paths/workspace; holds the lease for app lifetime and disposes on exit. Shows an informational development window identifying this as a foundation build.
 
-- [ ] Create a neutral WPF window with a clear foundation-build explanation and reserved profile location. Do not create nonfunctional game controls or establish the final theme.
-- [ ] Initialize workspace off the UI thread using AppContext.BaseDirectory. Show a useful error for unwritable/busy folders; release any partially acquired lease on failure.
-- [ ] Build and publish, then smoke launch the actual published executable, inspect its window, resize, try a second instance, and close cleanly. Confirm the first process survives the second-instance rejection.
-- [ ] Record actual baseline startup/process measurements, with hardware limitations, without claiming achievement of future library benchmarks.
-- [ ] Commit the runnable shell.
+- [x] Create a neutral WPF window with a clear foundation-build explanation and reserved profile location. Do not create nonfunctional game controls or establish the final theme.
+- [x] Initialize workspace off the UI thread using AppContext.BaseDirectory. Show a useful error for unwritable/busy folders; release any partially acquired lease on failure.
+- [x] Build and publish, then smoke launch the actual published executable, inspect its window, resize, try a second instance, and close cleanly. Confirm the first process survives the second-instance rejection.
+- [x] Record actual baseline startup/process measurements, with hardware limitations, without claiming achievement of future library benchmarks.
+- [x] Commit the runnable shell.
 
 ### Task 3: Reproduce builds and publish for review
 
@@ -57,8 +57,8 @@
 
 **Interfaces:** `scripts/verify.ps1` uses dotnet from PATH to restore locked dependencies, build/test, publish win-x64, and reject artifacts containing Data/Profiles or lacking GameVault.exe/core runtime files.
 
-- [ ] Document development setup and commands, directory ownership, library boundaries, data safety, and unresolved licensing/signing.
-- [ ] Add a read-only-permission Windows CI workflow invoking the same verification script; use pinned action revisions and dependency lock files.
-- [ ] Run the full verification script, check artifact contents and staged diff, and record results. CI success is claimed only after a run actually succeeds.
-- [ ] Request one fresh whole-branch review against the spec, resolve significant findings, then rerun affected checks.
-- [ ] Commit/push the feature branch, open a pull request linked to #2, and post verification evidence. Leave merging to the owner.
+- [x] Document development setup and commands, directory ownership, library boundaries, data safety, and unresolved licensing/signing.
+- [x] Add a read-only-permission Windows CI workflow invoking the same verification script; use pinned action revisions and dependency lock files.
+- [x] Run the full verification script, check artifact contents and staged diff, and record results. CI success is claimed only after a run actually succeeds.
+- [x] Request one fresh whole-branch review against the spec, resolve significant findings, then rerun affected checks.
+- [x] Commit/push the feature branch, open a pull request linked to #2, and post verification evidence. Leave merging to the owner.

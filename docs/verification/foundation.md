@@ -20,9 +20,10 @@ One informal warm restart took 505 ms from the desktop automation launch request
 
 On the test machine (Windows build 26300, AMD Ryzen 9 9900X3D, 24 logical processors, approximately 31.1 GiB usable RAM), a single idle sample reported 160.0 MiB working set and 0 ms accumulated CPU over a 2,025 ms interval. Resource counts are a development baseline, not a guaranteed budget across machines. Library-scale benchmarks and representative lower-spec testing remain in #18.
 
-## Pending checks
+## Remote verification
 
-- A fresh GitHub Actions run after branch upload.
+- [Windows foundation CI](https://github.com/Zaid-Alhmouz/GameVault/actions/runs/42911923448) passed for implementation commit `7b8225c`: the remote Windows runner restored locked dependencies, built the solution, passed the tests, and verified the self-contained publish.
+- [Pull request #19](https://github.com/Zaid-Alhmouz/GameVault/pull/19) holds the change for review. Check its current checks for any subsequent documentation-only commits. No merge or release has been performed.
 
 ## Scope and limitations
 
