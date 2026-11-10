@@ -4,7 +4,9 @@ A Windows desktop game library for launching manually added games, tracking play
 
 ## Project status
 
-Planning stage. The application and installer have not been built yet. The GitHub repository is intended to be private during development.
+The Windows foundation is in development: a minimal WPF starter window, application-folder safety checks, and a repeatable self-contained build. Game features and the installer are not implemented yet. The repository remains private during development.
+
+See [development instructions](docs/development.md), [foundation verification](docs/verification/foundation.md), and the [issue roadmap](https://github.com/Zaid-Alhmouz/GameVault/issues/1).
 
 ## First-version scope
 
@@ -37,7 +39,7 @@ GameVault/
         <dated-backup>/
 ```
 
-The structure is illustrative; the storage format and technology stack are not finalized. Stable profile identifiers are proposed so renaming a game does not disconnect its records. Games keep their original save locations; GameVault stores independent backup copies.
+The approved foundation uses C#/WPF on .NET 10 with Data and Profiles beside the executable. Each game will use a stable profile identifier so renaming it preserves its records. The detailed storage schema is still to be implemented. Games keep their original save locations; GameVault stores independent backup copies.
 
 ## Installation and releases
 
@@ -51,8 +53,7 @@ Actual game saves, local profiles, play histories, credentials, game executables
 
 ## Decisions still open
 
-- Desktop framework and installer tooling.
-- Supported Windows versions and CPU architectures.
+- Installer tooling (the approved app foundation uses C#/WPF on .NET 10, targeting supported Windows 11 x64).
 - Final interface design and storage schema.
 - Licensing and signing of release installers.
 
