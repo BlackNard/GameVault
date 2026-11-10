@@ -30,3 +30,9 @@ node_modules/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Foundation build and local coordination
+artifacts/
+.superpowers/
+.gamevault.lock
+.gamevault-probe-*

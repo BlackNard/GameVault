@@ -1,6 +1,6 @@
 # GameVault Windows foundation
 
-Status: proposed design, awaiting owner approval. This document does not close issue #2.
+Status: approved by the owner on 2026-11-10. Implementation and verification are still required to close issue #2.
 
 Scope: [foundation issue #2](https://github.com/Zaid-Alhmouz/GameVault/issues/2), with architectural boundaries for the agreed first version.
 
@@ -14,7 +14,7 @@ The app must preserve profiles and backups when games are removed. Installer upg
 
 ## Proposed engineering choices
 
-These are recommendations by the builder, not previous owner decisions.
+The owner approved these engineering recommendations on 2026-11-10.
 
 | Choice | Recommendation | Rationale |
 |---|---|---|

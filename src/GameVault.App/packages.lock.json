@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0-windows7.0": {
+      "gamevault.core": {
+        "type": "Project"
+      },
+      "gamevault.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "GameVault.Core": "[1.0.0, )"
+        }
+      }
+    }
+  }
+}
