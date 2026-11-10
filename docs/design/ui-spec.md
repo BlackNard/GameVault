@@ -4,22 +4,25 @@ Status: proposed, awaiting owner review. The owner will perform manual UI testin
 
 ## Direction
 
-A quiet dark desktop library, with game covers as the main visual feature. Keep Play and save protection visible. Avoid store promotions, social feeds, decorative dashboards, and continuously animated backgrounds. This visual direction is the designer's proposal, not yet an approved preference.
+A quiet dark desktop library, with game covers as the main visual feature. Keep Play and save protection visible. Avoid store promotions, social feeds, decorative dashboards, and continuously animated backgrounds. Per owner feedback, the original blue palette remains the default theme, named Midnight. An optional Crimson theme adds red and near-black colors. The full interface remains pending final owner approval.
 
 The prototype is `prototype.html` in this directory. Open it directly in a modern browser; no server or dependencies are required. All records and operations are simulations held in memory and reset on refresh. It does not launch games or read/write save files.
 
 ## Design tokens
 
-| Role | Value |
-|---|---|
-| Background | `#131b26` |
-| Surface | `#1c2838` |
-| Raised surface | `#26364a` |
-| Primary text | `#edf2f8` |
-| Secondary text | `#b5c3d6` |
-| Primary action | `#b6ceff`, dark text `#131b26` |
-| Protected/success | `#a8dfcc` |
-| Attention/error | `#ffc6ab` |
+| Role | Midnight (default) | Crimson (optional) |
+|---|---|---|
+| Background | `#131b26` | `#120e11` |
+| Surface | `#1c2838` | `#21171d` |
+| Raised surface | `#26364a` | `#35232c` |
+| Primary text | `#edf2f8` | `#f8eef2` |
+| Secondary text | `#b5c3d6` | `#d0bbc5` |
+| Primary action | `#b6ceff`, text `#131b26` | `#b62b43`, text `#fff6f8` |
+| Focus/link accent | `#b6ceff` | `#ffb2c0` |
+| Protected/success | `#a8dfcc` | `#b4ddc7` |
+| Attention/error | `#ffc6ab` | `#ffc5aa` |
+
+Expose the choice in Settings > Appearance and comfort > Color theme. Apply immediately across navigation, forms/dialogs, primary actions, focus indicators, and charts; preserve library selection, filters, and active operations. Artwork retains its original colors. Persist the real app's choice in global local settings and restore it at startup; new installations default to Midnight. The offline prototype resets its theme on refresh alongside its other example state.
 
 Use Segoe UI Variable with Segoe UI fallback, tabular figures for time, 32/24/18/14 px type hierarchy, and 8 px spacing steps. Controls have 8 px corners; cover artwork has 12 px corners; avoid shadows except to separate a modal from the background. Buttons have at least 36 px height. Secondary text remains readable rather than using low-opacity gray.
 
@@ -35,7 +38,7 @@ Default real-app window: 1200 × 800 device-independent pixels; minimum 900 × 6
 
 ## Key flows
 
-1. **Add game:** Name and executable are required; working directory defaults to the executable's folder in the real app. Save location is optional so a game can be launched before saves exist. Validate inline; on success, show the game details with Not started status and Save location needed if unconfigured. No store login.
+1. **Add game:** Name and executable are required. Place a Browse button beside executable, working directory, and save location. The Windows app opens a native executable-file picker (initial filter *.exe) and native folder pickers for working directory/save folders. Save configuration must also support selecting individual save files as required by #9. Display the full selected path, permit manual editing/paste, and preserve the current value and other form entries on Cancel or an error. Selecting the executable defaults the working directory to its parent folder unless the user explicitly customized it. Missing/inaccessible paths receive inline feedback. Save location is optional so a game can be launched before saves exist. On success, show the game details with Not started status and Save location needed if unconfigured. No store login.
 2. **Play:** Acknowledge input immediately, show Starting, and only mark Running/change Not started to Playing after process confirmation. Running shows elapsed session time and blocks duplicate launches. The prototype's End demo session substitutes for closing a real game; the real app observes exit rather than claiming its button can save/close a game safely.
 3. **Backup:** After observed exit, show Backing up without blocking navigation. On success show date/time and changed-save outcome. On failure retain the prior success and explain the specific retry action. Do not promise protection before a verified backup exists.
 4. **Restore:** Require a configured save destination; if it was cleared while old backups remain, direct the player to Edit game before allowing restore. Show backup date, destination, and the requirement that the game is stopped. Explain that current saves will be preserved first. Confirm with Restore backup; preservation failure aborts replacement. Success identifies the retained recovery snapshot in the backup list. Block restore during a running game or conflicting operation.
@@ -55,7 +58,7 @@ Default real-app window: 1200 × 800 device-independent pixels; minimum 900 × 6
 | Restore blocked | Stop the game first, with no destructive action |
 | No backups | Explain that no verified backup exists; offer configuration or backup |
 
-The prototype includes a Preview state selector to explore these situations; it is a design-review control, not part of the shipped interface.
+The prototype includes a Preview state selector to explore these situations; it is a design-review control, not part of the shipped interface. Its Browse buttons open a second modal with example files/folders; these simulate the final Windows browsing flow without accessing the real device. Closing the picker returns focus to its Browse button and retains unsaved form values. The production app must use actual native Windows dialogs rather than the example picker or a type-only path field.
 
 ## Interaction, accessibility, and smoothness
 

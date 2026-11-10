@@ -1,0 +1,34 @@
+/* Midnight is the original palette and remains the default. */
+:root {
+  --primary:var(--action); --primary-ink:var(--bg); --primary-hover:#d2e0ff;
+  --button-hover:#354966; --side-bg:#17212f; --review-bg:#243145;
+  --chart-fill:#88a7d8; --overlay:#07101bbc; --cover-border:#647184;
+}
+:root[data-theme="crimson"] {
+  --bg:#120e11; --surface:#21171d; --raised:#35232c;
+  --text:#f8eef2; --muted:#d0bbc5; --action:#ffb2c0;
+  --primary:#b62b43; --primary-ink:#fff6f8; --primary-hover:#cd3651;
+  --good:#b4ddc7; --warn:#ffc5aa; --line:#704553;
+  --button-hover:#51313e; --side-bg:#191115; --review-bg:#2b1c24;
+  --chart-fill:#db778d; --overlay:#10070bbc; --cover-border:#84616d;
+}
+button:hover:not(:disabled){background:var(--button-hover)}
+.primary,.brand-mark{background:var(--primary);color:var(--primary-ink)}
+.primary:hover:not(:disabled){background:var(--primary-hover)}
+.review-bar{background:var(--review-bg)}
+.sidebar{background:var(--side-bg)}
+.bar{background:var(--chart-fill)}
+.cover{border-color:var(--cover-border)}
+dialog::backdrop{background:var(--overlay)}
+dialog .field{display:grid;gap:7px;margin-top:18px;font-size:13px}
+.path-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start}
+.path-row input{width:100%;min-width:0}
+.path-help{font-size:12px;color:var(--muted);margin:8px 0 0}
+#path-picker{width:min(650px,calc(100vw - 40px))}
+.picker-location{padding:10px 12px;border:1px solid var(--line);border-radius:8px;overflow-wrap:anywhere;font-size:13px}
+.picker-options{display:grid;gap:8px;border:0;padding:0;margin:18px 0}
+.picker-option{display:flex;gap:12px;align-items:center;padding:14px;background:var(--raised);border:1px solid var(--line);border-radius:8px;cursor:pointer}
+.picker-option:has(input:checked){border-color:var(--action)}
+.picker-option input{flex:0 0 auto;min-height:0;accent-color:var(--action)}
+.picker-option strong,.picker-option small{display:block;overflow-wrap:anywhere}
+@media(max-width:420px){.path-row{grid-template-columns:1fr}.path-row button{justify-self:start}}
