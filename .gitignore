@@ -1,0 +1,32 @@
+# User data and game save backups
+/Data/
+/Profiles/
+**/Backups/
+*.sav
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
+
+# Build outputs and packages
+bin/
+obj/
+dist/
+build/
+node_modules/
+*.exe
+*.msi
+*.msix
+*.zip
+
+# Editor and operating-system files
+.vs/
+.idea/
+*.user
+Thumbs.db
+Desktop.ini
+.DS_Store
