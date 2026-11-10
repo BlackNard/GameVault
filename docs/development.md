@@ -45,9 +45,9 @@ The Windows foundation GitHub Actions workflow runs the same script on feature-b
 - `GameVault.Infrastructure`: exclusive application-folder lease and writeability checks; later filesystem/Windows services.
 - `GameVault.Tests`: path safety and real filesystem concurrency tests.
 
-The foundation window deliberately contains no game-management functionality or final theme. It opens the executable's own folder asynchronously, verifies actual write access, and keeps an exclusive `.gamevault.lock` handle until exit. The empty coordination file remains after exit and does not indicate an active instance; only the OS-held handle does. Different portable directories can run independently. Missing/busy/unwritable folders produce a startup message rather than redirecting user data elsewhere.
+The development window opens the executable's folder asynchronously, holds the exclusive `.gamevault.lock` handle until exit, initializes versioned settings/profile storage, and restores the saved theme. Closing during a settings save waits for that operation. The empty coordination file remains after exit and does not indicate an active instance; only the OS-held handle does. Different portable directories can run independently. Missing/busy/unwritable folders produce a startup message rather than redirecting user data elsewhere.
 
-Data and Profiles are reserved below the app root and are not created by this foundation build. Future issue #4 implements their versioned persistence. Preserve both across program updates/uninstallation. Never commit profiles, saves, game files, logs containing personal information, credentials, installers, or published binaries.
+Data and Profiles are initialized below the app root. See [persistence.md](persistence.md) for schema 1, read-only recovery, and write safety. Preserve both across program updates/uninstallation. Never commit profiles, saves, game files, logs containing personal information, credentials, installers, or published binaries.
 
 ## Design and unresolved distribution decisions
 

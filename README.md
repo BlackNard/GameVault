@@ -4,9 +4,11 @@ A Windows desktop game library for launching manually added games, tracking play
 
 ## Project status
 
-The Windows foundation is in development: a minimal WPF starter window, application-folder safety checks, and a repeatable self-contained build. Game features and the installer are not implemented yet. The repository remains private during development.
+The Windows app now has versioned local settings and independent game-profile/statistics storage, safe previous-version copies, startup diagnostics, and a remembered Midnight/Crimson theme. Full game management, playtime tracking, save backup/restore, and the installer remain in development. The repository remains private.
 
 See [development instructions](docs/development.md), [foundation verification](docs/verification/foundation.md), and the [issue roadmap](https://github.com/Zaid-Alhmouz/GameVault/issues/1).
+
+See [persistence and recovery behavior](docs/persistence.md) for the schema, write safeguards, and owner manual checks.
 
 ## First-version scope
 
