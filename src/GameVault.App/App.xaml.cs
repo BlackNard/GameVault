@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows;
 using GameVault.Core;
 using GameVault.Infrastructure;
+using GameVault.Infrastructure.Storage;
 
 namespace GameVault.App;
 
@@ -16,7 +17,9 @@ public partial class App : Application
         try
         {
             workspace = await Task.Run(() => ApplicationWorkspace.Open(paths));
-            MainWindow = new MainWindow(paths);
+            var store = new AppDataStore(paths);
+            var snapshot = await store.InitializeAsync();
+            MainWindow = new MainWindow(paths, store, snapshot);
             ShutdownMode = ShutdownMode.OnMainWindowClose;
             MainWindow.Show();
         }

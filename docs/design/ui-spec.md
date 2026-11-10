@@ -1,10 +1,10 @@
 # GameVault interface design — issue #3
 
-Status: proposed, awaiting owner review. The owner will perform manual UI testing. This issue delivers a design and an offline interactive prototype, not production game operations.
+Status: revised design approved by the owner on 2026-11-11 and merged through PR #20. The owner retains manual UI testing. The design/prototype do not themselves implement production game operations.
 
 ## Direction
 
-A quiet dark desktop library, with game covers as the main visual feature. Keep Play and save protection visible. Avoid store promotions, social feeds, decorative dashboards, and continuously animated backgrounds. Per owner feedback, the original blue palette remains the default theme, named Midnight. An optional Crimson theme adds red and near-black colors. The full interface remains pending final owner approval.
+A quiet dark desktop library, with game covers as the main visual feature. Keep Play and save protection visible. Avoid store promotions, social feeds, decorative dashboards, and continuously animated backgrounds. Per owner feedback, the original blue palette remains the default theme, named Midnight. An optional Crimson theme adds red and near-black colors. This revised direction was approved on 2026-11-11.
 
 The prototype is `prototype.html` in this directory. Open it directly in a modern browser; no server or dependencies are required. All records and operations are simulations held in memory and reset on refresh. It does not launch games or read/write save files.
 
@@ -73,4 +73,4 @@ The prototype includes a Preview state selector to explore these situations; it 
 
 Owner review is required before production interface implementation. Manual checks are intentionally assigned to the owner in `manual-review.md`: appearance, resizing/scaling, keyboard/dialog behavior, and the simulated flows. Automated checks cover prototype syntax and structural invariants; they do not claim visual approval or native Windows accessibility compliance.
 
-Issue #3 stays open until the owner approves the design. Actual WPF screenshots and the final scaling matrix will be reviewed by the owner as those screens are implemented in later tickets.
+The owner approved issue #3's design. Actual WPF screenshots and the final scaling matrix will be reviewed by the owner as those screens are implemented in later tickets.
