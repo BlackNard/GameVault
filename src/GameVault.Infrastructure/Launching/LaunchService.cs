@@ -3,6 +3,7 @@ using GameVault.Infrastructure.Storage;
 using GameVault.Infrastructure.Library;
 using System.ComponentModel;
 using System.Diagnostics;
+using GameVault.Infrastructure.Playtime;
 
 namespace GameVault.Infrastructure.Launching;
 
@@ -20,17 +21,24 @@ public sealed class LaunchService : IAsyncDisposable
     private readonly Dictionary<Guid, LaunchState> states = [];
     private readonly Dictionary<string, Guid> reservedPaths = new(StringComparer.OrdinalIgnoreCase);
     private bool disposed;
+    private readonly SessionRecorder recorder;
+    private readonly SemaphoreSlim recoveryGate = new(1, 1);
+    private bool recoveryCompleted;
 
     public LaunchService(ApplicationPaths paths, AppDataStore store, IGameProcessSystem processes,
-        TimeSpan? startupTimeout = null, TimeSpan? pollInterval = null)
+        TimeSpan? startupTimeout = null, TimeSpan? pollInterval = null, IPlaytimeClock? clock = null)
     {
         this.store = store; this.processes = processes;
         settings = new(paths, store); library = new(paths, store);
         this.startupTimeout = startupTimeout ?? TimeSpan.FromSeconds(30);
         this.pollInterval = pollInterval ?? TimeSpan.FromMilliseconds(250);
+        recorder = new(store, clock ?? new PlaytimeClock());
     }
 
     public event EventHandler<LaunchState>? StateChanged;
+    public event EventHandler<SessionProgress>? SessionUpdated;
+    public SessionProgress? GetSessionProgress(Guid id) => recorder.GetProgress(id);
+    internal Task SaveCheckpointAsync(Guid id) => recorder.SampleAsync(id, true);
     public LaunchState GetState(Guid id) { lock (gate) return states.GetValueOrDefault(id) ?? new(id, LaunchPhase.Stopped, "Not running"); }
 
     public Task RunAsync(Guid id)
@@ -78,25 +86,8 @@ public sealed class LaunchService : IAsyncDisposable
                 if (observed != starter) observed.Dispose();
                 throw new InvalidOperationException("The game closed before it could be confirmed running. Check its executable and Launch settings.");
             }
-            try
-            {
-                string? warning = null;
-                try { await library.MarkPlayingAsync(id).ConfigureAwait(false); }
-                catch (Exception error) when (error is IOException or UnauthorizedAccessException)
-                { warning = "The game is running, but its library status could not be saved. " + error.Message; }
-                SetState(new(id, LaunchPhase.Running, warning ?? "Running", observed.Identity.Id));
-                while (true)
-                {
-                    await observed.WaitForExitAsync(token).ConfigureAwait(false);
-                    if (observed != starter) observed.Dispose();
-                    // A configured image may have several descendant processes. Wait for the remaining ones too.
-                    observed = FindRelated(starter, targetPath) ?? starter;
-                    if (observed == starter && starter.HasExited) break;
-                    if (observed == starter && !string.Equals(profile.ExecutablePath, targetPath, StringComparison.OrdinalIgnoreCase)) break;
-                }
-            }
-            finally { if (observed != starter) observed.Dispose(); }
-            SetState(new(id, LaunchPhase.Stopped, "Game stopped."));
+            await ObserveAsync(id, targetPath, starter, observed, null, token).ConfigureAwait(false);
+            SetState(new(id, LaunchPhase.Stopped, StopMessage(id)));
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         { SetState(new(id, LaunchPhase.Stopped, "Observation stopped. Any running game was left open.")); }
@@ -125,6 +116,143 @@ public sealed class LaunchService : IAsyncDisposable
             await Task.Delay(pollInterval, token).ConfigureAwait(false);
         } while (deadline.Elapsed < startupTimeout);
         throw new IOException("The actual game process was not found within 30 seconds. Check Launch settings. The launched program was left open if still running.");
+    }
+
+    private async Task ObserveAsync(Guid id, string targetPath, IGameProcess starter, IGameProcess observed, SessionJournal? recovered, CancellationToken token)
+    {
+        var exited = false;
+        using var timerStop = new CancellationTokenSource();
+        Task timer = Task.CompletedTask;
+        try
+        {
+            string? warning = null;
+            try
+            {
+                if (recovered is null) await recorder.BeginAsync(id, targetPath, observed, starter.RecoveryGroupName).ConfigureAwait(false);
+                else await recorder.ResumeAsync(recovered, observed, starter.RecoveryGroupName).ConfigureAwait(false);
+                NotifySession(id);
+                timer = SampleLoop(id, timerStop.Token);
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or OverflowException)
+            { warning = "Game running, but playtime tracking could not start. " + error.Message; }
+            try { await library.MarkPlayingAsync(id).ConfigureAwait(false); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            { warning = "The game is running, but its library status could not be saved. " + error.Message; }
+            SetState(new(id, LaunchPhase.Running, warning ?? (recovered is null ? "Running" : "Running · session recovered; unobserved time excluded."), observed.Identity.Id));
+            while (true)
+            {
+                await observed.WaitForExitAsync(token).ConfigureAwait(false);
+                if (observed != starter) observed.Dispose();
+                observed = FindRelated(starter, targetPath) ?? starter;
+                if (observed == starter && starter.HasExited)
+                {
+                    if (recovered is not null && starter.RecoveryGroupName is null && processes.Find(targetPath).Length > 0)
+                        throw new IOException("The recovered process exited, but another game process could not be verified. Recorded time was preserved; further tracking was interrupted.");
+                    break;
+                }
+                // For a launcher still alive after its configured target stops, only target processes count.
+                if (observed == starter && !processes.Find(targetPath).Any(p => p.Identity == starter.Identity)) break;
+                await recorder.UpdateProcessAsync(id, observed).ConfigureAwait(false);
+            }
+            exited = true;
+        }
+        finally
+        {
+            var end = recorder.CaptureEnd(id);
+            await timerStop.CancelAsync().ConfigureAwait(false);
+            try { await timer.ConfigureAwait(false); } catch (OperationCanceledException) { }
+            if (observed != starter) observed.Dispose();
+            await recorder.EndAsync(id, exited ? SessionState.Completed : SessionState.Interrupted, end.Awake, end.Utc).ConfigureAwait(false);
+            NotifySession(id);
+        }
+    }
+
+    private async Task SampleLoop(Guid id, CancellationToken token)
+    {
+        while (true)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1), token).ConfigureAwait(false);
+            await recorder.SampleAsync(id, cancellationToken: token).ConfigureAwait(false);
+            NotifySession(id);
+        }
+    }
+
+    private void NotifySession(Guid id)
+    { if (recorder.GetProgress(id) is SessionProgress progress) SessionUpdated?.Invoke(this, progress); }
+
+    private string StopMessage(Guid id) => recorder.GetProgress(id)?.Warning is string warning ? "Game stopped. " + warning : "Game stopped. Playtime saved.";
+
+    public async Task<string[]> RecoverAsync()
+    {
+        await recoveryGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (recoveryCompleted) return [];
+            var warnings = new List<string>();
+            var snapshot = await store.InitializeAsync().ConfigureAwait(false);
+            foreach (var game in snapshot.Games.Where(g => g.Profile.State == DocumentState.Ready))
+            {
+                StoredSession[] sessions;
+                try { sessions = await recorder.ReadAsync(game.Id).ConfigureAwait(false); }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+                { warnings.Add("Session recovery could not read a game's checkpoints. " + error.Message); continue; }
+                foreach (var item in sessions.OrderByDescending(s => s.Document.Value?.ObservedAt))
+                {
+                    if (item.Document.IsReadOnly || item.Document.Value is not SessionJournal journal)
+                    { warnings.Add(item.Document.Message ?? "A session checkpoint needs attention; it was preserved."); continue; }
+                    try
+                    {
+                        if (journal.State == SessionState.Active) journal = journal with { State = SessionState.Interrupted };
+                        await store.SaveSessionJournalAsync(journal).ConfigureAwait(false);
+                        if (journal.State != SessionState.Interrupted || game.Profile.Value!.IsArchived) continue;
+                        lock (gate) { if (active.ContainsKey(game.Id)) continue; }
+                        var process = processes.Recover(journal.ExecutablePath, new(journal.ProcessId, journal.ProcessCreatedUtcTicks), journal.ProcessGroupName);
+                        if (process is null)
+                        { warnings.Add($"{game.Profile.Value.Name}: interrupted session recovered through its last saved checkpoint; unobserved time was excluded."); continue; }
+                        StartRecovered(journal, process);
+                        warnings.Add($"{game.Profile.Value.Name}: resumed a verified running game; time while GameVault was absent was excluded.");
+                    }
+                    catch (Exception error) when (error is IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException)
+                    { warnings.Add("Session recovery needs attention. " + error.Message); }
+                }
+            }
+            recoveryCompleted = true;
+            return warnings.Distinct().ToArray();
+        }
+        finally { recoveryGate.Release(); }
+    }
+
+    private void StartRecovered(SessionJournal journal, IGameProcess process)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (gate)
+        {
+            if (disposed || !active.TryAdd(journal.GameId, completion)) { process.Dispose(); return; }
+            if (reservedPaths.ContainsKey(journal.ExecutablePath)) { active.Remove(journal.GameId); process.Dispose(); return; }
+            reservedPaths.Add(journal.ExecutablePath, journal.GameId);
+        }
+        SetState(new(journal.GameId, LaunchPhase.Starting, "Recovering running session…"));
+        _ = Task.Run(async () =>
+        {
+            using (process)
+            {
+                try
+                {
+                    await ObserveAsync(journal.GameId, journal.ExecutablePath, process, process, journal, shutdown.Token).ConfigureAwait(false);
+                    SetState(new(journal.GameId, LaunchPhase.Stopped, StopMessage(journal.GameId)));
+                }
+                catch (OperationCanceledException) when (shutdown.IsCancellationRequested)
+                { SetState(new(journal.GameId, LaunchPhase.Stopped, "Observation stopped. Any running game was left open.")); }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException)
+                { SetState(new(journal.GameId, LaunchPhase.Failed, error.Message)); }
+                catch (Exception error) { completion.TrySetException(error); }
+                finally
+                {
+                    lock (gate) { active.Remove(journal.GameId); reservedPaths.Remove(journal.ExecutablePath); }
+                    completion.TrySetResult();
+                }
+            }
+        });
     }
 
     private IGameProcess? FindRelated(IGameProcess root, string path)
@@ -157,5 +285,6 @@ public sealed class LaunchService : IAsyncDisposable
         lock (gate) { disposed = true; pending = active.Values.Select(c => c.Task).ToArray(); }
         await shutdown.CancelAsync().ConfigureAwait(false);
         await Task.WhenAll(pending).ConfigureAwait(false);
+        await recorder.FlushClosedAsync().ConfigureAwait(false);
     }
 }

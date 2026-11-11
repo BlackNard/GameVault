@@ -24,6 +24,7 @@ public partial class MainWindow : Window
     private bool stoppingObservation;
     private bool observationStopped;
     private LibraryItemView[] items = [];
+    private string[] recoveryNotices = [];
 
     public MainWindow(ApplicationPaths paths, AppDataStore store, AppDataSnapshot snapshot)
     {
@@ -32,6 +33,7 @@ public partial class MainWindow : Window
         launches = new(paths, store, new WindowsGameProcessSystem());
         launchSettings = new(paths, store);
         launches.StateChanged += LaunchStateChanged;
+        launches.SessionUpdated += SessionUpdated;
         settings = snapshot.Settings.Value ?? AppSettings.Default;
         settingsReadOnly = snapshot.Settings.IsReadOnly;
         InitializeComponent();
@@ -53,7 +55,7 @@ public partial class MainWindow : Window
     private async void LoadLibrary(object sender, RoutedEventArgs e)
     {
         busy = true; UpdateButtons();
-        try { await RefreshLibrary(); }
+        try { recoveryNotices = await launches.RecoverAsync(); await RefreshLibrary(); }
         catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = "Could not load the library. " + error.Message; }
         finally { EndOperation(); }
     }
@@ -63,8 +65,9 @@ public partial class MainWindow : Window
         var previous = select ?? (GameList.SelectedItem as LibraryItemView)?.Game.Id;
         var snapshot = await library.ListAsync();
         items = snapshot.Games.Select(g => new LibraryItemView(g)).ToArray();
-        foreach (var item in items) item.SetLaunchState(launches.GetState(item.Game.Id));
-        StorageNotice.Text = string.Join("\n", snapshot.Warnings.Distinct());
+        foreach (var item in items)
+        { item.SetLaunchState(launches.GetState(item.Game.Id)); item.SetSessionProgress(launches.GetSessionProgress(item.Game.Id)); }
+        StorageNotice.Text = string.Join("\n", snapshot.Warnings.Concat(recoveryNotices).Distinct());
         ApplyFilters(previous);
     }
 
@@ -102,6 +105,8 @@ public partial class MainWindow : Window
         if (item?.Game.Profile is GameProfile profile)
         {
             DetailTime.Text = item.Played;
+            SessionElapsed.Text = item.SessionTime;
+            SessionWarning.Text = item.SessionWarning ?? "";
             DetailExecutable.Text = profile.ExecutablePath;
             DetailWorking.Text = profile.WorkingDirectory;
             DetailSaves.Text = profile.SaveSources.Length == 0 ? "No save location selected. You can play now. Automatic discovery and backups arrive in later updates." : string.Join("\n", profile.SaveSources);
@@ -157,6 +162,23 @@ public partial class MainWindow : Window
         _ = Dispatcher.InvokeAsync(() => ApplyLaunchState(state));
     }
 
+    private void SessionUpdated(object? sender, SessionProgress progress)
+    {
+        if (Dispatcher.HasShutdownStarted) return;
+        _ = Dispatcher.InvokeAsync(() =>
+        {
+            if (stoppingObservation) return;
+            var item = items.FirstOrDefault(i => i.Game.Id == progress.GameId);
+            item?.SetSessionProgress(progress);
+            if (GameList.SelectedItem is LibraryItemView selected && selected.Game.Id == progress.GameId)
+            {
+                DetailTime.Text = selected.Played;
+                SessionElapsed.Text = selected.SessionTime;
+                SessionWarning.Text = selected.SessionWarning ?? "";
+            }
+        });
+    }
+
     private async void ApplyLaunchState(LaunchState state)
     {
         if (stoppingObservation) return;
@@ -171,7 +193,8 @@ public partial class MainWindow : Window
                     items.FirstOrDefault(i => i.Game.Id == state.GameId)?.RefreshProfile(profile);
                 ApplyFilters((GameList.SelectedItem as LibraryItemView)?.Game.Id);
             }
-            foreach (var item in items) item.SetLaunchState(launches.GetState(item.Game.Id));
+            foreach (var item in items)
+            { item.SetLaunchState(launches.GetState(item.Game.Id)); item.SetSessionProgress(launches.GetSessionProgress(item.Game.Id)); }
             ShowSelection();
             var name = items.FirstOrDefault(i => i.Game.Id == state.GameId)?.Name ?? "Game";
             OperationNotice.Text = $"{name}: {launches.GetState(state.GameId).Message}";
@@ -300,6 +323,7 @@ public partial class MainWindow : Window
         finally
         {
             launches.StateChanged -= LaunchStateChanged;
+            launches.SessionUpdated -= SessionUpdated;
             observationStopped = true;
             _ = Dispatcher.BeginInvoke(new Action(Close));
         }

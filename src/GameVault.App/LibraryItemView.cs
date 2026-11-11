@@ -9,6 +9,7 @@ internal sealed class LibraryItemView(LibraryGame game) : INotifyPropertyChanged
 {
     private bool coverRequested;
     private LaunchState? launch;
+    private SessionProgress? session;
     public LibraryGame Game { get; private set; } = game;
     public string Name => Game.Profile?.Name ?? "Profile needs attention";
     public string Initial => Name.Length > 0 ? Name[..1].ToUpperInvariant() : "?";
@@ -17,13 +18,24 @@ internal sealed class LibraryItemView(LibraryGame game) : INotifyPropertyChanged
         launch?.Phase == LaunchPhase.Failed ? "Launch needs attention · see game details" : Game.Profile is null ? "See the storage notice for details." :
         Game.IsReadOnly ? "Read-only · profile needs attention" :
         Game.ExecutableMissing ? "Game not found · edit its location" : Game.Profile.IsArchived ? "Removed · profile retained" : "Ready in your library";
-    public string Played => Game.PlayedSeconds is not long seconds ? "Playtime unavailable" :
-        seconds <= 0 ? "No recorded playtime" : $"{seconds / 3600}h {seconds % 3600 / 60}m recorded";
+    public string Played => (session?.TotalSeconds ?? Game.PlayedSeconds) is not long seconds ? "Playtime unavailable" :
+        seconds <= 0 ? "No recorded playtime" : FormatSeconds(seconds);
+    public string SessionTime => session is null ? "No active session" :
+        $"{(session.IsActive ? "This session" : "Last session")}: {FormatSeconds(session.SessionSeconds)}";
+    public string? SessionWarning => session?.Warning;
     public BitmapImage? Cover { get; private set; }
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public void SetLaunchState(LaunchState state)
     { launch = state; PropertyChanged?.Invoke(this, new(nameof(Availability))); }
+
+    public void SetSessionProgress(SessionProgress? progress)
+    {
+        session = progress;
+        foreach (var name in new[] { nameof(Played), nameof(SessionTime), nameof(SessionWarning) }) PropertyChanged?.Invoke(this, new(name));
+    }
+
+    public static string FormatSeconds(long seconds) => $"{seconds / 3600}h {seconds % 3600 / 60:00}m {seconds % 60:00}s";
 
     public void RefreshProfile(GameProfile profile)
     {

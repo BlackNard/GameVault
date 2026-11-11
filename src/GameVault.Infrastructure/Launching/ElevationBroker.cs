@@ -10,7 +10,7 @@ using Microsoft.Win32.SafeHandles;
 namespace GameVault.Infrastructure.Launching;
 
 internal sealed record BrokerRequest(string Executable, string WorkingDirectory);
-internal sealed record BrokerHandles(long ProcessHandle, long JobHandle, ProcessIdentity Identity);
+internal sealed record BrokerHandles(long ProcessHandle, long JobHandle, ProcessIdentity Identity, string? GroupName = null);
 internal sealed record BrokerResponse(BrokerHandles? Handles, string? Error, int NativeError = 0);
 
 [SupportedOSPlatform("windows")]

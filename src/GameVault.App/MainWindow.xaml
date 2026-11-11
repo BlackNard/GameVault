@@ -55,14 +55,16 @@
                                 <StackPanel x:Name="DetailFields" Visibility="Collapsed">
                                     <Button x:Name="PlayButton" Content="Play" Style="{StaticResource PrimaryButton}" Click="PlayGame" Margin="0,0,0,8" />
                                     <TextBlock x:Name="LaunchNotice" Text="Not running" Foreground="{DynamicResource AppAccent}" TextWrapping="Wrap" Margin="0,0,0,20" AutomationProperties.LiveSetting="Polite" />
-                                    <TextBlock Text="Recorded playtime" Foreground="{DynamicResource AppMuted}" /><TextBlock x:Name="DetailTime" FontSize="18" Margin="0,4,0,20" />
+                                    <TextBlock Text="Total playtime" Foreground="{DynamicResource AppMuted}" /><TextBlock x:Name="DetailTime" FontSize="18" Margin="0,4,0,8" />
+                                    <TextBlock x:Name="SessionElapsed" Foreground="{DynamicResource AppAccent}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                    <TextBlock x:Name="SessionWarning" Foreground="{DynamicResource AppWarning}" TextWrapping="Wrap" Margin="0,0,0,20" AutomationProperties.LiveSetting="Polite" />
                                     <TextBlock Text="Executable" FontWeight="SemiBold" /><TextBox x:Name="DetailExecutable" IsReadOnly="True" TextWrapping="Wrap" Margin="0,6,0,16" />
                                     <TextBlock Text="Working directory" FontWeight="SemiBold" /><TextBox x:Name="DetailWorking" IsReadOnly="True" TextWrapping="Wrap" Margin="0,6,0,16" />
                                     <TextBlock Text="Save locations" FontWeight="SemiBold" /><TextBlock x:Name="DetailSaves" TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,6,0,20" />
                                     <Button x:Name="EditButton" Content="Edit game" Click="EditGame" Margin="0,0,0,8" />
                                     <Button x:Name="LaunchSettingsButton" Content="Launch settings" Click="ConfigureLaunch" Margin="0,0,0,8" />
                                     <Button x:Name="ArchiveButton" Content="Remove from library" Click="ArchiveGame" Margin="0,0,0,20" />
-                                    <TextBlock Text="Play launches your game. Playtime recording, automatic save discovery, and save backups arrive in later updates." TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" />
+                                    <TextBlock Text="Playtime includes menus, pauses, and time away; computer sleep is excluded. Automatic save discovery and backups arrive in later updates." TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" />
                                 </StackPanel>
                             </StackPanel>
                         </ScrollViewer>
