@@ -110,6 +110,20 @@ public sealed class LibraryService
         if (match is not null) throw new DuplicateGameException(match.Id, match.Profile.Value!.IsArchived);
     }
 
+    public async Task MarkPlayingAsync(Guid id)
+    {
+        await gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var game = await store.LoadProfileAsync(id).ConfigureAwait(false);
+            if (game.Profile.IsReadOnly || game.Profile.Value is not GameProfile profile || profile.IsArchived)
+                throw new IOException("The game started, but its profile could not be updated safely.");
+            if (profile.Status == GameStatus.NotStarted)
+                await store.SaveProfileAsync(profile with { Status = GameStatus.Playing }).ConfigureAwait(false);
+        }
+        finally { gate.Release(); }
+    }
+
     private static string Canonical(string path)
     {
         path = path?.Trim().Trim('"') ?? "";

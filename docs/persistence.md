@@ -16,6 +16,8 @@ Only the app's own managed files are written. Configuring executable/working/sav
 
 ## Schema 1
 
+Issue #6 adds an optional per-profile `launch.json` containing `schemaVersion`, matching `gameId`, and nullable `targetExecutablePath`. Missing means track the main executable from profile.json. It uses the same validation, atomic replacement, previous-copy, link, and read-only recovery protections. A separate target must be a full .exe path. Process identities and runtime states are transient in #6; persistent session timing and interrupted-session recovery remain #7. A confirmed launch changes only Not started to Playing, preserving profile identity, preferences, save sources, and recorded statistics.
+
 All serialized documents require `schemaVersion` and all of their constructor fields. Unknown fields, malformed values, missing fields, mismatched game IDs, invalid enum values, unsafe game paths, or invalid statistics are rejected without resetting data. Unsupported older/newer schema versions are read-only; no migration is currently required or implemented.
 
 - **settings.json:** `schemaVersion`, `theme` (Midnight/Crimson), `defaultBackupLimit` (positive integer), `keepAllBackups`, `reduceMotion`. New installations default to Midnight and 20 unpinned backups. These are defaults/configuration; actual backup retention is implemented in its own ticket.

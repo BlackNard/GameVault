@@ -10,5 +10,10 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
     <Using Include="Xunit" />
     <ProjectReference Include="../../src/GameVault.App/GameVault.App.csproj" />
+    <ProjectReference Include="../Fixtures/GameProcessFixture/GameProcessFixture.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+  <Target Name="CopyProcessFixture" AfterTargets="Build">
+    <ItemGroup><FixtureFiles Include="../Fixtures/GameProcessFixture/bin/$(Configuration)/net10.0/*" /></ItemGroup>
+    <Copy SourceFiles="@(FixtureFiles)" DestinationFolder="$(OutDir)ProcessFixture" />
+  </Target>
 </Project>

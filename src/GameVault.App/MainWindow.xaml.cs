@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using GameVault.Core;
 using GameVault.Infrastructure.Library;
 using GameVault.Infrastructure.Storage;
+using GameVault.Infrastructure.Launching;
 
 namespace GameVault.App;
 
@@ -12,18 +13,25 @@ public partial class MainWindow : Window
 {
     private readonly AppDataStore store;
     private readonly LibraryService library;
+    private readonly LaunchService launches;
+    private readonly LaunchSettingsStore launchSettings;
     private AppSettings settings;
     private readonly bool settingsReadOnly;
     private bool initializing = true;
     private bool busy;
     private bool closeAfterSave;
     private bool editorOpen;
+    private bool stoppingObservation;
+    private bool observationStopped;
     private LibraryItemView[] items = [];
 
     public MainWindow(ApplicationPaths paths, AppDataStore store, AppDataSnapshot snapshot)
     {
         this.store = store;
         library = new(paths, store);
+        launches = new(paths, store, new WindowsGameProcessSystem());
+        launchSettings = new(paths, store);
+        launches.StateChanged += LaunchStateChanged;
         settings = snapshot.Settings.Value ?? AppSettings.Default;
         settingsReadOnly = snapshot.Settings.IsReadOnly;
         InitializeComponent();
@@ -55,6 +63,7 @@ public partial class MainWindow : Window
         var previous = select ?? (GameList.SelectedItem as LibraryItemView)?.Game.Id;
         var snapshot = await library.ListAsync();
         items = snapshot.Games.Select(g => new LibraryItemView(g)).ToArray();
+        foreach (var item in items) item.SetLaunchState(launches.GetState(item.Game.Id));
         StorageNotice.Text = string.Join("\n", snapshot.Warnings.Distinct());
         ApplyFilters(previous);
     }
@@ -95,8 +104,11 @@ public partial class MainWindow : Window
             DetailTime.Text = item.Played;
             DetailExecutable.Text = profile.ExecutablePath;
             DetailWorking.Text = profile.WorkingDirectory;
-            DetailSaves.Text = profile.SaveSources.Length == 0 ? "Save location needed. Add it through Edit game when you know where the game saves." : string.Join("\n", profile.SaveSources);
+            DetailSaves.Text = profile.SaveSources.Length == 0 ? "No save location selected. You can play now. Automatic discovery and backups arrive in later updates." : string.Join("\n", profile.SaveSources);
             ArchiveButton.Content = profile.IsArchived ? "Restore to library" : "Remove from library";
+            var launch = launches.GetState(profile.Id);
+            LaunchNotice.Text = launch.Message;
+            PlayButton.Content = launch.Phase switch { LaunchPhase.Starting => "Starting…", LaunchPhase.Running => "Running", _ => "Play" };
         }
         UpdateButtons();
     }
@@ -124,7 +136,61 @@ public partial class MainWindow : Window
     private void AddGame(object sender, RoutedEventArgs e) => OpenEditor(null);
     private void EditGame(object sender, RoutedEventArgs e)
     {
-        if (GameList.SelectedItem is LibraryItemView { Game.IsReadOnly: false } item) OpenEditor(item.Game.Profile);
+        if (GameList.SelectedItem is LibraryItemView { Game.IsReadOnly: false } item && !launches.GetState(item.Game.Id).IsActive) OpenEditor(item.Game.Profile);
+    }
+
+    private async void PlayGame(object sender, RoutedEventArgs e)
+    {
+        if (busy || editorOpen || stoppingObservation || GameList.SelectedItem is not LibraryItemView { Game.IsReadOnly: false, Game.Profile: { IsArchived: false } } item) return;
+        try
+        {
+            var run = launches.RunAsync(item.Game.Id);
+            ShowSelection();
+            await run;
+        }
+        catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = error.Message; }
+    }
+
+    private void LaunchStateChanged(object? sender, LaunchState state)
+    {
+        if (Dispatcher.HasShutdownStarted) return;
+        _ = Dispatcher.InvokeAsync(() => ApplyLaunchState(state));
+    }
+
+    private async void ApplyLaunchState(LaunchState state)
+    {
+        if (stoppingObservation) return;
+        try
+        {
+            if (state.Phase == LaunchPhase.Running)
+            {
+                // A launch notification needs only a read; do not initialize storage during shutdown.
+                var game = await store.LoadProfileAsync(state.GameId);
+                if (stoppingObservation) return;
+                if (game.Profile.Value is GameProfile profile)
+                    items.FirstOrDefault(i => i.Game.Id == state.GameId)?.RefreshProfile(profile);
+                ApplyFilters((GameList.SelectedItem as LibraryItemView)?.Game.Id);
+            }
+            foreach (var item in items) item.SetLaunchState(launches.GetState(item.Game.Id));
+            ShowSelection();
+            var name = items.FirstOrDefault(i => i.Game.Id == state.GameId)?.Name ?? "Game";
+            OperationNotice.Text = $"{name}: {launches.GetState(state.GameId).Message}";
+        }
+        catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = "The game state changed, but the library could not refresh. " + error.Message; }
+    }
+
+    private async void ConfigureLaunch(object sender, RoutedEventArgs e)
+    {
+        if (busy || editorOpen || GameList.SelectedItem is not LibraryItemView { Game.IsReadOnly: false, Game.Profile: not null } item || launches.GetState(item.Game.Id).IsActive) return;
+        busy = editorOpen = true; UpdateButtons();
+        try
+        {
+            var configuration = await launchSettings.LoadAsync(item.Game.Id);
+            var dialog = new LaunchSettingsWindow(settings.Theme, item.Game.Profile, launchSettings, configuration) { Owner = this };
+            if (dialog.ShowDialog() == true) OperationNotice.Text = "Launch settings saved.";
+        }
+        catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = error.Message; }
+        finally { editorOpen = false; EndOperation(); }
     }
 
     private async void OpenEditor(GameProfile? profile)
@@ -165,7 +231,7 @@ public partial class MainWindow : Window
 
     private async void ArchiveGame(object sender, RoutedEventArgs e)
     {
-        if (busy || GameList.SelectedItem is not LibraryItemView { Game.IsReadOnly: false, Game.Profile: not null } item) return;
+        if (busy || GameList.SelectedItem is not LibraryItemView { Game.IsReadOnly: false, Game.Profile: not null } item || launches.GetState(item.Game.Id).IsActive) return;
         var profile = item.Game.Profile;
         var remove = !profile.IsArchived;
         if (remove && MessageBox.Show(this, $"Remove {profile.Name} from your library?\n\nIts profile, statistics, and any existing backups will be kept. You can restore it from Removed profiles. The installed game is untouched.",
@@ -205,18 +271,37 @@ public partial class MainWindow : Window
     {
         AddButton.IsEnabled = !busy && !editorOpen && !settingsReadOnly;
         ThemeChoice.IsEnabled = !busy && !editorOpen && !settingsReadOnly;
-        var editable = !busy && !editorOpen && GameList.SelectedItem is LibraryItemView { Game.IsReadOnly: false, Game.Profile: not null };
-        EditButton.IsEnabled = ArchiveButton.IsEnabled = editable;
+        var selected = GameList.SelectedItem as LibraryItemView;
+        var active = selected is not null && launches.GetState(selected.Game.Id).IsActive;
+        var editable = !busy && !editorOpen && !stoppingObservation && !active && selected is { Game.IsReadOnly: false, Game.Profile: not null };
+        EditButton.IsEnabled = ArchiveButton.IsEnabled = LaunchSettingsButton.IsEnabled = editable;
+        PlayButton.IsEnabled = editable && selected is { Game.ExecutableMissing: false, Game.Profile.IsArchived: false };
     }
 
     private void EndOperation() { busy = false; UpdateButtons(); if (closeAfterSave) Close(); }
     private static bool IsExpected(Exception error) => error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or OverflowException;
 
-    private void BeforeClosing(object? sender, CancelEventArgs e)
+    private async void BeforeClosing(object? sender, CancelEventArgs e)
     {
-        if (!busy && !editorOpen) return;
+        if (observationStopped) return;
         e.Cancel = true;
-        closeAfterSave = true;
-        OperationNotice.Text = editorOpen ? "Finish or cancel the game editor before closing." : "Finishing the current operation before closing…";
+        if (stoppingObservation) return;
+        if (busy || editorOpen)
+        {
+            closeAfterSave = true;
+            OperationNotice.Text = editorOpen ? "Finish or cancel the editor before closing." : "Finishing the current operation before closing…";
+            return;
+        }
+        stoppingObservation = true;
+        busy = true; UpdateButtons();
+        OperationNotice.Text = "Leaving any running games open and stopping observation…";
+        try { await launches.DisposeAsync(); }
+        catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = error.Message; }
+        finally
+        {
+            launches.StateChanged -= LaunchStateChanged;
+            observationStopped = true;
+            _ = Dispatcher.BeginInvoke(new Action(Close));
+        }
     }
 }

@@ -88,6 +88,23 @@ public sealed class AppDataStore
 
     public Task<StoredGame> LoadProfileAsync(Guid id) => Run(() => LoadProfile(id));
 
+    public Task<StoredDocument<LaunchSettings>> LoadLaunchSettingsAsync(Guid id) => Run(() =>
+        documents.Read<LaunchSettings>(Path.Combine(Folder(id), "launch.json"), value => ValidLaunchSettings(value, id)));
+
+    public Task SaveLaunchSettingsAsync(LaunchSettings settings) => Run(() =>
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        var game = LoadProfile(settings.GameId);
+        if (game.Profile.State != DocumentState.Ready || game.Profile.Value!.IsArchived)
+            throw new IOException("A writable game in your library is required before changing launch settings.");
+        documents.Write(Path.Combine(Folder(settings.GameId), "launch.json"), settings,
+            value => ValidLaunchSettings(value, settings.GameId));
+    });
+
+    private static bool ValidLaunchSettings(LaunchSettings value, Guid id) => value.SchemaVersion == 1 && value.GameId == id &&
+        (value.TargetExecutablePath is null || (Path.IsPathFullyQualified(value.TargetExecutablePath) &&
+            string.Equals(Path.GetExtension(value.TargetExecutablePath), ".exe", StringComparison.OrdinalIgnoreCase)));
+
     public Task SaveStatisticsAsync(GameStatistics statistics) => Run(() =>
     {
         ArgumentNullException.ThrowIfNull(statistics);

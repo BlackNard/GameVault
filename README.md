@@ -4,7 +4,9 @@ A Windows desktop game launcher for manually added games, tracking playing time,
 
 ## Project status
 
-The Windows app now supports adding and editing local games with native executable/folder browsing, copied cover artwork, status/search filters, and reversible library removal. Versioned settings and game-profile/statistics storage include safe previous-version copies, startup diagnostics, and a remembered Midnight/Crimson theme. Playtime tracking, save backup/restore, and the installer remain in development. The repository remains private. Issue #5's actual interface is awaiting the owner's manual review; see the [library test checklist](docs/design/library-manual-tests.md).
+The Windows app supports adding/editing local games, copied cover artwork, status/search filters, reversible removal, and launching with duplicate prevention and actual-process exit detection. Launch settings support games that start through a separate local launcher. Versioned settings and game-profile/statistics storage include safe previous-version copies, startup diagnostics, and a remembered Midnight/Crimson theme. Playtime recording, automatic save discovery/backup/restore, and the installer remain in development. The repository remains private. Issue #6 awaits the owner's real-game/UI checks; see the [launch test checklist](docs/design/launch-manual-tests.md).
+
+Play automatically requests Windows administrator approval when a game requires elevation. GameVault's main window stays at normal permissions; a one-shot helper starts the game and transfers observation handles. Cancelling approval leaves the game unstarted and allows retry.
 
 See [development instructions](docs/development.md), [foundation verification](docs/verification/foundation.md), and the [issue roadmap](https://github.com/Zaid-Alhmouz/GameVault/issues/1).
 
@@ -37,6 +39,7 @@ GameVault/
     <stable-game-id>/
       profile.json
       statistics.json
+      launch.json (optional actual-process target)
       cover.png
       Backups/
         <dated-backup>/
