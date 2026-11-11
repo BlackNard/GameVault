@@ -10,8 +10,22 @@ namespace GameVault.Infrastructure.Launching;
 [SupportedOSPlatform("windows")]
 public sealed class WindowsGameProcessSystem : IGameProcessSystem
 {
+    private readonly Func<string, string, IGameProcess> startNative;
+    private readonly Func<string, string, IGameProcess> startElevated;
+
+    public WindowsGameProcessSystem() : this(WindowsProcessGroup.Start, ElevationBroker.Launch) { }
+    internal WindowsGameProcessSystem(Func<string, string, IGameProcess> startNative, Func<string, string, IGameProcess> startElevated)
+    { this.startNative = startNative; this.startElevated = startElevated; }
     public IGameProcess Start(string executable, string workingDirectory)
-        => WindowsProcessGroup.Start(executable, workingDirectory);
+    {
+        try { return startNative(executable, workingDirectory); }
+        catch (Win32Exception error) when (error.NativeErrorCode == 740)
+        {
+            try { return startElevated(executable, workingDirectory); }
+            catch (Win32Exception cancelled) when (cancelled.NativeErrorCode == 1223)
+            { throw new Win32Exception(1223, "Administrator approval was cancelled. The game was not started. Click Play to try again."); }
+        }
+    }
 
     public ProcessCandidate[] Find(string executable)
     {
@@ -59,35 +73,7 @@ public sealed class WindowsGameProcessSystem : IGameProcessSystem
     }
 
     public IGameProcess? Open(ProcessIdentity identity)
-    {
-        Process? process = null;
-        try
-        {
-            process = Process.GetProcessById(identity.Id);
-            var result = new ObservedProcess(process);
-            if (result.Identity == identity && !result.HasExited) return result;
-            result.Dispose(); return null;
-        }
-        catch (Exception error) when (error is ArgumentException or InvalidOperationException)
-        { process?.Dispose(); return null; }
-        catch { process?.Dispose(); throw; }
-    }
-
-    private sealed class ObservedProcess : IGameProcess
-    {
-        private readonly Process process;
-        public ObservedProcess(Process process)
-        {
-            this.process = process;
-            // Retain a process handle, not merely its PID, throughout observation.
-            _ = process.SafeHandle;
-            Identity = new(process.Id, process.StartTime.ToUniversalTime().Ticks);
-        }
-        public ProcessIdentity Identity { get; }
-        public bool HasExited => process.HasExited;
-        public Task WaitForExitAsync(CancellationToken cancellationToken) => process.WaitForExitAsync(cancellationToken);
-        public void Dispose() => process.Dispose();
-    }
+        => WindowsObservedProcess.Open(identity);
 
     private static class Native
     {

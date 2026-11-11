@@ -12,14 +12,13 @@ namespace GameVault.Infrastructure.Launching;
 [SupportedOSPlatform("windows")]
 internal sealed class WindowsProcessGroup : IGameProcess
 {
-    private readonly Process process;
+    private readonly WindowsObservedProcess process;
     private readonly SafeFileHandle job;
 
-    private WindowsProcessGroup(Process process, SafeFileHandle job)
+    private WindowsProcessGroup(WindowsObservedProcess process, SafeFileHandle job)
     {
         this.process = process; this.job = job;
-        _ = process.SafeHandle;
-        Identity = new(process.Id, process.StartTime.ToUniversalTime().Ticks);
+        Identity = process.Identity;
     }
 
     public ProcessIdentity Identity { get; }
@@ -31,9 +30,9 @@ internal sealed class WindowsProcessGroup : IGameProcess
         if (candidate.Identity.CreatedUtcTicks < Identity.CreatedUtcTicks) return false;
         try
         {
-            using var child = Process.GetProcessById(candidate.Identity.Id);
-            if (child.StartTime.ToUniversalTime().Ticks != candidate.Identity.CreatedUtcTicks || child.HasExited) return false;
-            if (!Native.IsProcessInJob(child.SafeHandle, job, out var belongs))
+            using var child = WindowsObservedProcess.Open(candidate.Identity);
+            if (child is null) return false;
+            if (!Native.IsProcessInJob(child.Handle, job, out var belongs))
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not verify the game's process group.");
             return belongs;
         }
@@ -43,8 +42,8 @@ internal sealed class WindowsProcessGroup : IGameProcess
     public static IGameProcess Start(string executable, string workingDirectory)
     {
         var job = Native.CreateJobObject(IntPtr.Zero, null);
-        if (job.IsInvalid) { job.Dispose(); throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not prepare game observation."); }
-        Process? process = null;
+        if (job.IsInvalid) { var error = Marshal.GetLastWin32Error(); job.Dispose(); throw NativeLaunchErrors.Create(error, "Windows could not prepare game observation."); }
+        SafeProcessHandle? nativeProcess = null;
         var transferred = false;
         try
         {
@@ -52,16 +51,14 @@ internal sealed class WindowsProcessGroup : IGameProcess
             // Assign before user code runs, preventing fast launcher/helper chains from escaping observation.
             if (!Native.CreateProcess(executable, new StringBuilder('"' + executable + '"'), IntPtr.Zero, IntPtr.Zero,
                 false, 0x00000004, IntPtr.Zero, workingDirectory, ref startup, out var info))
-                throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not launch the game. Check its executable and permissions.");
-            using var nativeProcess = new SafeProcessHandle(info.Process, ownsHandle: true);
+                throw NativeLaunchErrors.Create(Marshal.GetLastWin32Error(), "Windows could not launch the game.");
+            nativeProcess = new SafeProcessHandle(info.Process, ownsHandle: true);
             using var thread = new SafeWaitHandle(info.Thread, ownsHandle: true);
             try
             {
-                process = Process.GetProcessById((int)info.ProcessId);
-                _ = process.SafeHandle;
                 if (!Native.AssignProcessToJobObject(job, nativeProcess))
-                    throw new Win32Exception(Marshal.GetLastWin32Error(), "The program started, but Windows could not attach game observation. It will be left open.");
-                var result = new WindowsProcessGroup(process, job);
+                    throw NativeLaunchErrors.Create(Marshal.GetLastWin32Error(), "The program started, but Windows could not attach observation. It will be left open.");
+                var result = new WindowsProcessGroup(new WindowsObservedProcess(nativeProcess), job);
                 transferred = true;
                 return result;
             }
@@ -71,17 +68,43 @@ internal sealed class WindowsProcessGroup : IGameProcess
                 if (Native.ResumeThread(thread) == uint.MaxValue)
                 {
                     transferred = false;
-                    throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not resume the newly created program.");
+                    throw NativeLaunchErrors.Create(Marshal.GetLastWin32Error(), "Windows could not resume the newly created program.");
                 }
             }
         }
         finally
         {
-            if (!transferred) { process?.Dispose(); job.Dispose(); }
+            if (!transferred) { nativeProcess?.Dispose(); job.Dispose(); }
         }
     }
 
     public void Dispose() { process.Dispose(); job.Dispose(); }
+
+    internal BrokerHandles DuplicateForParent(SafeProcessHandle parent)
+    {
+        if (!Native.DuplicateHandle(new IntPtr(-1), process.Handle, parent, out var processCopy, 0x00101000, false, 0))
+            throw NativeLaunchErrors.Create(Marshal.GetLastWin32Error(), "Windows could not transfer game observation.");
+        if (!Native.DuplicateHandle(new IntPtr(-1), job, parent, out var jobCopy, 4, false, 0))
+        {
+            var error = Marshal.GetLastWin32Error();
+            ElevationBroker.Reclaim(parent, processCopy.ToInt64());
+            throw NativeLaunchErrors.Create(error, "Windows could not transfer process-group observation.");
+        }
+        return new(processCopy.ToInt64(), jobCopy.ToInt64(), Identity);
+    }
+
+    internal static IGameProcess FromTransferred(BrokerHandles handles)
+    {
+        var process = new SafeProcessHandle(new IntPtr(handles.ProcessHandle), true);
+        var job = new SafeFileHandle(new IntPtr(handles.JobHandle), true);
+        try
+        {
+            var result = new WindowsProcessGroup(new WindowsObservedProcess(process), job);
+            if (result.Identity != handles.Identity) throw new IOException("The transferred game process identity did not match.");
+            return result;
+        }
+        catch { process.Dispose(); job.Dispose(); throw; }
+    }
 
     private static class Native
     {
@@ -109,5 +132,8 @@ internal sealed class WindowsProcessGroup : IGameProcess
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)] public static extern bool IsProcessInJob(SafeProcessHandle process, SafeFileHandle job, [MarshalAs(UnmanagedType.Bool)] out bool belongs);
         [DllImport("kernel32.dll", SetLastError = true)] public static extern uint ResumeThread(SafeWaitHandle thread);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)] public static extern bool DuplicateHandle(IntPtr sourceProcess, SafeHandle source, SafeProcessHandle destination,
+            out IntPtr copy, uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, uint options);
     }
 }

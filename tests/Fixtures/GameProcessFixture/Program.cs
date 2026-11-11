@@ -1,4 +1,12 @@
 using System.Diagnostics;
+using GameVault.Infrastructure.Launching;
+
+if (args.Length == 3 && args[0] == "--test-launch-helper")
+{
+    if (OperatingSystem.IsWindows() && int.TryParse(args[2], out var parent))
+        Environment.ExitCode = await ElevationBroker.RunHelperAsync(args[1], parent);
+    return;
+}
 
 // Windowless, bounded, test-owned fixture. Never reads real game data.
 var directory = Environment.CurrentDirectory;

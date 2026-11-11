@@ -3,6 +3,8 @@ using System.Windows;
 using GameVault.Core;
 using GameVault.Infrastructure;
 using GameVault.Infrastructure.Storage;
+using GameVault.Infrastructure.Launching;
+using System.Security.Principal;
 
 namespace GameVault.App;
 
@@ -13,6 +15,17 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length > 0 && e.Args[0] == "--launch-helper")
+        {
+            // Helper mode never opens the UI, application workspace, settings, or game profiles.
+            using var identity = WindowsIdentity.GetCurrent();
+            var permitted = new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+            var result = 1;
+            if (permitted && e.Args.Length == 3 && int.TryParse(e.Args[2], out var parentId))
+                result = await ElevationBroker.RunHelperAsync(e.Args[1], parentId);
+            Shutdown(result);
+            return;
+        }
         var paths = ApplicationPaths.FromRoot(AppContext.BaseDirectory);
         try
         {
