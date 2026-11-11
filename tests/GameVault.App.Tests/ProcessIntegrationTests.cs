@@ -4,6 +4,7 @@ using GameVault.Core;
 using GameVault.Infrastructure.Library;
 using GameVault.Infrastructure.Launching;
 using GameVault.Infrastructure.Storage;
+using GameVault.Infrastructure.Playtime;
 
 namespace GameVault.App.Tests;
 
@@ -181,6 +182,42 @@ public sealed class ProcessIntegrationTests : IAsyncLifetime
         {
             if (actual is not null) { await actual.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); actual.Dispose(); }
         }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RunningGameRecoversAfterObserverClosesWithoutAddingDowntime(bool useHelper)
+    {
+        await service.DisposeAsync();
+        var clock = new RecoveryClock();
+        var system = useHelper ? BrokerTestSystem(CopyFixture("Recovery transfer helper")) : processes;
+        service = new(paths, store, system, clock: clock);
+        var run = service.RunAsync(profile.Id);
+        await WaitUntil(() => service.GetState(profile.Id).Phase == LaunchPhase.Running);
+        clock.Advance(12); await service.SaveCheckpointAsync(profile.Id);
+        await service.DisposeAsync(); await run;
+        Assert.Single(processes.Find(starter));
+        clock.Advance(300);
+        service = new(paths, store, processes, clock: clock);
+        var notices = await service.RecoverAsync();
+        Assert.NotEmpty(notices);
+        await WaitUntil(() => service.GetState(profile.Id).Phase == LaunchPhase.Running);
+        Assert.Equal(12, service.GetSessionProgress(profile.Id)!.SessionSeconds);
+        clock.Advance(3);
+        await File.WriteAllTextAsync(Path.Combine(working, "exit.txt"), "exit");
+        await WaitUntil(() => service.GetState(profile.Id).Phase == LaunchPhase.Stopped);
+        var session = Assert.Single((await store.LoadProfileAsync(profile.Id)).Statistics.Value!.Sessions);
+        Assert.Equal(15, session.DurationSeconds);
+        Assert.NotNull(session.EndedAt);
+    }
+
+    private sealed class RecoveryClock : IPlaytimeClock
+    {
+        private long ticks;
+        public long AwakeTicks => Interlocked.Read(ref ticks);
+        public DateTimeOffset UtcNow => DateTimeOffset.Parse("2026-11-12T10:00:00Z").AddTicks(AwakeTicks);
+        public void Advance(int seconds) => Interlocked.Add(ref ticks, TimeSpan.FromSeconds(seconds).Ticks);
     }
 
     private static WindowsGameProcessSystem BrokerTestSystem(string helper) => new(

@@ -31,4 +31,11 @@ internal static class StorageValidation
     }
 
     private static bool Absolute(string path) => !string.IsNullOrWhiteSpace(path) && Path.IsPathFullyQualified(path);
+
+    public static bool Session(SessionJournal value, Guid gameId, Guid sessionId) => value.SchemaVersion == 1 &&
+        gameId != Guid.Empty && sessionId != Guid.Empty && value.GameId == gameId && value.SessionId == sessionId &&
+        value.ObservedAt >= value.StartedAt && value.DurationTicks >= 0 && Enum.IsDefined(value.State) &&
+        value.ProcessId > 0 && value.ProcessCreatedUtcTicks > 0 && Absolute(value.ExecutablePath) && value.RecoveryCount >= 0 &&
+        (value.ProcessGroupName is null || (value.ProcessGroupName.StartsWith("Local\\GameVault.Game.", StringComparison.Ordinal) &&
+            Guid.TryParseExact(value.ProcessGroupName["Local\\GameVault.Game.".Length..], "N", out _)));
 }

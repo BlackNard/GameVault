@@ -75,6 +75,17 @@ public sealed class WindowsGameProcessSystem : IGameProcessSystem
     public IGameProcess? Open(ProcessIdentity identity)
         => WindowsObservedProcess.Open(identity);
 
+    public IGameProcess? Recover(string executable, ProcessIdentity identity, string? groupName)
+    {
+        var candidates = Find(executable);
+        if (groupName is not null)
+        {
+            var group = WindowsProcessGroup.Recover(groupName, candidates);
+            if (group is not null) return group;
+        }
+        return candidates.Any(candidate => candidate.Identity == identity) ? Open(identity) : null;
+    }
+
     private static class Native
     {
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]

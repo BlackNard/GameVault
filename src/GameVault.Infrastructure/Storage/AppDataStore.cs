@@ -115,6 +115,50 @@ public sealed class AppDataStore
             s => StorageValidation.Statistics(s, statistics.GameId));
     });
 
+    public Task<StoredSession[]> LoadSessionJournalsAsync(Guid gameId) => Run(() =>
+    {
+        var folder = Path.Combine(Folder(gameId), "Sessions");
+        managed.Check(folder);
+        if (!Directory.Exists(folder)) return Array.Empty<StoredSession>();
+        var result = new List<StoredSession>();
+        var files = Directory.GetFiles(folder).Where(file => file.EndsWith(".json", StringComparison.OrdinalIgnoreCase) || file.EndsWith(".json.bak", StringComparison.OrdinalIgnoreCase))
+            .Select(file => file.EndsWith(".bak", StringComparison.OrdinalIgnoreCase) ? file[..^4] : file).Distinct(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in files)
+        {
+            if (!Guid.TryParseExact(Path.GetFileNameWithoutExtension(file), "N", out var id) || id == Guid.Empty)
+            { result.Add(new(Guid.Empty, new(null, DocumentState.Corrupt, "An unrecognized session journal was preserved."))); continue; }
+            result.Add(new(id, documents.Read<SessionJournal>(file, value => StorageValidation.Session(value, gameId, id))));
+        }
+        return result.ToArray();
+    });
+
+    public Task SaveSessionJournalAsync(SessionJournal journal) => Run(() =>
+    {
+        if (!StorageValidation.Session(journal, journal.GameId, journal.SessionId)) throw new ArgumentException("Invalid session checkpoint.");
+        var game = LoadProfile(journal.GameId);
+        if (game.Profile.State != DocumentState.Ready || game.Statistics.State != DocumentState.Ready)
+            throw new IOException("The game profile/statistics need attention before playtime can be saved. Existing data was preserved.");
+        var folder = Folder(journal.GameId);
+        var file = Path.Combine(folder, "Sessions", journal.SessionId.ToString("N") + ".json");
+        var previous = documents.Read<SessionJournal>(file, value => StorageValidation.Session(value, journal.GameId, journal.SessionId));
+        JsonDocuments.RequireWritable(previous);
+        if (previous.Value is SessionJournal old && (old.StartedAt != journal.StartedAt || old.DurationTicks > journal.DurationTicks ||
+            old.ObservedAt > journal.ObservedAt || old.RecoveryCount > journal.RecoveryCount || (old.State == SessionState.Completed && journal.State != SessionState.Completed)))
+            throw new IOException("This session checkpoint conflicts with newer saved data. Existing files were kept.");
+        var session = new PlaySession(journal.SessionId, journal.StartedAt,
+            journal.State == SessionState.Active ? null : journal.ObservedAt, journal.DurationTicks / TimeSpan.TicksPerSecond);
+        var statistics = game.Statistics.Value!;
+        var existing = statistics.Sessions.SingleOrDefault(s => s.Id == journal.SessionId);
+        if (existing is not null && (existing.StartedAt != session.StartedAt || existing.DurationSeconds > session.DurationSeconds))
+            throw new IOException("The session journal conflicts with recorded statistics. Neither was reset.");
+        var updated = statistics with { Sessions = existing is null ? [.. statistics.Sessions, session] : statistics.Sessions.Select(s => s.Id == session.Id ? session : s).ToArray() };
+        if (!StorageValidation.Statistics(updated, journal.GameId)) throw new IOException("The session could not be combined with the existing playtime totals.");
+        // The journal is authoritative. A crash before statistics commit is reconciled by session ID on startup.
+        if (previous.Value != journal) documents.Write(file, journal, value => StorageValidation.Session(value, journal.GameId, journal.SessionId));
+        if (existing != session)
+            documents.Write(Path.Combine(folder, "statistics.json"), updated, value => StorageValidation.Statistics(value, journal.GameId));
+    });
+
     private StoredGame LoadProfile(Guid id)
     {
         var folder = Folder(id);
