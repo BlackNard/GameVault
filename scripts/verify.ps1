@@ -20,8 +20,8 @@ Push-Location $root
 try {
     Invoke-Dotnet -Arguments @('restore', 'GameVault.slnx', '--locked-mode')
     Invoke-Dotnet -Arguments @('build', 'GameVault.slnx', '-c', 'Release', '--no-restore')
-    Invoke-Dotnet -Arguments @('test', 'tests/GameVault.Tests/GameVault.Tests.csproj',
-        '-c', 'Release', '--no-build', '--no-restore', '--logger', 'trx;LogFileName=foundation.trx',
+    Invoke-Dotnet -Arguments @('test', 'GameVault.slnx',
+        '-c', 'Release', '--no-build', '--no-restore', '--logger', 'trx',
         '--results-directory', (Join-Path $artifacts "test-results-$runId"))
     Invoke-Dotnet -Arguments @('publish', 'src/GameVault.App/GameVault.App.csproj',
         '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true', '--no-restore',

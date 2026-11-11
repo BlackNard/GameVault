@@ -1,10 +1,10 @@
 # GameVault
 
-A Windows desktop game library for launching manually added games, tracking playing time, and preserving local save backups.
+A Windows desktop game launcher for manually added games, tracking playing time, automatically discovering saves, and preserving dated local backups. The first versions have no store or cloud synchronization.
 
 ## Project status
 
-The Windows app now has versioned local settings and independent game-profile/statistics storage, safe previous-version copies, startup diagnostics, and a remembered Midnight/Crimson theme. Full game management, playtime tracking, save backup/restore, and the installer remain in development. The repository remains private.
+The Windows app now supports adding and editing local games with native executable/folder browsing, copied cover artwork, status/search filters, and reversible library removal. Versioned settings and game-profile/statistics storage include safe previous-version copies, startup diagnostics, and a remembered Midnight/Crimson theme. Playtime tracking, save backup/restore, and the installer remain in development. The repository remains private. Issue #5's actual interface is awaiting the owner's manual review; see the [library test checklist](docs/design/library-manual-tests.md).
 
 See [development instructions](docs/development.md), [foundation verification](docs/verification/foundation.md), and the [issue roadmap](https://github.com/Zaid-Alhmouz/GameVault/issues/1).
 
@@ -13,6 +13,7 @@ See [persistence and recovery behavior](docs/persistence.md) for the schema, wri
 ## First-version scope
 
 - Add games by selecting their executable and configuring their save files or folders.
+- Discover save locations automatically, including saves created during the first launch; keep manual selection as a fallback. See [first-launch save requirements](docs/save-discovery-requirements.md).
 - Launch games from GameVault and record sessions, total playing time, and last played.
 - Count menus, pauses, and time away while the game runs; exclude computer sleep time.
 - Support manual playtime corrections and daily, weekly, and monthly statistics.
@@ -36,12 +37,12 @@ GameVault/
     <stable-game-id>/
       profile.json
       statistics.json
-      cover.jpg
+      cover.png
       Backups/
         <dated-backup>/
 ```
 
-The approved foundation uses C#/WPF on .NET 10 with Data and Profiles beside the executable. Each game will use a stable profile identifier so renaming it preserves its records. The detailed storage schema is still to be implemented. Games keep their original save locations; GameVault stores independent backup copies.
+The approved foundation uses C#/WPF on .NET 10 with Data and Profiles beside the executable. Each game uses a stable profile identifier so renaming it preserves its records. See [persistence](docs/persistence.md) for the implemented storage schema. Games keep their original save locations; independent backup copies are planned for a later ticket.
 
 ## Installation and releases
 
@@ -56,7 +57,6 @@ Actual game saves, local profiles, play histories, credentials, game executables
 ## Decisions still open
 
 - Installer tooling (the approved app foundation uses C#/WPF on .NET 10, targeting supported Windows 11 x64).
-- Final interface design and storage schema.
 - Licensing and signing of release installers.
 
 No open-source license has been selected.
