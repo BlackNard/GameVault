@@ -28,7 +28,7 @@
                 <Label Content="_Save locations (optional, one full path per line)" Target="{Binding ElementName=SaveSources}" />
                 <TextBox x:Name="SaveSources" AcceptsReturn="True" MinHeight="76" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" AutomationProperties.Name="Save location paths" />
                 <WrapPanel Margin="0,8,0,0"><Button Content="Browse folder…" Click="BrowseSaveFolder" Margin="0,0,8,8" /><Button Content="Browse save file…" Click="BrowseSaveFile" Margin="0,0,0,8" /></WrapPanel>
-                <TextBlock Text="These locations are recorded for future backups. Automatic backup and game launching arrive in later updates." Foreground="{DynamicResource AppMuted}" TextWrapping="Wrap" Margin="0,0,0,12" />
+                <TextBlock Text="Optional overrides for future save discovery and backups. You can launch the game without selecting a save location. Automatic save handling arrives in later updates." Foreground="{DynamicResource AppMuted}" TextWrapping="Wrap" Margin="0,0,0,12" />
             </StackPanel>
         </ScrollViewer>
         <StackPanel Grid.Row="2" Margin="0,16,0,0">

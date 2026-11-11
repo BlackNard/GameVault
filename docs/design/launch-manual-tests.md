@@ -1,0 +1,23 @@
+# Issue #6 — owner launch checks
+
+Use the **GameVault-issue-6-launching** development package. The previous issue-5 executable has no Play action. Close older GameVault windows before testing. To reuse your library, copy the entire Data and Profiles folders from the old build folder into the new build folder while both apps are closed; do not overwrite another library you want to keep. These folders are intentionally excluded from distributed ZIPs.
+
+## What this build adds
+
+Play, Starting/Running/Stopped/Failed feedback, duplicate blocking, a separate actual-process target for launcher handoffs, and Not started → Playing after confirmed running. The game is never killed or closed by GameVault. Recorded playtime still remains unchanged: session persistence is issue #7. Automatic save discovery and dated backups are issues #9/#10, not this build.
+
+## Checks
+
+1. **Resident Evil 2 direct launch:** Select the entry; keep Launch settings at its default (track the executable selected in Edit game). Ensure the executable and working folder are correct. Saves may remain unconfigured. Click Play. It should start RE2, report Running, and disable another Play plus Edit/Remove/Launch settings for that game. It should not claim saves are backed up.
+2. **Actual exit:** Exit the game normally from the game. GameVault should report Game stopped and re-enable Play. If its prior status was Not started, it should now be Playing. A manual Completed/On hold status must remain unchanged.
+3. **Duplicate prevention:** While the game is running, a second launch from GameVault must be blocked. Close GameVault while the game remains open, reopen GameVault, and try Play; the existing exact executable should be detected and a second copy refused. This build does not recover/record the interrupted session yet.
+4. **Close behavior:** Close GameVault during a running game; the game must stay open. Close the game normally afterward. Repeat while a separate target is still Starting if available. Closing GameVault must not leave a suspended game, kill a game, or hold the app's workspace lock after shutdown finishes.
+5. **Launcher handoff (if applicable):** If a game's launch executable starts another executable, choose Launch settings, uncheck Track the executable selected in Edit game, and Browse to the actual game .exe. Save, reopen the dialog to verify persistence, and launch. GameVault must remain Starting until the actual process appears and must stay Running after the starter/helper exits. It stops when the configured actual game processes exit. If the target never appears, a clear timeout appears after 30 seconds and any still-running starter stays open.
+6. **Configuration and failures:** Cancel Browse without losing a typed target. A missing target gets a readable validation error. Invalid/missing install or working folder gets repair feedback and must not change Not started to Playing. A Windows launch error must leave the app usable. Read-only/future-schema launch settings must be preserved and block unsafe launch/configuration changes.
+7. **Appearance/navigation:** Check Midnight and Crimson, keyboard navigation/Escape, scaled/resized windows, library selection/search/status filters, and Settings navigation while a game runs. A Not started filter can hide a newly running game after its status correctly becomes Playing; change the filter to see it.
+
+## Compatibility boundary
+
+This ticket supports direct Win32 executable launch and descendant processes inside a private, unrestricted Windows process group. Launches requiring administrator elevation, spawning through an unrelated system service, or explicitly escaping observation may fail with a clear diagnostic rather than being silently treated as tracked. Store integrations and game-specific compatibility handling are later work. There is no automatic takeover of a game launched outside GameVault.
+
+Automated tests use only disposable windowless fixture programs. The assistant has not launched RE2, opened the app's windows, or tested the native dialogs manually. Report the failed step and visible message if a real-game check fails; issue #6 stays pending owner review.
