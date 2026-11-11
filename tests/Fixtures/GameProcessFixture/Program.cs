@@ -2,7 +2,10 @@ using System.Diagnostics;
 
 // Windowless, bounded, test-owned fixture. Never reads real game data.
 var directory = Environment.CurrentDirectory;
-await File.WriteAllTextAsync(Path.Combine(directory, "ready.txt"), Environment.ProcessId.ToString());
+var readyTemporary = Path.Combine(directory, "ready.tmp");
+await File.WriteAllTextAsync(readyTemporary, Environment.ProcessId.ToString());
+// Publish only after the writer has closed, so observing readiness guarantees a readable, complete PID.
+File.Move(readyTemporary, Path.Combine(directory, "ready.txt"), overwrite: true);
 var childFile = Path.Combine(directory, "child.txt");
 if (File.Exists(childFile))
 {

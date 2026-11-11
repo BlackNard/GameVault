@@ -50,3 +50,4 @@ Files: App/MainWindow.xaml(.cs), LaunchSettingsWindow.xaml(.cs), LibraryItemView
 - Added fast intermediate-helper regression and tolerated exited-process path-query races. Full suite now 75 passing tests. Final scripts/verify.ps1 also passed locked restore, Release build with zero warnings/errors, all tests, and self-contained win-x64 publish verification.
 - WPF launch-state updates read only the affected profile, avoiding storage initialization during close; service shutdown awaits pending app writes before the workspace lease is released.
 - No real game or desktop UI was launched. Owner review remains pending; no merge or release is authorized by passing automated tests alone.
+- Windows PR CI exposed a readiness-marker race in the test fixture: File.Exists could precede writer closure. The fixture now writes/closes ready.tmp and atomically publishes ready.txt. This changes test synchronization only; production launch code and the packaged app are unchanged.
