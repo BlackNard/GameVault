@@ -1,6 +1,6 @@
 # GameVault
 
-A Windows desktop game library for launching manually added games, tracking playing time, and preserving local save backups.
+A Windows desktop game launcher for manually added games, tracking playing time, automatically discovering saves, and preserving dated local backups. The first versions have no store or cloud synchronization.
 
 ## Project status
 
@@ -13,6 +13,7 @@ See [persistence and recovery behavior](docs/persistence.md) for the schema, wri
 ## First-version scope
 
 - Add games by selecting their executable and configuring their save files or folders.
+- Discover save locations automatically, including saves created during the first launch; keep manual selection as a fallback. See [first-launch save requirements](docs/save-discovery-requirements.md).
 - Launch games from GameVault and record sessions, total playing time, and last played.
 - Count menus, pauses, and time away while the game runs; exclude computer sleep time.
 - Support manual playtime corrections and daily, weekly, and monthly statistics.
