@@ -5,6 +5,7 @@
     <Project Path="src/GameVault.Infrastructure/GameVault.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/GameVault.App.Tests/GameVault.App.Tests.csproj" />
     <Project Path="tests/GameVault.Tests/GameVault.Tests.csproj" />
   </Folder>
 </Solution>

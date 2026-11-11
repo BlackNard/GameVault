@@ -36,3 +36,5 @@ artifacts/
 .superpowers/
 .gamevault.lock
 .gamevault-probe-*
+/work/
+/outputs/
