@@ -29,6 +29,8 @@ internal sealed class LibraryItemView(LibraryGame game) : INotifyPropertyChanged
     public void SetLaunchState(LaunchState state)
     { launch = state; PropertyChanged?.Invoke(this, new(nameof(Availability))); }
 
+    public void SetStoredProgress(SessionProgress? progress) => SetSessionProgress(progress is { IsActive: false } && Game.PlayedSeconds is long seconds ? progress with { TotalSeconds = seconds } : progress);
+
     public void SetSessionProgress(SessionProgress? progress)
     {
         session = progress;

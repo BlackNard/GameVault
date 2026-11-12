@@ -111,11 +111,14 @@ public sealed partial class AppDataStore
         if (!StorageValidation.Statistics(statistics, statistics.GameId)) throw new ArgumentException("Invalid game statistics.", nameof(statistics));
         var game = LoadProfile(statistics.GameId);
         if (game.Profile.State != DocumentState.Ready) throw new IOException("A valid game profile is required before saving statistics.");
+        RequireCorrectionProjection(statistics,game);
         documents.Write(Path.Combine(Folder(statistics.GameId), "statistics.json"), statistics,
             s => StorageValidation.Statistics(s, statistics.GameId));
     });
 
-    public Task<StoredSession[]> LoadSessionJournalsAsync(Guid gameId) => Run(() =>
+    public Task<StoredSession[]> LoadSessionJournalsAsync(Guid gameId) => Run(() => LoadSessions(gameId));
+
+    private StoredSession[] LoadSessions(Guid gameId)
     {
         var folder = Path.Combine(Folder(gameId), "Sessions");
         managed.Check(folder);
@@ -130,7 +133,7 @@ public sealed partial class AppDataStore
             result.Add(new(id, documents.Read<SessionJournal>(file, value => StorageValidation.Session(value, gameId, id))));
         }
         return result.ToArray();
-    });
+    }
 
     public Task SaveSessionJournalAsync(SessionJournal journal) => Run(() =>
     {
@@ -153,6 +156,7 @@ public sealed partial class AppDataStore
             throw new IOException("The session journal conflicts with recorded statistics. Neither was reset.");
         var updated = statistics with { Sessions = existing is null ? [.. statistics.Sessions, session] : statistics.Sessions.Select(s => s.Id == session.Id ? session : s).ToArray() };
         if (!StorageValidation.Statistics(updated, journal.GameId)) throw new IOException("The session could not be combined with the existing playtime totals.");
+        RequireCorrectionProjection(updated,game);
         // The journal is authoritative. A crash before statistics commit is reconciled by session ID on startup.
         if (previous.Value != journal) documents.Write(file, journal, value => StorageValidation.Session(value, journal.GameId, journal.SessionId));
         if (existing != session)
@@ -162,11 +166,10 @@ public sealed partial class AppDataStore
     private StoredGame LoadProfile(Guid id)
     {
         var folder = Folder(id);
-        return new(id,
-            documents.Read<GameProfile>(Path.Combine(folder, "profile.json"), p => StorageValidation.Profile(p, id)),
-            documents.Read<GameStatistics>(Path.Combine(folder, "statistics.json"), s => StorageValidation.Statistics(s, id)));
+        var profile=documents.Read<GameProfile>(Path.Combine(folder,"profile.json"),p=>StorageValidation.Profile(p,id));
+        var statistics=documents.Read<GameStatistics>(Path.Combine(folder,"statistics.json"),s=>StorageValidation.Statistics(s,id));
+        return new(id,profile,ReconcileCorrections(id,profile,statistics));
     }
-
     private string Folder(Guid id)
     {
         if (id == Guid.Empty) throw new ArgumentException("A non-empty game identifier is required.", nameof(id));

@@ -70,7 +70,7 @@ public partial class MainWindow : Window
         var snapshot = await library.ListAsync();
         items = snapshot.Games.Select(g => new LibraryItemView(g)).ToArray();
         foreach (var item in items)
-        { item.SetLaunchState(launches.GetState(item.Game.Id)); item.SetSessionProgress(launches.GetSessionProgress(item.Game.Id)); }
+        { item.SetLaunchState(launches.GetState(item.Game.Id)); item.SetStoredProgress(launches.GetSessionProgress(item.Game.Id)); }
         StorageNotice.Text = string.Join("\n", snapshot.Warnings.Concat(recoveryNotices).Distinct());
         ApplyFilters(previous);
     }
@@ -174,6 +174,7 @@ public partial class MainWindow : Window
             if (stoppingObservation) return;
             var item = items.FirstOrDefault(i => i.Game.Id == progress.GameId);
             item?.SetSessionProgress(progress);
+            notesView?.UpdateLiveProgress(progress);
             if (GameList.SelectedItem is LibraryItemView selected && selected.Game.Id == progress.GameId)
             {
                 DetailTime.Text = selected.Played;
@@ -197,8 +198,9 @@ public partial class MainWindow : Window
                     items.FirstOrDefault(i => i.Game.Id == state.GameId)?.RefreshProfile(profile);
                 ApplyFilters((GameList.SelectedItem as LibraryItemView)?.Game.Id);
             }
+            if (state.Phase == LaunchPhase.Stopped) await RefreshLibrary();
             foreach (var item in items)
-            { item.SetLaunchState(launches.GetState(item.Game.Id)); item.SetSessionProgress(launches.GetSessionProgress(item.Game.Id)); }
+            { item.SetLaunchState(launches.GetState(item.Game.Id)); item.SetStoredProgress(launches.GetSessionProgress(item.Game.Id)); }
             ShowSelection();
             var name = items.FirstOrDefault(i => i.Game.Id == state.GameId)?.Name ?? "Game";
             OperationNotice.Text = $"{name}: {launches.GetState(state.GameId).Message}";
@@ -294,15 +296,21 @@ public partial class MainWindow : Window
         finally { EndOperation(); }
     }
 
+    private async void NotesDataChanged(object? sender, EventArgs e)
+    {
+        try { await RefreshLibrary(); }
+        catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = "History was saved, but library refresh needs attention. " + error.Message; }
+    }
     private void OpenNotes(object sender, RoutedEventArgs e)
     {
         if (busy || editorOpen || stoppingObservation || notesView is not null || GameList.SelectedItem is not LibraryItemView item) return;
-        notesView = new NotesView(paths, store, item.Game.Id, settings.Theme);
+        notesView = new NotesView(paths, store, item.Game.Id, settings.Theme, () => launches.GetState(item.Game.Id).IsActive);
+        notesView.GameDataChanged += NotesDataChanged;
         notesView.BackRequested += BackFromNotes;
         NotesHost.Content = notesView;
         LibraryPanel.Visibility = SettingsPanel.Visibility = Visibility.Collapsed;
         NotesHost.Visibility = Visibility.Visible;
-        OperationNotice.Text = "Notes & review · " + item.Name;
+        OperationNotice.Text = "Sessions & notes · " + item.Name;
         UpdateButtons();
     }
     private async void BackFromNotes(object? sender, EventArgs e) { if (await LeaveNotes()) SetNavigation(true); }
@@ -315,6 +323,7 @@ public partial class MainWindow : Window
         try
         {
             if (!await notesView.CanLeaveAsync()) return false;
+            notesView.GameDataChanged -= NotesDataChanged;
             notesView.BackRequested -= BackFromNotes;
             NotesHost.Content = null; notesView = null; NotesHost.Visibility = Visibility.Collapsed;
             UpdateButtons(); return true;

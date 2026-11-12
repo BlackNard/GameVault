@@ -1,6 +1,6 @@
 # Issue #8: Session history and playtime statistics
 
-Status: proposed layout awaiting owner review. Branch: codex/issue-8-session-history, based on merged PR #30. Existing test library refreshed and verified; no app UI or real games launched.
+Status: owner approved the interactive layout. Branch: codex/issue-8-session-history, based on merged PR #30. Existing test library refreshed and verified; no app UI or real games launched.
 
 ## Goals and owner requirements
 
