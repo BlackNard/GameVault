@@ -12,6 +12,7 @@ namespace GameVault.App;
 public partial class MainWindow : Window
 {
     private readonly AppDataStore store;
+    private readonly ApplicationPaths paths;
     private readonly LibraryService library;
     private readonly LaunchService launches;
     private readonly LaunchSettingsStore launchSettings;
@@ -29,6 +30,7 @@ public partial class MainWindow : Window
     public MainWindow(ApplicationPaths paths, AppDataStore store, AppDataSnapshot snapshot)
     {
         this.store = store;
+        this.paths = paths;
         library = new(paths, store);
         launches = new(paths, store, new WindowsGameProcessSystem());
         launchSettings = new(paths, store);
@@ -290,8 +292,16 @@ public partial class MainWindow : Window
         finally { EndOperation(); }
     }
 
+    private void OpenNotes(object sender, RoutedEventArgs e)
+    {
+        if (busy || editorOpen || stoppingObservation || GameList.SelectedItem is not LibraryItemView item) return;
+        editorOpen = true; UpdateButtons();
+        try { new NotesWindow(paths, store, item.Game.Id, settings.Theme) { Owner = this }.ShowDialog(); }
+        finally { editorOpen = false; UpdateButtons(); if (closeAfterSave) Close(); }
+    }
     private void UpdateButtons()
     {
+        NotesButton.IsEnabled = !busy && !editorOpen && !stoppingObservation && GameList.SelectedItem is LibraryItemView;
         AddButton.IsEnabled = !busy && !editorOpen && !settingsReadOnly;
         ThemeChoice.IsEnabled = !busy && !editorOpen && !settingsReadOnly;
         var selected = GameList.SelectedItem as LibraryItemView;
