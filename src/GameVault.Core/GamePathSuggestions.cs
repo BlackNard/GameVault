@@ -10,6 +10,14 @@ public static class GamePathSuggestions
             ? Parent(selectedExecutable) : currentWorkingDirectory;
     }
 
+    public static string GameName(string currentName, string selectedExecutable)
+    {
+        if (!string.IsNullOrWhiteSpace(currentName)) return currentName;
+        var executable = selectedExecutable.Trim().Trim('"');
+        var folderName = Path.GetFileName(Parent(executable));
+        return !string.IsNullOrWhiteSpace(folderName) ? folderName : Path.GetFileNameWithoutExtension(executable);
+    }
+
     private static string Parent(string path)
     {
         try { return Path.GetDirectoryName(path.Trim().Trim('"')) ?? ""; }
