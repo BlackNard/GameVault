@@ -132,7 +132,7 @@ public partial class NotesWindow : Window
     {
         if (allowClose) return; e.Cancel = true;
         if (busy) return;
-        if (await LeaveDraft()) { allowClose = true; Close(); }
+        if (await LeaveDraft()) { allowClose = true; _ = Dispatcher.BeginInvoke(new Action(Close)); }
     }
     private static bool Expected(Exception e) => e is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or OverflowException;
     private sealed record SessionRow(SessionNote Row)

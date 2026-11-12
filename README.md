@@ -4,7 +4,7 @@ A Windows desktop game launcher for manually added games, tracking playing time,
 
 ## Project status
 
-The Windows app supports a local game library, native executable browsing, cover artwork, reversible removal, launching/exit detection, live playtime, and checkpoint-based interrupted-session recovery. Sleep/hibernate and unobserved downtime are excluded from recorded durations. Versioned local storage includes safe previous copies, diagnostics, and a remembered Midnight/Crimson theme. Detailed statistics/history, automatic save discovery/backup/restore, and the installer remain in development. The repository remains private. Issue #7 awaits owner checks; see the [playtime test checklist](docs/design/playtime-manual-tests.md).
+The Windows app supports a local game library, native executable browsing, cover artwork, reversible removal, launching/exit detection, live playtime, and checkpoint-based interrupted-session recovery. Sleep/hibernate and unobserved downtime are excluded from recorded durations. Versioned local storage includes safe previous copies, diagnostics, and a remembered Midnight/Crimson theme. Detailed statistics/history, automatic save discovery/backup/restore, and the installer remain in development. The repository remains private. Session notes and game reviews now support Read/Edit modes and offline Markdown/PDF exports; see the [notes test checklist](docs/design/notes-manual-tests.md).
 
 Play automatically requests Windows administrator approval when a game requires elevation. GameVault's main window stays at normal permissions; a one-shot helper starts the game and transfers observation handles. Cancelling approval leaves the game unstarted and allows retry.
 
@@ -41,6 +41,8 @@ GameVault/
       statistics.json
       launch.json (optional actual-process target)
       Sessions/<session-id>.json
+      Notes/Sessions/<session-id>.json
+      Notes/review.json
       cover.png
       Backups/
         <dated-backup>/

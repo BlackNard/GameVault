@@ -1,6 +1,6 @@
 # Issue #25: Session notes, reviews, and exports
 
-Status: proposed for owner layout approval. Branch: feature/issue-25-notes.
+Status: owner approved the interactive layout, including Read/Edit, on 2026-11-12. Branch: codex/issue-25-notes.
 
 ## Purpose and agreed scope
 
@@ -18,7 +18,7 @@ Game review: the same title/body/save editor. First creation is available when t
 
 The review is one entry per game; session notes are one entry per recorded session. Empty Title is allowed. New whitespace-only bodies are not saved or exported; clearing an existing body is blocked with an explanation so it does not silently delete a note. Explicit note deletion is outside this ticket.
 
-Save is explicit; Ctrl+S saves. Switching session/tab or closing with unsaved text offers Save / Discard / Cancel. A failed save preserves editor text and keeps the window open. Canceling export or a destination picker preserves all editor text. Exporting with unsaved changes first offers Save / Export saved version / Cancel, with Save required for a new unsaved entry. No implicit background save or silent loss.
+Save is explicit; Ctrl+S saves. Switching session/tab or closing with unsaved text offers Save / Discard / Cancel. A failed save preserves editor text and keeps the window open. Canceling export or a destination picker preserves all editor text. Exporting with unsaved changes first offers Save / Export saved version / Cancel, with Save required to export a new unsaved entry itself. Choosing the saved version may still export other saved game/library entries while preserving a new draft; selected-entry export stays unavailable for that draft. No implicit background save or silent loss.
 
 Small windows keep the session list bounded and scrollable, editor usable, and actions visible. Follow existing focus indicators, keyboard navigation, contrast/high-contrast support, and theme resources.
 
