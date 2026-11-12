@@ -24,21 +24,28 @@
 ## Task 1: Core history and allocation
 Files: Core/HistoryModels.cs, Core/SessionHistory.cs; tests/HistoryTests.cs.
 Interfaces: HistoryData(profile,statistics,journals,corrections,warnings); HistorySummary with per-session durations/end state, longest ID, totals, daily buckets/unallocated; SessionHistory.Build(data,zone); PeriodStart(date,group).
-- [ ] Write failing tests for midnight/DST/rounding, zero/missing intervals, corrections vs measured, ordering/ranking/active exclusion and legacy undated totals.
-- [ ] Run tests RED, implement date allocation (BigInteger cumulative floors) and derived summaries, run GREEN; commit.
+- [x] Write failing tests for midnight/DST/rounding, zero/missing intervals, corrections vs measured, ordering/ranking/active exclusion and legacy undated totals.
+- [x] Run tests RED, implement date allocation (BigInteger cumulative floors) and derived summaries, run GREEN; commit.
 
 ## Task 2: Correction persistence and recovery
 Files: Infrastructure/Storage/AppDataStore.History.cs; existing AppDataStore partial integration; tests/CorrectionTests.cs.
 Interfaces: LoadHistoryAsync(Guid), CorrectSessionAsync(game,session,expectedSeconds,newSeconds,reason); SetGameStatusAsync(game,status). TimeCorrection schema includes stable ID/sequence, measured baseline, previous/new adjusted durations, reason, created UTC.
-- [ ] Test RED persistence, stale rejection, immutable source files, linked note preservation, invalid/active/uncertain input, failed projection/restart idempotence, protected/removed sidecars and overflow.
-- [ ] Implement shared-gate append-only commit/reconcile; validate projections at all statistics writers, return protected diagnostics on failure; run full tests and commit.
+- [x] Test RED persistence, stale rejection, immutable source files, linked note preservation, invalid/active/uncertain input, failed projection/restart idempotence, protected/removed sidecars and overflow.
+- [x] Implement shared-gate append-only commit/reconcile; validate projections at all statistics writers, return protected diagnostics on failure; run full tests and commit.
 
 ## Task 3: Approved WPF history
 Files: NotesView.xaml(.cs), new partial NotesView.History.cs for activity/corrections/status; MainWindow integration and library refresh.
-- [ ] Replace session picker with sortable table above existing note editor; summary/longest navigation; activity table/history; inline correction form; status selector; retain reviews/exports and themes.
-- [ ] Keep all navigation draft guards, snapshot updates without overwriting editor text, block correction/status during game launch/run, and update library totals after changes. Test meaningful draft state helper behavior.
-- [ ] Full tests, focused code review/regression fixes; owner checklist and commit.
+- [x] Replace session picker with sortable table above existing note editor; summary/longest navigation; activity table/history; inline correction form; status selector; retain reviews/exports and themes.
+- [x] Keep all navigation draft guards, snapshot updates without overwriting editor text, block correction/status during game launch/run, and update library totals after changes. Test meaningful draft state helper behavior.
+- [x] Full tests, focused code review/regression fixes; owner checklist and commit.
 
 ## Task 4: Handoff
 - [ ] Run full locked verify/build/tests/publish and GitHub CI. Create draft PR; do not merge.
 - [ ] Verify clean ZIP then import latest private test snapshot only into new local build. Provide executable, PR and focused owner checklist; preserve older builds.
+## Execution evidence
+- History/allocation, correction persistence/projection and UI delivered. Meaningful regressions observed RED before implementation: five history cases, five correction transaction cases, input validation, stale inactive display totals, and an activity overflow boundary.
+- Current full suite: 136 passing (112 Core/Infrastructure,24 Windows/headless). No desktop/native-dialog/real-game tests performed.
+- Focused review found no important outstanding issue; Activity now retains editor identity so review exports cannot acquire another session's metadata. Friendly status labels and disabled correction explanation added.
+- Corrections deliberately require a confirmed Completed journal and no active tracked session for that game. Original timestamps, measured durations and notes are preserved. Date splits are proportional estimates; undated legacy amounts remain separate.
+
+- Final locked verification on 2026-11-13 local time: zero-warning Release build, all 136 tests passed, self-contained win-x64 publish verified (run 3db44f34461e480999d9a467193585bc). Owner UI checks remain pending. Clean package/import and remote CI are next.

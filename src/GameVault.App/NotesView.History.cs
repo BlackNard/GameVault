@@ -107,11 +107,11 @@ public partial class NotesView
     }
     private async void StatusChanged(object sender,SelectionChangedEventArgs e)
     {
-        if(changing||busy||catalog?.Profile.Value is not GameProfile profile||StatusChoice.SelectedItem is not GameStatus next||next==profile.Status)return;
-        if(isGameActive()){changing=true;StatusChoice.SelectedItem=profile.Status;changing=false;return;}
+        if(changing||busy||catalog?.Profile.Value is not GameProfile profile||StatusChoice.SelectedValue is not GameStatus next||next==profile.Status)return;
+        if(isGameActive()){changing=true;StatusChoice.SelectedValue=profile.Status;changing=false;return;}
         SetBusy(true);
         try{await store.SetGameStatusAsync(gameId,next);SetBusy(false);await Reload(true);GameDataChanged?.Invoke(this,EventArgs.Empty);}
-        catch(Exception error)when(Expected(error)){changing=true;StatusChoice.SelectedItem=profile.Status;changing=false;Warnings.Text="Could not change status. "+error.Message;}
+        catch(Exception error)when(Expected(error)){changing=true;StatusChoice.SelectedValue=profile.Status;changing=false;Warnings.Text="Could not change status. "+error.Message;}
         finally{SetBusy(false);}
     }
     public void UpdateLiveProgress(SessionProgress progress)

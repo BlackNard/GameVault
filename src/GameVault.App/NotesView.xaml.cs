@@ -24,7 +24,7 @@ public partial class NotesView : UserControl
     public NotesView(ApplicationPaths paths,AppDataStore store,Guid gameId,string theme,Func<bool>? isGameActive=null)
     {
         this.paths=paths;this.store=store;this.gameId=gameId;this.theme=theme;this.isGameActive=isGameActive??(()=>false);
-        InitializeComponent();StatusChoice.ItemsSource=Enum.GetValues<GameStatus>();
+        InitializeComponent();StatusChoice.SelectedValuePath="Tag";StatusChoice.ItemsSource=Enum.GetValues<GameStatus>().Select(s=>new ComboBoxItem{Tag=s,Content=LibraryItemView.StatusText(s)}).ToArray();
         Loaded+=async(_,_)=>await Reload();
         PreviewKeyDown+=async(_,e)=>{if(e.Key==Key.S&&Keyboard.Modifiers.HasFlag(ModifierKeys.Control)){e.Handled=true;if(!busy&&CanEdit)await Save();}};
     }
@@ -45,7 +45,7 @@ public partial class NotesView : UserControl
             history=await store.LoadHistoryAsync(gameId);summary=SessionHistory.Build(history,TimeZoneInfo.Local);
             catalog=await store.LoadNotesAsync(gameId);GameHeading.Text=catalog.Profile.Value?.Name??"Unavailable game profile";
             Warnings.Text=string.Join("\n",catalog.Warnings.Concat(summary.Warnings).Distinct());
-            var previous=selected?.Row.Id;changing=true;StatusChoice.SelectedItem=catalog.Profile.Value?.Status;
+            var previous=selected?.Row.Id;changing=true;StatusChoice.SelectedValue=catalog.Profile.Value?.Status;
             rows=catalog.Sessions.Select(s=>new SessionRow(s,summary.Sessions.SingleOrDefault(h=>h.Session.Id==s.Id))).ToArray();
             BindRows(previous);UpdateSummary();UpdateActivity();LoadEntry(preserveDraft);
         }
@@ -109,7 +109,7 @@ public partial class NotesView : UserControl
     }
     private async void ShowSessions(object sender,RoutedEventArgs e){if((review||activity)&&await LeaveDraft()){review=activity=false;LoadEntry();}}
     private async void ShowReview(object sender,RoutedEventArgs e){if((!review||activity)&&await LeaveDraft()){review=true;activity=false;LoadEntry();}}
-    private async void ShowActivity(object sender,RoutedEventArgs e){if(!activity&&await LeaveDraft()){LoadEntry();review=false;activity=true;Render();UpdateActivity();}}
+    private async void ShowActivity(object sender,RoutedEventArgs e){if(!activity&&await LeaveDraft()){LoadEntry();activity=true;Render();UpdateActivity();}}
     private async void RefreshSessions(object sender,RoutedEventArgs e){if(await LeaveDraft())await Reload();}
     private async void ExportNotes(object sender,RoutedEventArgs e)
     {
