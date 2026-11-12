@@ -58,7 +58,7 @@
                                     <TextBlock Text="Total playtime" Foreground="{DynamicResource AppMuted}" /><TextBlock x:Name="DetailTime" FontSize="18" Margin="0,4,0,8" />
                                     <TextBlock x:Name="SessionElapsed" Foreground="{DynamicResource AppAccent}" TextWrapping="Wrap" Margin="0,0,0,8" />
                                     <TextBlock x:Name="SessionWarning" Foreground="{DynamicResource AppWarning}" TextWrapping="Wrap" Margin="0,0,0,20" AutomationProperties.LiveSetting="Polite" />
-                                    <TextBlock Text="Executable" FontWeight="SemiBold" /><TextBox x:Name="DetailExecutable" IsReadOnly="True" TextWrapping="Wrap" Margin="0,6,0,16" />
+                                    <Button x:Name="NotesButton" Content="Notes &amp; review" Click="OpenNotes" Margin="0,0,0,20" /><TextBlock Text="Executable" FontWeight="SemiBold" /><TextBox x:Name="DetailExecutable" IsReadOnly="True" TextWrapping="Wrap" Margin="0,6,0,16" />
                                     <TextBlock Text="Working directory" FontWeight="SemiBold" /><TextBox x:Name="DetailWorking" IsReadOnly="True" TextWrapping="Wrap" Margin="0,6,0,16" />
                                     <TextBlock Text="Save locations" FontWeight="SemiBold" /><TextBlock x:Name="DetailSaves" TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,6,0,20" />
                                     <Button x:Name="EditButton" Content="Edit game" Click="EditGame" Margin="0,0,0,8" />
@@ -71,6 +71,7 @@
                     </Border>
                 </Grid>
             </Grid>
+            <ContentControl x:Name="NotesHost" Visibility="Collapsed" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
             <ScrollViewer x:Name="SettingsPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel MaxWidth="650" HorizontalAlignment="Left">
                     <TextBlock Text="Settings" FontSize="32" FontWeight="SemiBold" Margin="0,0,0,24" />

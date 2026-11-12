@@ -3,7 +3,7 @@ using GameVault.Core;
 
 namespace GameVault.Infrastructure.Storage;
 
-public sealed class AppDataStore
+public sealed partial class AppDataStore
 {
     private static readonly ConcurrentDictionary<string, object> Gates = new(StringComparer.OrdinalIgnoreCase);
     private readonly ApplicationPaths paths;

@@ -12,6 +12,7 @@ namespace GameVault.App;
 public partial class MainWindow : Window
 {
     private readonly AppDataStore store;
+    private readonly ApplicationPaths paths;
     private readonly LibraryService library;
     private readonly LaunchService launches;
     private readonly LaunchSettingsStore launchSettings;
@@ -23,12 +24,15 @@ public partial class MainWindow : Window
     private bool editorOpen;
     private bool stoppingObservation;
     private bool observationStopped;
+    private NotesView? notesView;
+    private bool notesNavigationPending;
     private LibraryItemView[] items = [];
     private string[] recoveryNotices = [];
 
     public MainWindow(ApplicationPaths paths, AppDataStore store, AppDataSnapshot snapshot)
     {
         this.store = store;
+        this.paths = paths;
         library = new(paths, store);
         launches = new(paths, store, new WindowsGameProcessSystem());
         launchSettings = new(paths, store);
@@ -128,8 +132,8 @@ public partial class MainWindow : Window
         if (e.NewValue is LibraryItemView item) await item.LoadCoverAsync();
     }
 
-    private void ShowLibrary(object sender, RoutedEventArgs e) => SetNavigation(true);
-    private void ShowSettings(object sender, RoutedEventArgs e) => SetNavigation(false);
+    private async void ShowLibrary(object sender, RoutedEventArgs e) { if (await LeaveNotes()) SetNavigation(true); }
+    private async void ShowSettings(object sender, RoutedEventArgs e) { if (await LeaveNotes()) SetNavigation(false); }
 
     private void SetNavigation(bool showLibrary)
     {
@@ -290,8 +294,36 @@ public partial class MainWindow : Window
         finally { EndOperation(); }
     }
 
+    private void OpenNotes(object sender, RoutedEventArgs e)
+    {
+        if (busy || editorOpen || stoppingObservation || notesView is not null || GameList.SelectedItem is not LibraryItemView item) return;
+        notesView = new NotesView(paths, store, item.Game.Id, settings.Theme);
+        notesView.BackRequested += BackFromNotes;
+        NotesHost.Content = notesView;
+        LibraryPanel.Visibility = SettingsPanel.Visibility = Visibility.Collapsed;
+        NotesHost.Visibility = Visibility.Visible;
+        OperationNotice.Text = "Notes & review · " + item.Name;
+        UpdateButtons();
+    }
+    private async void BackFromNotes(object? sender, EventArgs e) { if (await LeaveNotes()) SetNavigation(true); }
+    private async Task<bool> LeaveNotes()
+    {
+        if (notesView is null) return true;
+        if (notesNavigationPending) return false;
+        notesNavigationPending = true;
+        LibraryNav.IsEnabled = SettingsNav.IsEnabled = false;
+        try
+        {
+            if (!await notesView.CanLeaveAsync()) return false;
+            notesView.BackRequested -= BackFromNotes;
+            NotesHost.Content = null; notesView = null; NotesHost.Visibility = Visibility.Collapsed;
+            UpdateButtons(); return true;
+        }
+        finally { notesNavigationPending = false; LibraryNav.IsEnabled = SettingsNav.IsEnabled = true; }
+    }
     private void UpdateButtons()
     {
+        NotesButton.IsEnabled = !busy && !editorOpen && !stoppingObservation && GameList.SelectedItem is LibraryItemView;
         AddButton.IsEnabled = !busy && !editorOpen && !settingsReadOnly;
         ThemeChoice.IsEnabled = !busy && !editorOpen && !settingsReadOnly;
         var selected = GameList.SelectedItem as LibraryItemView;
@@ -309,6 +341,7 @@ public partial class MainWindow : Window
         if (observationStopped) return;
         e.Cancel = true;
         if (stoppingObservation) return;
+        if (!await LeaveNotes()) return;
         if (busy || editorOpen)
         {
             closeAfterSave = true;
