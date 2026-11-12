@@ -70,10 +70,12 @@ public sealed class LaunchTests : IAsyncLifetime
     public async Task ChildTargetRemainsRunningAfterStarterExits()
     {
         await new LaunchSettingsStore(paths, store).SaveAsync(new(1, profile.Id, target));
+        processes.OnStarted = () =>
+        {
+            processes.Starter.Exit();
+            processes.Candidates = [new(processes.Child.Identity, [processes.Starter.Identity.Id])];
+        };
         var running = service.RunAsync(profile.Id);
-        await WaitUntil(() => processes.Starts == 1);
-        processes.Starter.Exit();
-        processes.Candidates = [new(processes.Child.Identity, [processes.Starter.Identity.Id])];
         await WaitUntil(() => service.GetState(profile.Id).Phase == LaunchPhase.Running);
         Assert.Equal(processes.Child.Identity.Id, service.GetState(profile.Id).ProcessId);
         Assert.False(running.IsCompleted);
@@ -223,11 +225,12 @@ public sealed class LaunchTests : IAsyncLifetime
         public FakeProcess Child { get; } = new(41, 101);
         public ProcessCandidate[] Candidates = [];
         public int Starts;
+        public Action? OnStarted;
         public string? StartedExecutable;
         public string? StartedWorkingDirectory;
         public Exception? StartError;
         public IGameProcess Start(string executable, string workingDirectory)
-        { if (StartError is not null) throw StartError; StartedExecutable = executable; StartedWorkingDirectory = workingDirectory; Interlocked.Increment(ref Starts); return Starter; }
+        { if (StartError is not null) throw StartError; StartedExecutable = executable; StartedWorkingDirectory = workingDirectory; Interlocked.Increment(ref Starts); OnStarted?.Invoke(); return Starter; }
         public ProcessCandidate[] Find(string executable) => Candidates;
         public IGameProcess? Open(ProcessIdentity identity) => identity == Child.Identity ? Child : null;
     }

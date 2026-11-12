@@ -51,3 +51,5 @@ Files: NotesView.xaml(.cs), new partial NotesView.History.cs for activity/correc
 - Final locked verification on 2026-11-13 local time: zero-warning Release build, all 136 tests passed, self-contained win-x64 publish verified (run 3db44f34461e480999d9a467193585bc). Owner UI checks remain pending. Clean package/import and remote CI are next.
 
 - Minimum-height follow-up: scroll history content above a fixed Back footer, keeping editors reachable at the main window's minimum height. Full locked verification repeated after the XAML change: 136 tests, zero warnings/errors, publish cc3f4e9329ee4d9d824cd5d14e7285eb. Previous remote run 43306123879 passed; final-head CI follows.
+
+- Final CI exposed the pre-existing ChildTargetRemainsRunningAfterStarterExits fixture race again (43306834424): the test depended on resuming within a 200 ms simulated discovery timeout. Replaced polling handoff with a synchronous fake OnStarted callback, without changing production launcher code. Regression observed failing without signal invocation, then all 136 tests passed after invocation. Published r2 product code is unchanged by this test-only fix.
