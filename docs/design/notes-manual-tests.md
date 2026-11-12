@@ -2,14 +2,14 @@
 
 Use the new local development build seeded with the latest preserved profiles. The assistant does not launch the UI, game or native dialogs. Close older GameVault builds first so test edits have one authoritative home.
 
-1. Select Resident Evil 2, choose **Notes & review**, and find the recorded session by its date and 50m29s duration. Write a title and multiline note, including Unicode if wanted. Save: it should return to Read mode. Select/copy the readable text, then Edit it again.
-2. Preview an unsaved edit through Read; return to Edit and confirm the draft remains. Switch session/tab and close with unsaved text: check Save, Discard and Cancel. A save failure must keep the draft, show an error and keep the window open.
+1. Select Resident Evil 2, choose **Notes & review** (it stays inside the main GameVault window), and find the recorded session by its date and 50m29s duration. Write a title and multiline note, including Unicode if wanted. Save: it should return to Read mode. Select/copy the readable text, then Edit it again.
+2. Preview an unsaved edit through Read; return to Edit and confirm the draft remains. Switch session/tab, choose Back to library or Settings, and close the app with unsaved text: check Save, Discard and Cancel. A save failure must keep the draft, show an error and keep the window open.
 3. Restart GameVault and confirm saved text persists. Test Dead Space's existing session too. No recorded times should change.
 4. Through Edit game, mark a game Completed, then write its game review. Change status back to Playing and confirm the review remains editable. A game without a review and without Completed status should explain how to enable the first review.
 5. Export a selected session note and a review in both Markdown and PDF. Export this game and the entire library with both **combined** and **separate** packaging, in both formats. Choose a folder outside the app folder. Check titles, text, paragraphs, dates, duration and context. No executable/save-source paths should appear.
 6. Cancel the Save As and folder pickers; notes and drafts should remain. Repeat a separate export to the same folder: existing files must remain and new names must be used. Confirm combined-file overwrite requires the native prompt. Empty scopes must explain there are no saved notes.
 7. Remove/restore or rename a game; its notes and review should survive. Entire-library export includes removed profiles. If warnings occur, read them and confirm excluded entries are acknowledged rather than claimed as exported.
-8. Check Midnight and Crimson, resizing, scrolling long text, keyboard focus, Ctrl+S, and closing during a save/export. While a game runs, its active session must not accept notes; refresh after it exits. No automatic notes popup should steal game focus.
+8. Confirm creating/editing/reading notes never opens a separate window. Back to library returns to the game list. Check Midnight and Crimson, resizing, scrolling long text, keyboard focus, Ctrl+S, and closing during a save/export. While a game runs, its active session must not accept notes; refresh after it exits. No automatic notes popup should steal game focus.
 
 ## PDF export implementation boundary
 

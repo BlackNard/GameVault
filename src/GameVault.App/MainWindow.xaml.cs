@@ -24,6 +24,8 @@ public partial class MainWindow : Window
     private bool editorOpen;
     private bool stoppingObservation;
     private bool observationStopped;
+    private NotesView? notesView;
+    private bool notesNavigationPending;
     private LibraryItemView[] items = [];
     private string[] recoveryNotices = [];
 
@@ -130,8 +132,8 @@ public partial class MainWindow : Window
         if (e.NewValue is LibraryItemView item) await item.LoadCoverAsync();
     }
 
-    private void ShowLibrary(object sender, RoutedEventArgs e) => SetNavigation(true);
-    private void ShowSettings(object sender, RoutedEventArgs e) => SetNavigation(false);
+    private async void ShowLibrary(object sender, RoutedEventArgs e) { if (await LeaveNotes()) SetNavigation(true); }
+    private async void ShowSettings(object sender, RoutedEventArgs e) { if (await LeaveNotes()) SetNavigation(false); }
 
     private void SetNavigation(bool showLibrary)
     {
@@ -294,10 +296,30 @@ public partial class MainWindow : Window
 
     private void OpenNotes(object sender, RoutedEventArgs e)
     {
-        if (busy || editorOpen || stoppingObservation || GameList.SelectedItem is not LibraryItemView item) return;
-        editorOpen = true; UpdateButtons();
-        try { new NotesWindow(paths, store, item.Game.Id, settings.Theme) { Owner = this }.ShowDialog(); }
-        finally { editorOpen = false; UpdateButtons(); if (closeAfterSave) Close(); }
+        if (busy || editorOpen || stoppingObservation || notesView is not null || GameList.SelectedItem is not LibraryItemView item) return;
+        notesView = new NotesView(paths, store, item.Game.Id, settings.Theme);
+        notesView.BackRequested += BackFromNotes;
+        NotesHost.Content = notesView;
+        LibraryPanel.Visibility = SettingsPanel.Visibility = Visibility.Collapsed;
+        NotesHost.Visibility = Visibility.Visible;
+        OperationNotice.Text = "Notes & review · " + item.Name;
+        UpdateButtons();
+    }
+    private async void BackFromNotes(object? sender, EventArgs e) { if (await LeaveNotes()) SetNavigation(true); }
+    private async Task<bool> LeaveNotes()
+    {
+        if (notesView is null) return true;
+        if (notesNavigationPending) return false;
+        notesNavigationPending = true;
+        LibraryNav.IsEnabled = SettingsNav.IsEnabled = false;
+        try
+        {
+            if (!await notesView.CanLeaveAsync()) return false;
+            notesView.BackRequested -= BackFromNotes;
+            NotesHost.Content = null; notesView = null; NotesHost.Visibility = Visibility.Collapsed;
+            UpdateButtons(); return true;
+        }
+        finally { notesNavigationPending = false; LibraryNav.IsEnabled = SettingsNav.IsEnabled = true; }
     }
     private void UpdateButtons()
     {
@@ -319,6 +341,7 @@ public partial class MainWindow : Window
         if (observationStopped) return;
         e.Cancel = true;
         if (stoppingObservation) return;
+        if (!await LeaveNotes()) return;
         if (busy || editorOpen)
         {
             closeAfterSave = true;

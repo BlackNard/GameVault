@@ -10,7 +10,7 @@ Keep all work offline, within the existing Windows WPF app and portable profile 
 
 ## Proposed owner-facing layout
 
-Add **Notes & review** to the selected game's details, below playtime. It opens a resizable owned window using the current theme. The window has two tabs: **Session notes** and **Game review**, plus **Export...** and **Close** actions.
+Add **Notes & review** to the selected game's details, below playtime. It opens an embedded page inside the main GameVault window using the current theme. The page has two tabs: **Session notes** and **Game review**, plus **Export...** and **Back to library** actions. This supersedes the original popup following owner feedback. Library/Settings navigation and app closure must protect unsaved drafts; wait for pending note work before leaving.
 
 Session notes: a left-hand list shows recorded finished/interrupted sessions, newest first, with local start date/time, duration, and interruption/recovery indication. A note indicator distinguishes entries already written. The right-hand editor shows the selected session context, an optional Title field, a large multiline plain-text Note field, a visible Saved/Unsaved/Saving/error status, and Save. Select the most recent eligible session initially. The game title remains visible in the window heading. An active session is identified but cannot be edited until tracking ends; no history charts or time corrections are added here. Where legacy statistics lack recovery metadata, label that metadata unavailable rather than guessing a clean ending. Missing/corrupt statistics/journals must not turn ongoing sessions into editable finished sessions.
 

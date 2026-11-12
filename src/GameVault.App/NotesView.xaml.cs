@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -8,7 +7,7 @@ using GameVault.Infrastructure.Notes;
 using GameVault.Infrastructure.Storage;
 namespace GameVault.App;
 
-public partial class NotesWindow : Window
+public partial class NotesView : UserControl
 {
     private readonly AppDataStore store;
     private readonly ApplicationPaths paths;
@@ -17,19 +16,19 @@ public partial class NotesWindow : Window
     private GameNotes? catalog;
     private NoteEditorState editor = new(null);
     private SessionRow? selected;
-    private bool review, changing = true, busy, allowClose;
-    public NotesWindow(ApplicationPaths paths, AppDataStore store, Guid gameId, string theme)
+    private bool review, changing = true, busy, exportOpen;
+    private TaskCompletionSource? idle;
+    public event EventHandler? BackRequested;
+    public NotesView(ApplicationPaths paths, AppDataStore store, Guid gameId, string theme)
     {
         this.paths = paths; this.store = store; this.gameId = gameId; this.theme = theme;
-        InitializeComponent(); ThemePalette.Apply(this, theme);
-        MaxHeight = SystemParameters.WorkArea.Height; MaxWidth = SystemParameters.WorkArea.Width;
-        MinHeight = Math.Min(MinHeight, MaxHeight); MinWidth = Math.Min(MinWidth, MaxWidth);
-        Loaded += async (_, _) => await Reload(); Closing += BeforeClosing;
+        InitializeComponent();
+        Loaded += async (_, _) => await Reload();
         PreviewKeyDown += async (_, e) => { if (e.Key == Key.S && Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) { e.Handled = true; if (!busy && CanEdit) await Save(); } };
     }
     private bool CanEdit => catalog is not null && (review ? catalog.CanReview : selected?.Row.CanEdit == true);
     private StoredDocument<NoteDocument>? Document => review ? catalog?.Review : selected?.Row.Note;
-    private void SetBusy(bool value) { busy = value; Fields.IsEnabled = SessionsTab.IsEnabled = ReviewTab.IsEnabled = RefreshButton.IsEnabled = ExportButton.IsEnabled = CloseButton.IsEnabled = !value; }
+    private void SetBusy(bool value) { if (value && !busy) idle = new(TaskCreationOptions.RunContinuationsAsynchronously); if (!value) idle?.TrySetResult(); busy = value; Fields.IsEnabled = SessionsTab.IsEnabled = ReviewTab.IsEnabled = RefreshButton.IsEnabled = ExportButton.IsEnabled = BackButton.IsEnabled = !value; }
     private async Task Reload()
     {
         if (busy) return; SetBusy(true);
@@ -96,12 +95,14 @@ public partial class NotesWindow : Window
         catch (Exception e) when (Expected(e)) { editor.IsReadMode = false; SaveStatus.Text = "Could not save. " + e.Message; Render(); return false; }
         finally { SetBusy(false); }
     }
-    private async Task<bool> LeaveDraft()
+    private Task<bool> LeaveDraft()
     {
-        if (busy) return false;
-        if (!editor.IsDirty) return true;
-        var choice = MessageBox.Show(this, "Save changes before leaving this entry?\n\nYes: save changes.\nNo: discard changes.\nCancel: keep editing.", "Unsaved note", MessageBoxButton.YesNoCancel, MessageBoxImage.Question, MessageBoxResult.Cancel);
-        return choice == MessageBoxResult.No || (choice == MessageBoxResult.Yes && await Save());
+        if (busy) return Task.FromResult(false);
+        return editor.TryLeaveAsync(() =>
+        {
+            var choice = MessageBox.Show(Window.GetWindow(this), "Save changes before leaving this entry?\n\nYes: save changes.\nNo: discard changes.\nCancel: keep editing.", "Unsaved note", MessageBoxButton.YesNoCancel, MessageBoxImage.Question, MessageBoxResult.Cancel);
+            return choice switch { MessageBoxResult.No => NoteLeaveChoice.Discard, MessageBoxResult.Yes => NoteLeaveChoice.Save, _ => NoteLeaveChoice.Cancel };
+        }, Save);
     }
     private async void SessionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -119,20 +120,21 @@ public partial class NotesWindow : Window
         if (busy || catalog is null) return;
         if (editor.IsDirty)
         {
-            var answer = MessageBox.Show(this, "This entry has unsaved changes.\n\nYes: save before exporting.\nNo: export saved notes only (keep this draft).\nCancel: return to the note.", "Export notes", MessageBoxButton.YesNoCancel, MessageBoxImage.Question, MessageBoxResult.Cancel);
+            var answer = MessageBox.Show(Window.GetWindow(this), "This entry has unsaved changes.\n\nYes: save before exporting.\nNo: export saved notes only (keep this draft).\nCancel: return to the note.", "Export notes", MessageBoxButton.YesNoCancel, MessageBoxImage.Question, MessageBoxResult.Cancel);
             if (answer == MessageBoxResult.Cancel || (answer == MessageBoxResult.Yes && !await Save())) return;
         }
         NoteExportEntry? entry = editor.Saved is NoteDocument saved ? new(GameHeading.Text, saved, review ? null : selected?.Row.Session, review ? "Game review" : selected?.Context ?? "Session metadata unavailable") : null;
         var warning = Document?.IsReadOnly == true ? Document.Message ?? "Recovered/protected entry: exported read-only copy." : null;
-        var dialog = new NoteExportWindow(paths, store, gameId, theme, entry, warning) { Owner = this };
-        dialog.ShowDialog();
+        var dialog = new NoteExportWindow(paths, store, gameId, theme, entry, warning) { Owner = Window.GetWindow(this) };
+        exportOpen = true;
+        try { dialog.ShowDialog(); } finally { exportOpen = false; }
     }
-    private void CloseNotes(object sender, RoutedEventArgs e) => Close();
-    private async void BeforeClosing(object? sender, CancelEventArgs e)
+    private void BackToLibrary(object sender, RoutedEventArgs e) => BackRequested?.Invoke(this, EventArgs.Empty);
+    public async Task<bool> CanLeaveAsync()
     {
-        if (allowClose) return; e.Cancel = true;
-        if (busy) return;
-        if (await LeaveDraft()) { allowClose = true; _ = Dispatcher.BeginInvoke(new Action(Close)); }
+        while (busy && idle is not null) await idle.Task;
+        if (exportOpen) return false;
+        return await LeaveDraft();
     }
     private static bool Expected(Exception e) => e is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or OverflowException;
     private sealed record SessionRow(SessionNote Row)
