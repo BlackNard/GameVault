@@ -49,3 +49,5 @@ Files: NotesView.xaml(.cs), new partial NotesView.History.cs for activity/correc
 - Corrections deliberately require a confirmed Completed journal and no active tracked session for that game. Original timestamps, measured durations and notes are preserved. Date splits are proportional estimates; undated legacy amounts remain separate.
 
 - Final locked verification on 2026-11-13 local time: zero-warning Release build, all 136 tests passed, self-contained win-x64 publish verified (run 3db44f34461e480999d9a467193585bc). Owner UI checks remain pending. Clean package/import and remote CI are next.
+
+- Minimum-height follow-up: scroll history content above a fixed Back footer, keeping editors reachable at the main window's minimum height. Full locked verification repeated after the XAML change: 136 tests, zero warnings/errors, publish cc3f4e9329ee4d9d824cd5d14e7285eb. Previous remote run 43306123879 passed; final-head CI follows.
