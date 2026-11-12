@@ -46,7 +46,7 @@ public partial class GameEditor : Window
         if (path is null) return;
         WorkingDirectory.Text = GamePathSuggestions.WorkingDirectory(Executable.Text, WorkingDirectory.Text, path);
         Executable.Text = path;
-        if (string.IsNullOrWhiteSpace(GameName.Text)) GameName.Text = Path.GetFileNameWithoutExtension(path);
+        GameName.Text = GamePathSuggestions.GameName(GameName.Text, path);
     });
 
     private void BrowseWorking(object sender, RoutedEventArgs e) => Pick(() =>
