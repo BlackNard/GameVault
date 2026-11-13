@@ -1,4 +1,5 @@
 using GameVault.Core;
+using GameVault.Infrastructure.Saves;
 using GameVault.Infrastructure.Storage;
 using System.Collections.Concurrent;
 
@@ -62,6 +63,7 @@ public sealed class LibraryService
                 throw new ArgumentException("The working directory was not found. Choose an existing folder.");
             var sources = draft.SaveSources?.Select(Canonical).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
                 ?? throw new ArgumentException("Save locations must be a list of absolute paths.");
+            new SaveSourcePolicy(paths,[Path.GetDirectoryName(executable)!,working]).ValidateSet(draft.SaveSources.Select(s=>s.Trim().Trim('"')));
             if (!Enum.IsDefined(draft.Status)) throw new ArgumentException("Choose a supported game status.");
             CheckDuplicate(snapshot, executable, draft.Id);
             if (coverPng is not null && (coverPng.Length < 33 || coverPng.Length > 10 * 1024 * 1024 ||

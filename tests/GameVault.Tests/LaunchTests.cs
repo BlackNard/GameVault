@@ -200,7 +200,29 @@ public sealed class LaunchTests : IAsyncLifetime
         processes.Starter.Exit(); await retry;
     }
 
-    private static async Task WaitUntil(Func<bool> predicate)
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SessionEndSignalDistinguishesConfirmedExitFromObservationShutdown(bool stopObservation)
+    {
+        GameSessionEnded? ended=null;service.SessionEnded+=(_,value)=>ended=value;
+        var run=service.RunAsync(profile.Id);await WaitUntil(()=>service.GetState(profile.Id).Phase==LaunchPhase.Running);
+        if(stopObservation)await service.DisposeAsync();else processes.Starter.Exit();await run;
+        Assert.NotNull(ended);Assert.Equal(!stopObservation,ended.ConfirmedExit);Assert.Equal(profile.Id,ended.GameId);
+        if(stopObservation)Assert.False(processes.Starter.HasExited);
+    }
+    [Fact] public async Task LaunchedGameCanCreateItsFirstSaveWithoutConfiguredSources()
+    {
+        var exe=Path.Combine(root,"re2.exe");File.WriteAllText(exe,"fixture");profile=profile with{Name="Resident Evil 2",ExecutablePath=exe};await store.SaveProfileAsync(profile);
+        var env=new GameVault.Infrastructure.Saves.SaveDiscoveryEnvironment(Path.Combine(root,"user"),Path.Combine(root,"docs"),Path.Combine(root,"saved"),Path.Combine(root,"roaming"),Path.Combine(root,"local"),Path.Combine(root,"public"),[]);
+        var discovery=new GameVault.Infrastructure.Saves.SaveDiscoveryService(paths,store,env);
+        await using var coordinator=new GameVault.Infrastructure.Saves.SaveDiscoveryCoordinator(service,discovery,TimeSpan.FromMilliseconds(15));
+        var found=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);discovery.Changed+=(_,change)=>{if(change.Result.Phase==SaveDiscoveryPhase.SourcesFound)found.TrySetResult();};
+        var run=service.RunAsync(profile.Id);await WaitUntil(()=>service.GetState(profile.Id).Phase==LaunchPhase.Running);
+        var save=Path.Combine(env.PublicDocuments,"Steam","CODEX","883710","remote","win64_save");Directory.CreateDirectory(save);File.WriteAllText(Path.Combine(save,"data000.bin"),"Synthetic first save");
+        await found.Task.WaitAsync(TimeSpan.FromSeconds(5));processes.Starter.Exit();await run;await coordinator.FlushAsync(profile.Id);
+        Assert.Single(await discovery.RequireVerifiedSourcesAsync(profile.Id));Assert.Equal(LaunchPhase.Stopped,service.GetState(profile.Id).Phase);
+    }    private static async Task WaitUntil(Func<bool> predicate)
     {
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         while (!predicate()) await Task.Delay(5, deadline.Token);

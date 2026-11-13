@@ -7,7 +7,7 @@ using GameVault.Infrastructure.Playtime;
 
 namespace GameVault.Infrastructure.Launching;
 
-public sealed class LaunchService : IAsyncDisposable
+public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
 {
     private readonly AppDataStore store;
     private readonly LaunchSettingsStore settings;
@@ -35,6 +35,8 @@ public sealed class LaunchService : IAsyncDisposable
         recorder = new(store, clock ?? new PlaytimeClock());
     }
 
+    public event EventHandler<GameSessionEnded>? SessionEnded;
+    private void NotifySessionEnded(Guid id,bool confirmed)=>SessionEnded?.Invoke(this,new(id,confirmed));
     public event EventHandler<LaunchState>? StateChanged;
     public event EventHandler<SessionProgress>? SessionUpdated;
     public SessionProgress? GetSessionProgress(Guid id) => recorder.GetProgress(id);
@@ -162,8 +164,8 @@ public sealed class LaunchService : IAsyncDisposable
             await timerStop.CancelAsync().ConfigureAwait(false);
             try { await timer.ConfigureAwait(false); } catch (OperationCanceledException) { }
             if (observed != starter) observed.Dispose();
-            await recorder.EndAsync(id, exited ? SessionState.Completed : SessionState.Interrupted, end.Awake, end.Utc).ConfigureAwait(false);
-            NotifySession(id);
+            try { await recorder.EndAsync(id, exited ? SessionState.Completed : SessionState.Interrupted, end.Awake, end.Utc).ConfigureAwait(false); }
+            finally { try { NotifySession(id); } finally { NotifySessionEnded(id,exited); } }
         }
     }
 

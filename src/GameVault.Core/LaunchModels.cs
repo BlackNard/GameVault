@@ -6,3 +6,10 @@ public sealed record LaunchState(Guid GameId, LaunchPhase Phase, string Message,
     public bool IsActive => Phase is LaunchPhase.Starting or LaunchPhase.Running;
 }
 public sealed record LaunchSettings(int SchemaVersion, Guid GameId, string? TargetExecutablePath);
+
+public sealed record GameSessionEnded(Guid GameId,bool ConfirmedExit);
+public interface IGameSessionSignals
+{
+    event EventHandler<LaunchState>? StateChanged;
+    event EventHandler<GameSessionEnded>? SessionEnded;
+}

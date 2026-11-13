@@ -6,11 +6,15 @@ using GameVault.Core;
 using GameVault.Infrastructure.Library;
 using GameVault.Infrastructure.Storage;
 using GameVault.Infrastructure.Launching;
+using GameVault.Infrastructure.Saves;
 
 namespace GameVault.App;
 
 public partial class MainWindow : Window
 {
+    private readonly SaveDiscoveryService discovery;
+    private readonly SaveDiscoveryCoordinator discoveryCoordinator;
+    private SaveSourcesView? saveSourcesView;
     private readonly AppDataStore store;
     private readonly ApplicationPaths paths;
     private readonly LibraryService library;
@@ -34,7 +38,10 @@ public partial class MainWindow : Window
         this.store = store;
         this.paths = paths;
         library = new(paths, store);
+        discovery = new(paths, store, SaveDiscoveryEnvironment.Current());
         launches = new(paths, store, new WindowsGameProcessSystem());
+        discoveryCoordinator = new(launches, discovery);
+        discovery.Changed += SourceDiscoveryChanged;
         launchSettings = new(paths, store);
         launches.StateChanged += LaunchStateChanged;
         launches.SessionUpdated += SessionUpdated;
@@ -59,7 +66,12 @@ public partial class MainWindow : Window
     private async void LoadLibrary(object sender, RoutedEventArgs e)
     {
         busy = true; UpdateButtons();
-        try { recoveryNotices = await launches.RecoverAsync(); await RefreshLibrary(); }
+        try
+        {
+            recoveryNotices = await launches.RecoverAsync(); await RefreshLibrary();
+            foreach (var item in items.Where(i=>!i.Game.IsReadOnly&&i.Game.Profile?.IsArchived==false))
+                await discovery.ScanAsync(item.Game.Id);
+        }
         catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = "Could not load the library. " + error.Message; }
         finally { EndOperation(); }
     }
@@ -113,7 +125,8 @@ public partial class MainWindow : Window
             SessionWarning.Text = item.SessionWarning ?? "";
             DetailExecutable.Text = profile.ExecutablePath;
             DetailWorking.Text = profile.WorkingDirectory;
-            DetailSaves.Text = profile.SaveSources.Length == 0 ? "No save location selected. You can play now. Automatic discovery and backups arrive in later updates." : string.Join("\n", profile.SaveSources);
+            DetailSaves.Text = "Checking save sources…";
+            _ = RefreshSourceSummary(profile.Id);
             ArchiveButton.Content = profile.IsArchived ? "Restore to library" : "Remove from library";
             var launch = launches.GetState(profile.Id);
             LaunchNotice.Text = launch.Message;
@@ -245,6 +258,7 @@ public partial class MainWindow : Window
                     Search.Text = ""; StatusFilter.SelectedIndex = 0; RemovedFilter.IsChecked = false;
                     initializing = false;
                 }
+                await discovery.ScanAsync(result.Profile.Id);
                 await RefreshLibrary(result.Profile.Id);
                 OperationNotice.Text = result.Warning ?? $"{result.Profile.Name} saved.";
             }
@@ -253,6 +267,7 @@ public partial class MainWindow : Window
         finally
         {
             busy = editorOpen = false;
+            if (saveSourcesView is not null) await saveSourcesView.RefreshAsync();
             UpdateButtons();
             if (closeAfterSave) Close();
         }
@@ -303,7 +318,7 @@ public partial class MainWindow : Window
     }
     private void OpenNotes(object sender, RoutedEventArgs e)
     {
-        if (busy || editorOpen || stoppingObservation || notesView is not null || GameList.SelectedItem is not LibraryItemView item) return;
+        if (busy || editorOpen || stoppingObservation || notesView is not null || saveSourcesView is not null || GameList.SelectedItem is not LibraryItemView item) return;
         notesView = new NotesView(paths, store, item.Game.Id, settings.Theme, () => launches.GetState(item.Game.Id).IsActive);
         notesView.GameDataChanged += NotesDataChanged;
         notesView.BackRequested += BackFromNotes;
@@ -316,22 +331,61 @@ public partial class MainWindow : Window
     private async void BackFromNotes(object? sender, EventArgs e) { if (await LeaveNotes()) SetNavigation(true); }
     private async Task<bool> LeaveNotes()
     {
-        if (notesView is null) return true;
-        if (notesNavigationPending) return false;
-        notesNavigationPending = true;
-        LibraryNav.IsEnabled = SettingsNav.IsEnabled = false;
+        if(notesView is null&&saveSourcesView is null)return true;
+        if(notesNavigationPending)return false;
+        notesNavigationPending=true;LibraryNav.IsEnabled=SettingsNav.IsEnabled=false;
         try
         {
-            if (!await notesView.CanLeaveAsync()) return false;
-            notesView.GameDataChanged -= NotesDataChanged;
-            notesView.BackRequested -= BackFromNotes;
-            NotesHost.Content = null; notesView = null; NotesHost.Visibility = Visibility.Collapsed;
-            UpdateButtons(); return true;
+            if(notesView is not null&&!await notesView.CanLeaveAsync())return false;
+            if(saveSourcesView is not null&&!await saveSourcesView.CanLeaveAsync())return false;
+            if(notesView is not null){notesView.GameDataChanged-=NotesDataChanged;notesView.BackRequested-=BackFromNotes;}
+            if(saveSourcesView is not null){saveSourcesView.ManualEditRequested-=EditManualSources;saveSourcesView.BackRequested-=BackFromNotes;}
+            NotesHost.Content=null;notesView=null;saveSourcesView=null;NotesHost.Visibility=Visibility.Collapsed;
+            UpdateButtons();return true;
         }
-        finally { notesNavigationPending = false; LibraryNav.IsEnabled = SettingsNav.IsEnabled = true; }
+        finally{notesNavigationPending=false;LibraryNav.IsEnabled=SettingsNav.IsEnabled=true;}
+    }
+    private void OpenSaveSources(object sender,RoutedEventArgs e)
+    {
+        if(busy||editorOpen||stoppingObservation||notesView is not null||saveSourcesView is not null||GameList.SelectedItem is not LibraryItemView item)return;
+        saveSourcesView=new(discovery,item.Game.Id,item.Name,()=>launches.GetState(item.Game.Id).IsActive);
+        saveSourcesView.BackRequested+=BackFromNotes;saveSourcesView.ManualEditRequested+=EditManualSources;
+        NotesHost.Content=saveSourcesView;LibraryPanel.Visibility=SettingsPanel.Visibility=Visibility.Collapsed;NotesHost.Visibility=Visibility.Visible;
+        OperationNotice.Text="Save sources · "+item.Name;UpdateButtons();
+    }
+    private async void EditManualSources(object? sender,EventArgs e)
+    {
+        if(busy||editorOpen||stoppingObservation||sender is not SaveSourcesView view||launches.GetState(view.GameId).IsActive)return;
+        try
+        {
+            var game=await store.LoadProfileAsync(view.GameId);
+            if(game.Profile.State!=DocumentState.Ready||game.Profile.Value is null)throw new IOException("The profile needs attention before manual locations can be edited.");
+            OpenEditor(game.Profile.Value);
+        }
+        catch(Exception error)when(IsExpected(error)){OperationNotice.Text=error.Message;}
+    }
+    private async Task RefreshSourceSummary(Guid id)
+    {
+        try
+        {
+            var result=await discovery.ReadAsync(id);
+            if(GameList.SelectedItem is LibraryItemView item&&item.Game.Id==id)ApplySourceSummary(result);
+        }
+        catch(Exception error)when(IsExpected(error)){if(GameList.SelectedItem is LibraryItemView item&&item.Game.Id==id)DetailSaves.Text="Source discovery needs attention. "+error.Message;}
+    }
+    private void SourceDiscoveryChanged(object? sender,SaveDiscoveryChanged change)
+    {
+        if(Dispatcher.HasShutdownStarted)return;
+        _=Dispatcher.InvokeAsync(()=>{if(!stoppingObservation&&GameList.SelectedItem is LibraryItemView item&&item.Game.Id==change.GameId)ApplySourceSummary(change.Result);});
+    }
+    private void ApplySourceSummary(SaveDiscoveryResult result)
+    {
+        var sources=result.Phase==SaveDiscoveryPhase.Error?[]:result.Document.Value?.Sources.Where(s=>s.Selected).Select(s=>s.Path+" ("+s.Access+")").ToArray()??[];
+        DetailSaves.Text=result.Summary+(sources.Length==0?"":"\n"+string.Join("\n",sources));
     }
     private void UpdateButtons()
     {
+        SaveSourcesButton.IsEnabled = !busy && !editorOpen && !stoppingObservation && GameList.SelectedItem is LibraryItemView;
         NotesButton.IsEnabled = !busy && !editorOpen && !stoppingObservation && GameList.SelectedItem is LibraryItemView;
         AddButton.IsEnabled = !busy && !editorOpen && !settingsReadOnly;
         ThemeChoice.IsEnabled = !busy && !editorOpen && !settingsReadOnly;
@@ -360,10 +414,11 @@ public partial class MainWindow : Window
         stoppingObservation = true;
         busy = true; UpdateButtons();
         OperationNotice.Text = "Leaving any running games open and stopping observation…";
-        try { await launches.DisposeAsync(); }
+        try { try { await launches.DisposeAsync(); } finally { await discoveryCoordinator.DisposeAsync(); } }
         catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = error.Message; }
         finally
         {
+            discovery.Changed -= SourceDiscoveryChanged;
             launches.StateChanged -= LaunchStateChanged;
             launches.SessionUpdated -= SessionUpdated;
             observationStopped = true;
