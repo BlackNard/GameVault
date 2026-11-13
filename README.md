@@ -4,7 +4,7 @@ A Windows desktop game launcher for manually added games, tracking playing time,
 
 ## Project status
 
-The Windows app supports a local game library, native executable browsing, cover artwork, reversible removal, launching/exit detection, live playtime, and checkpoint-based interrupted-session recovery. Sleep/hibernate and unobserved downtime are excluded from recorded durations. Versioned local storage includes safe previous copies, diagnostics, and a remembered Midnight/Crimson theme. Session history now includes date/time, longest-session navigation, date-grouped activity and audited manual corrections. Automatic save discovery/backup/restore and the installer remain in development. The repository remains private. Session notes and game reviews now support Read/Edit modes and offline Markdown/PDF exports; see the [notes test checklist](docs/design/notes-manual-tests.md).
+The Windows app supports a local game library, native executable browsing, cover artwork, reversible removal, launching/exit detection, live playtime, and checkpoint-based interrupted-session recovery. Sleep/hibernate and unobserved downtime are excluded from recorded durations. Versioned local storage includes safe previous copies, diagnostics, and a remembered Midnight/Crimson theme. Session history now includes date/time, longest-session navigation, date-grouped activity and audited manual corrections. Bounded automatic save-source discovery is available, including first-session retries and confirmation for ambiguous candidates. Dated backup/restore and the installer remain in development. The repository remains private. Session notes and game reviews now support Read/Edit modes and offline Markdown/PDF exports; see the [notes test checklist](docs/design/notes-manual-tests.md).
 
 Play automatically requests Windows administrator approval when a game requires elevation. GameVault's main window stays at normal permissions; a one-shot helper starts the game and transfers observation handles. Cancelling approval leaves the game unstarted and allows retry.
 
@@ -41,6 +41,7 @@ GameVault/
       statistics.json
       launch.json (optional actual-process target)
       Sessions/<session-id>.json
+      save-discovery.json (independent source mappings)
       Corrections/<correction-id>.json
       Notes/Sessions/<session-id>.json
       Notes/review.json
@@ -69,3 +70,5 @@ Actual game saves, local profiles, play histories, credentials, game executables
 No open-source license has been selected.
 
 See the [session history test checklist](docs/design/session-history-manual-tests.md) for issue #8, including timezone estimates and correction safeguards.
+
+See [save discovery scope and deferred UAT](docs/design/save-discovery-manual-tests.md). Source detection leaves live saves in place; finding a source alone is not a verified backup.
