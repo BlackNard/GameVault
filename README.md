@@ -4,7 +4,7 @@ A Windows desktop game launcher for manually added games, tracking playing time,
 
 ## Project status
 
-The Windows app supports a local game library, native executable browsing, cover artwork, reversible removal, launching/exit detection, live playtime, and checkpoint-based interrupted-session recovery. Sleep/hibernate and unobserved downtime are excluded from recorded durations. Versioned local storage includes safe previous copies, diagnostics, and a remembered Midnight/Crimson theme. Session history now includes date/time, longest-session navigation, date-grouped activity and audited manual corrections. Bounded automatic save-source discovery is available, including first-session retries and confirmation for ambiguous candidates. Changed saves now receive verified dated backups after confirmed exit, and Back up now is available while the game is closed. Restore, retention and the installer remain in development. The repository remains private. Session notes and game reviews now support Read/Edit modes and offline Markdown/PDF exports; see the [notes test checklist](docs/design/notes-manual-tests.md).
+The Windows app supports a local game library, native executable browsing, cover artwork, reversible removal, launching/exit detection, live playtime, and checkpoint-based interrupted-session recovery. Sleep/hibernate and unobserved downtime are excluded from recorded durations. Versioned local storage includes safe previous copies, diagnostics, and a remembered Midnight/Crimson theme. Session history now includes date/time, longest-session navigation, date-grouped activity and audited manual corrections. Bounded automatic save-source discovery is available, including first-session retries and confirmation for ambiguous candidates. Changed saves now receive verified dated backups after confirmed exit, and Back up now is available while the game is closed. Backup history supports pins and per-game retention: keep the latest 20 unpinned copies by default, plus every pinned copy, or keep everything. Restore and the installer remain in development. The repository remains private. Session notes and game reviews now support Read/Edit modes and offline Markdown/PDF exports; see the [notes test checklist](docs/design/notes-manual-tests.md).
 
 Play automatically requests Windows administrator approval when a game requires elevation. GameVault's main window stays at normal permissions; a one-shot helper starts the game and transfers observation handles. Cancelling approval leaves the game unstarted and allows retry.
 
@@ -50,7 +50,7 @@ GameVault/
         <dated-backup>/
 ```
 
-The approved foundation uses C#/WPF on .NET 10 with Data and Profiles beside the executable. Each game uses a stable profile identifier so renaming it preserves its records. See [persistence](docs/persistence.md) for the implemented storage schema. Games keep their original save locations; verified independent copies are stored under each profile folder in Backups. Retention cleanup is not yet active; existing snapshots are preserved.
+The approved foundation uses C#/WPF on .NET 10 with Data and Profiles beside the executable. Each game uses a stable profile identifier so renaming it preserves its records. See [persistence](docs/persistence.md) for the implemented storage schema. Games keep their original save locations; verified independent copies are stored under each profile folder in Backups. Retention runs only after a new verified copy or explicit Apply retention; pinned, latest and recovery copies are protected.
 
 ## Installation and releases
 
@@ -74,3 +74,5 @@ See the [session history test checklist](docs/design/session-history-manual-test
 See [save discovery scope and deferred UAT](docs/design/save-discovery-manual-tests.md). Source detection leaves live saves in place; finding a source alone is not a verified backup.
 
 See [dated backup scope and deferred checks](docs/design/backups-manual-tests.md) for limits, failure behavior and the final owner testing checklist.
+
+See [backup history and retention](docs/design/backup-history-manual-tests.md) for browsing, storage totals and the deferred final checks.

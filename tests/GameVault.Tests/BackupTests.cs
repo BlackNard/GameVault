@@ -135,6 +135,25 @@ public sealed class BackupTests : IDisposable
         var result=await service.BackUpAsync(id,false);Assert.Equal(BackupPhase.Complete,result.Phase);Assert.NotNull(result.LastSuccess);Assert.Contains("status could not be saved",result.Message);
         Assert.Equal(result.LastSuccess.Directory,(await Service().ReadAsync(id)).LastSuccess!.Directory);
     }
+    [Theory] [InlineData("unchanged",2)] [InlineData("failed",2)] [InlineData("complete",1)]
+    public async Task RetentionRunsOnlyAfterANewVerifiedSnapshot(string outcome,int expected)
+    {
+        await Seed();var service=Service();await service.BackUpAsync(id,false);await service.BackUpAsync(id,false);
+        var profile=(await Store.LoadProfileAsync(id)).Profile.Value!;await Store.SaveProfileAsync(profile with{BackupLimit=1});
+        if(outcome=="failed")File.WriteAllText(Path.Combine(Source,"slot.sav"),"changed");
+        var result=outcome=="failed"?await Service(checkpoint:p=>{if(p=="copy")throw new IOException("copy failed");}).BackUpAsync(id,true):await service.BackUpAsync(id,outcome=="unchanged");
+        Assert.Equal(outcome=="failed"?BackupPhase.Failed:outcome=="unchanged"?BackupPhase.Unchanged:BackupPhase.Complete,result.Phase);
+        Assert.Equal(expected,Directory.GetDirectories(Backups).Count(p=>!Path.GetFileName(p).StartsWith('.')));
+    }
+    [Fact] public async Task SuccessfulBackupKeepsPinsAndReportsCleanupFailureSeparately()
+    {
+        await Seed();var service=Service();var oldest=(await service.BackUpAsync(id,false)).LastSuccess!;await service.BackUpAsync(id,false);
+        var history=new BackupHistoryService(Paths,Store,new(),_=>Task.FromResult(false));await history.SetPinnedAsync(id,oldest.Manifest.Id,true);
+        var profile=(await Store.LoadProfileAsync(id)).Profile.Value!;await Store.SaveProfileAsync(profile with{BackupLimit=1});
+        var third=await service.BackUpAsync(id,false);Assert.Equal(BackupPhase.Complete,third.Phase);Assert.True(Directory.Exists(oldest.Directory));Assert.Equal(2,(await history.ListAsync(id)).Entries.Length);
+        await history.SetPinnedAsync(id,oldest.Manifest.Id,false);File.WriteAllText(Path.Combine(oldest.Directory,"unrelated.txt"),"preserve");
+        var fourth=await service.BackUpAsync(id,false);Assert.Equal(BackupPhase.Complete,fourth.Phase);Assert.Contains("Cleanup stopped",fourth.Message);Assert.True(Directory.Exists(oldest.Directory));Assert.NotNull(fourth.LastSuccess);
+    }
     private sealed class Signals:IGameSessionSignals
     {
         public event EventHandler<LaunchState>? StateChanged {add{} remove{}}

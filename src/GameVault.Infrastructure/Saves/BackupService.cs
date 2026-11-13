@@ -52,6 +52,11 @@ public sealed class BackupService
                 var sources=await discovery.RequireVerifiedSourcesAsync(id,token).ConfigureAwait(false);
                 var fingerprint=SaveDiscoveryIdentity.For(profile);
                 result=await Task.Run(()=>Capture(id,profile,sources,fingerprint,last,automatic,token),token).ConfigureAwait(false);
+                if(result.Phase==BackupPhase.Complete&&result.LastSuccess is CompletedBackup committed)
+                {
+                    var retention=await new BackupHistoryService(paths,store,leases,isRunning).CleanupAfterSuccessAsync(id,committed.Manifest.Id,token).ConfigureAwait(false);
+                    if(!retention.Complete||retention.Removed>0)result=result with{Message=result.Message+" "+retention.Message};
+                }
             }
         }
         catch(Exception e)when(Expected(e)||e is OperationCanceledException)
