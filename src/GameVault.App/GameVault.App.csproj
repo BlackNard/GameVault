@@ -6,12 +6,14 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>GameVault</AssemblyName>
     <Version>0.1.0</Version>
     <Product>GameVault</Product>
     <Description>GameVault foundation development build</Description>
   </PropertyGroup>
 
+  <ItemGroup><Using Remove="System.Windows.Forms" /><Using Remove="System.Drawing" /></ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../GameVault.Core/GameVault.Core.csproj" />
     <ProjectReference Include="../GameVault.Infrastructure/GameVault.Infrastructure.csproj" />

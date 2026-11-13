@@ -50,6 +50,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        if(MainWindow is MainWindow window)window.DisposeTrayOnApplicationExit();
         workspace?.Dispose();
         base.OnExit(e);
     }
