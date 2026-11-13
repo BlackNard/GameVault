@@ -14,6 +14,12 @@ var readyTemporary = Path.Combine(directory, "ready.tmp");
 await File.WriteAllTextAsync(readyTemporary, Environment.ProcessId.ToString());
 // Publish only after the writer has closed, so observing readiness guarantees a readable, complete PID.
 File.Move(readyTemporary, Path.Combine(directory, "ready.txt"), overwrite: true);
+if (File.Exists(Path.Combine(directory,"workflow-mode.txt")))
+{
+    try { await WorkflowProtocol.RunAsync(directory); }
+    catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or FormatException) { Environment.ExitCode=2; }
+    return;
+}
 var childFile = Path.Combine(directory, "child.txt");
 if (File.Exists(childFile))
 {

@@ -80,3 +80,5 @@ See [backup history and retention](docs/design/backup-history-manual-tests.md) f
 See [safe restore and undo](docs/design/restore-manual-tests.md) for file ownership, recovery behavior and the deferred final checks.
 
 See [system tray behavior](docs/design/system-tray-manual-tests.md) for close versus quit, checkpoint warnings and the deferred final checks.
+
+The [app validation record](docs/validation/app-acceptance.md) separates automated fixture evidence from pending owner gameplay/UI acceptance. Run scripts/verify.ps1 to regenerate the per-run workflow reports; a green automated run does not close #14 or approve first-version acceptance.

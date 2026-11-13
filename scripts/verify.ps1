@@ -7,6 +7,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $runId = [Guid]::NewGuid().ToString('N')
 $artifacts = Join-Path $root 'artifacts'
 $publishDirectory = Join-Path $artifacts "publish-$runId"
+$workflowEvidence = Join-Path $artifacts "workflow-$runId"
 
 function Invoke-Dotnet {
     param([string[]]$Arguments)
@@ -20,9 +21,26 @@ Push-Location $root
 try {
     Invoke-Dotnet -Arguments @('restore', 'GameVault.slnx', '--locked-mode')
     Invoke-Dotnet -Arguments @('build', 'GameVault.slnx', '-c', 'Release', '--no-restore')
+    $previousEvidence = [Environment]::GetEnvironmentVariable('GAMEVAULT_TEST_EVIDENCE_DIRECTORY', 'Process')
+    try {
+        [Environment]::SetEnvironmentVariable('GAMEVAULT_TEST_EVIDENCE_DIRECTORY', $workflowEvidence, 'Process')
     Invoke-Dotnet -Arguments @('test', 'GameVault.slnx',
         '-c', 'Release', '--no-build', '--no-restore', '--logger', 'trx',
         '--results-directory', (Join-Path $artifacts "test-results-$runId"))
+    }
+    finally {
+        [Environment]::SetEnvironmentVariable('GAMEVAULT_TEST_EVIDENCE_DIRECTORY', $previousEvidence, 'Process')
+    }
+    foreach ($scenario in @('full-workflow', 'failure-boundaries')) {
+        $reportFile = Join-Path $workflowEvidence "$scenario.json"
+        if (-not (Test-Path -LiteralPath $reportFile -PathType Leaf)) { throw "Missing automated workflow evidence: $scenario" }
+        $report = Get-Content -Raw -LiteralPath $reportFile | ConvertFrom-Json
+        if ($report.schemaVersion -ne 1 -or $report.scenario -ne $scenario -or $report.automatedPassed -ne $true -or
+            $report.realGameValidated -ne $false -or $report.uiValidated -ne $false) {
+            throw "Invalid automated-only workflow evidence: $scenario"
+        }
+        Write-Host ("Automated workflow passed: " + $scenario + " " + ($report.observations | ConvertTo-Json -Compress))
+    }
     Invoke-Dotnet -Arguments @('publish', 'src/GameVault.App/GameVault.App.csproj',
         '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true', '--no-restore',
         '-o', $publishDirectory)
@@ -47,12 +65,25 @@ try {
     }
 
     [pscustomobject]@{
+        schemaVersion = 1
+        runId = $runId
+        automatedWorkflowsPassed = $true
+        evidenceDirectory = $workflowEvidence
+        ownerRealGameValidation = 'pending-owner-final-pass'
+        ownerVisualUsabilityValidation = 'pending-owner-final-pass'
+        issue18PerformanceAcceptance = 'pending'
+        firstVersionAccepted = $false
+        verifiedUtc = [DateTime]::UtcNow.ToString('o')
+    } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $artifacts 'validation.json') -Encoding utf8
+    [pscustomobject]@{
         runId = $runId
         publishDirectory = $publishDirectory
         executable = Join-Path $publishDirectory 'GameVault.exe'
+        workflowEvidenceDirectory = $workflowEvidence
         verifiedUtc = [DateTime]::UtcNow.ToString('o')
     } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $artifacts 'verification.json') -Encoding utf8
     Write-Host "Verification passed. Published app: $publishDirectory"
+    Write-Host "Automated workflows passed. Owner real-game/UI and first-version acceptance remain pending."
 }
 finally {
     Pop-Location
