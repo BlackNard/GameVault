@@ -1,6 +1,12 @@
 using System.Diagnostics;
 using GameVault.Infrastructure.Launching;
 
+if (args.Length > 0 && args[0] == "--installer-fixture")
+{
+    try { Environment.ExitCode = await GameVault.InstallerFixture.InstallerProtocol.RunAsync(args); }
+    catch (Exception error) { Console.Error.WriteLine(error); Environment.ExitCode = 2; }
+    return;
+}
 if (args.Length == 3 && args[0] == "--test-launch-helper")
 {
     if (OperatingSystem.IsWindows() && int.TryParse(args[2], out var parent))

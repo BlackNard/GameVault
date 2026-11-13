@@ -83,7 +83,41 @@ public static class GameVaultInstallerLease {
     $managed.Dispose()
     if ([IO.File]::ReadAllText($lockPath) -ne 'coordination marker') { throw 'Lease acquisition modified file contents.' }
     $count++
-    Write-Host "Installer payload and exclusive-lease checks passed: $count"
+    $lifecycleModule = Join-Path $PSScriptRoot 'InstallerLifecycle.psm1'
+    if (-not (Test-Path -LiteralPath $lifecycleModule)) { throw 'Lifecycle safety guard has not been implemented.' }
+    Import-Module $lifecycleModule -Force
+    $previousRunner = $env:RUNNER_ENVIRONMENT
+    try {
+        $env:RUNNER_ENVIRONMENT = 'self-hosted'
+        Assert-Rejected { Assert-DisposableInstallerRunner } 'GitHub-hosted Windows'
+    } finally { $env:RUNNER_ENVIRONMENT = $previousRunner }
+    $library = Join-Path $root 'hash-library'
+    New-Item -ItemType Directory (Join-Path $library 'Data'),(Join-Path $library 'Profiles') | Out-Null
+    [IO.File]::WriteAllText((Join-Path $library 'Data/settings.json'),'synthetic')
+    $fingerprint = Get-InstallerLibraryFingerprint $library
+    if ($fingerprint -ne (Get-InstallerLibraryFingerprint $library)) { throw 'Library fingerprint is unstable.' }; $count++
+    [IO.File]::WriteAllText((Join-Path $library 'Data/settings.json'),'changed')
+    if ($fingerprint -eq (Get-InstallerLibraryFingerprint $library)) { throw 'Library fingerprint missed a changed file.' }; $count++
+    if (-not ('InstallerLeaseTestRelease' -as [type])) {
+        Add-Type @"
+public static class InstallerLeaseTestRelease {
+    public static System.Threading.Tasks.Task ReleaseAfter(System.IO.FileStream stream, int milliseconds) {
+        return System.Threading.Tasks.Task.Run(async () => { await System.Threading.Tasks.Task.Delay(milliseconds); stream.Dispose(); });
+    }
+}
+"@
+    }
+    $held=[IO.File]::Open($lockPath,'Open','ReadWrite','None')
+    try { Assert-Rejected { Wait-InstallerLeaseRelease -Root $root -TimeoutSeconds 0.1 } 'timed out' } finally { $held.Dispose() }
+    $held=[IO.File]::Open($lockPath,'Open','ReadWrite','None')
+    try {
+        $release=[InstallerLeaseTestRelease]::ReleaseAfter($held,150)
+        Wait-InstallerLeaseRelease -Root $root -TimeoutSeconds 3
+        $release.GetAwaiter().GetResult()
+        if([IO.File]::ReadAllText($lockPath) -ne 'coordination marker'){throw 'Lease wait changed the coordination file'}
+        $count++
+    } finally {$held.Dispose()}
+    Write-Host "Installer payload, lease and lifecycle-guard checks passed: $count"
 }
 finally {
     $full = [IO.Path]::GetFullPath($root)
