@@ -12,6 +12,9 @@ namespace GameVault.App;
 
 public partial class MainWindow : Window
 {
+    private long backupViewRevision;
+    private readonly BackupService backups;
+    private readonly BackupCoordinator backupCoordinator;
     private readonly SaveDiscoveryService discovery;
     private readonly SaveDiscoveryCoordinator discoveryCoordinator;
     private SaveSourcesView? saveSourcesView;
@@ -41,6 +44,9 @@ public partial class MainWindow : Window
         discovery = new(paths, store, SaveDiscoveryEnvironment.Current());
         launches = new(paths, store, new WindowsGameProcessSystem());
         discoveryCoordinator = new(launches, discovery);
+        backups=new(paths,store,discovery,new GameOperationLeases(),launches.IsGameRunningAsync);
+        backupCoordinator=new(launches,backups,launches.WaitForIdleAsync);
+        backups.Changed+=BackupChanged;
         discovery.Changed += SourceDiscoveryChanged;
         launchSettings = new(paths, store);
         launches.StateChanged += LaunchStateChanged;
@@ -127,6 +133,9 @@ public partial class MainWindow : Window
             DetailWorking.Text = profile.WorkingDirectory;
             DetailSaves.Text = "Checking save sources…";
             _ = RefreshSourceSummary(profile.Id);
+            BackupNotice.Text="Checking backup history…";
+            LastBackup.Text="";
+            _ = RefreshBackupSummary(profile.Id);
             ArchiveButton.Content = profile.IsArchived ? "Restore to library" : "Remove from library";
             var launch = launches.GetState(profile.Id);
             LaunchNotice.Text = launch.Message;
@@ -348,14 +357,14 @@ public partial class MainWindow : Window
     private void OpenSaveSources(object sender,RoutedEventArgs e)
     {
         if(busy||editorOpen||stoppingObservation||notesView is not null||saveSourcesView is not null||GameList.SelectedItem is not LibraryItemView item)return;
-        saveSourcesView=new(discovery,item.Game.Id,item.Name,()=>launches.GetState(item.Game.Id).IsActive);
+        saveSourcesView=new(discovery,item.Game.Id,item.Name,()=>launches.GetState(item.Game.Id).IsActive||backups.IsWorking(item.Game.Id));
         saveSourcesView.BackRequested+=BackFromNotes;saveSourcesView.ManualEditRequested+=EditManualSources;
         NotesHost.Content=saveSourcesView;LibraryPanel.Visibility=SettingsPanel.Visibility=Visibility.Collapsed;NotesHost.Visibility=Visibility.Visible;
         OperationNotice.Text="Save sources · "+item.Name;UpdateButtons();
     }
     private async void EditManualSources(object? sender,EventArgs e)
     {
-        if(busy||editorOpen||stoppingObservation||sender is not SaveSourcesView view||launches.GetState(view.GameId).IsActive)return;
+        if(busy||editorOpen||stoppingObservation||sender is not SaveSourcesView view||launches.GetState(view.GameId).IsActive||backups.IsWorking(view.GameId))return;
         try
         {
             var game=await store.LoadProfileAsync(view.GameId);
@@ -383,6 +392,30 @@ public partial class MainWindow : Window
         var sources=result.Phase==SaveDiscoveryPhase.Error?[]:result.Document.Value?.Sources.Where(s=>s.Selected).Select(s=>s.Path+" ("+s.Access+")").ToArray()??[];
         DetailSaves.Text=result.Summary+(sources.Length==0?"":"\n"+string.Join("\n",sources));
     }
+    private async void BackUpNow(object sender,RoutedEventArgs e)
+    {
+        if(busy||editorOpen||stoppingObservation||GameList.SelectedItem is not LibraryItemView item)return;
+        busy=true;UpdateButtons();
+        try{var result=await backups.BackUpAsync(item.Game.Id,false);if(GameList.SelectedItem is LibraryItemView selected&&selected.Game.Id==item.Game.Id)ApplyBackupSummary(result);OperationNotice.Text=item.Name+": "+result.Message;}
+        finally{EndOperation();}
+    }
+    private async Task RefreshBackupSummary(Guid id)
+    {
+        var revision=++backupViewRevision;
+        var result=await backups.ReadAsync(id);
+        if(revision==backupViewRevision&&!stoppingObservation&&GameList.SelectedItem is LibraryItemView item&&item.Game.Id==id&&!backups.IsWorking(id))ApplyBackupSummary(result);
+    }
+    private void BackupChanged(object? sender,BackupResult result)
+    {
+        if(Dispatcher.HasShutdownStarted)return;
+        _=Dispatcher.InvokeAsync(()=>{if(stoppingObservation)return;if(GameList.SelectedItem is LibraryItemView item&&item.Game.Id==result.GameId){backupViewRevision++;ApplyBackupSummary(result);}UpdateButtons();});
+    }
+    private void ApplyBackupSummary(BackupResult result)
+    {
+        BackupNotice.Text=result.Message;
+        if(result.Phase==BackupPhase.Working&&result.LastSuccess is null)return;
+        LastBackup.Text=result.LastSuccess is CompletedBackup backup?$"Last verified backup: {backup.Manifest.CreatedAt.ToLocalTime():g}\n{backup.Manifest.Files.Length} file(s) · {backup.Manifest.Files.Sum(f=>f.Size):N0} bytes\n{backup.Directory}":"No verified backup available.";
+    }
     private void UpdateButtons()
     {
         SaveSourcesButton.IsEnabled = !busy && !editorOpen && !stoppingObservation && GameList.SelectedItem is LibraryItemView;
@@ -390,9 +423,10 @@ public partial class MainWindow : Window
         AddButton.IsEnabled = !busy && !editorOpen && !settingsReadOnly;
         ThemeChoice.IsEnabled = !busy && !editorOpen && !settingsReadOnly;
         var selected = GameList.SelectedItem as LibraryItemView;
-        var active = selected is not null && launches.GetState(selected.Game.Id).IsActive;
+        var active = selected is not null && (launches.GetState(selected.Game.Id).IsActive||backups.IsWorking(selected.Game.Id));
         var editable = !busy && !editorOpen && !stoppingObservation && !active && selected is { Game.IsReadOnly: false, Game.Profile: not null };
         EditButton.IsEnabled = ArchiveButton.IsEnabled = LaunchSettingsButton.IsEnabled = editable;
+        BackupButton.IsEnabled = editable && selected is { Game.Profile.IsArchived: false };
         PlayButton.IsEnabled = editable && selected is { Game.ExecutableMissing: false, Game.Profile.IsArchived: false };
     }
 
@@ -414,10 +448,11 @@ public partial class MainWindow : Window
         stoppingObservation = true;
         busy = true; UpdateButtons();
         OperationNotice.Text = "Leaving any running games open and stopping observation…";
-        try { try { await launches.DisposeAsync(); } finally { await discoveryCoordinator.DisposeAsync(); } }
+        try { try { await launches.DisposeAsync(); } finally { try { await discoveryCoordinator.DisposeAsync(); } finally { await backupCoordinator.DisposeAsync(); } } }
         catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = error.Message; }
         finally
         {
+            backups.Changed-=BackupChanged;
             discovery.Changed -= SourceDiscoveryChanged;
             launches.StateChanged -= LaunchStateChanged;
             launches.SessionUpdated -= SessionUpdated;

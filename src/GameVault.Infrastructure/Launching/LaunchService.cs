@@ -1,6 +1,7 @@
 using GameVault.Core;
 using GameVault.Infrastructure.Storage;
 using GameVault.Infrastructure.Library;
+using GameVault.Infrastructure.Saves;
 using System.ComponentModel;
 using System.Diagnostics;
 using GameVault.Infrastructure.Playtime;
@@ -43,20 +44,33 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
     internal Task SaveCheckpointAsync(Guid id) => recorder.SampleAsync(id, true);
     public LaunchState GetState(Guid id) { lock (gate) return states.GetValueOrDefault(id) ?? new(id, LaunchPhase.Stopped, "Not running"); }
 
+    private readonly GameOperationLeases operations=new();
+    public Task WaitForIdleAsync(Guid id){lock(gate)return active.TryGetValue(id,out var task)?task.Task:Task.CompletedTask;}
+    public async Task<bool> IsGameRunningAsync(Guid id)
+    {
+        lock(gate){if(active.ContainsKey(id))return true;}
+        var game=await store.LoadProfileAsync(id).ConfigureAwait(false);
+        if(game.Profile.State!=DocumentState.Ready||game.Profile.Value is not GameProfile profile)throw new IOException("Cannot check a protected game profile for running processes.");
+        var config=await settings.LoadAsync(id).ConfigureAwait(false);
+        if(config.IsReadOnly)throw new IOException(config.Message);
+        return new[]{profile.ExecutablePath,config.Value?.TargetExecutablePath??profile.ExecutablePath}.Distinct(StringComparer.OrdinalIgnoreCase).Any(path=>processes.Find(path).Length>0);
+    }
     public Task RunAsync(Guid id)
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        IDisposable operation;
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (!active.TryAdd(id, completion)) throw new InvalidOperationException("This game is already starting or running.");
+            operation=operations.TryAcquire(id)??throw new InvalidOperationException("A game session or backup is active. Wait for it to finish before playing.");
+            if (!active.TryAdd(id, completion)){operation.Dispose();throw new InvalidOperationException("This game is already starting or running.");}
         }
         SetState(new(id, LaunchPhase.Starting, "Starting game…"));
-        _ = Task.Run(() => RunCore(id, completion));
+        _ = Task.Run(() => RunCore(id, completion, operation));
         return completion.Task;
     }
 
-    private async Task RunCore(Guid id, TaskCompletionSource completion)
+    private async Task RunCore(Guid id, TaskCompletionSource completion, IDisposable operation)
     {
         var token = shutdown.Token;
         try
@@ -103,6 +117,7 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
                 foreach (var path in reservedPaths.Where(pair => pair.Value == id).Select(pair => pair.Key).ToArray()) reservedPaths.Remove(path);
                 active.Remove(id);
             }
+            operation.Dispose();
             completion.TrySetResult();
         }
     }
@@ -227,10 +242,14 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
     private void StartRecovered(SessionJournal journal, IGameProcess process)
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        IDisposable operation;
         lock (gate)
         {
             if (disposed || !active.TryAdd(journal.GameId, completion)) { process.Dispose(); return; }
             if (reservedPaths.ContainsKey(journal.ExecutablePath)) { active.Remove(journal.GameId); process.Dispose(); return; }
+            var acquired=operations.TryAcquire(journal.GameId);
+            if(acquired is null){active.Remove(journal.GameId);process.Dispose();return;}
+            operation=acquired;
             reservedPaths.Add(journal.ExecutablePath, journal.GameId);
         }
         SetState(new(journal.GameId, LaunchPhase.Starting, "Recovering running session…"));
@@ -251,6 +270,7 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
                 finally
                 {
                     lock (gate) { active.Remove(journal.GameId); reservedPaths.Remove(journal.ExecutablePath); }
+                    operation.Dispose();
                     completion.TrySetResult();
                 }
             }

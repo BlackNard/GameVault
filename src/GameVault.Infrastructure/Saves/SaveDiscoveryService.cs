@@ -110,8 +110,8 @@ public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore sto
         var doc=stored.Value;if(doc is null)return new(stored,SaveDiscoveryPhase.WaitingForSave,"Discovery has not run yet. Launching needs no pre-existing save folder.");
         var selected=doc.Sources.Where(s=>s.Selected).ToArray();
         if(selected.Any(s=>s.Access is SaveSourceAccess.Unsafe or SaveSourceAccess.Unreadable or SaveSourceAccess.Limited))return Error(stored,"A selected source is unsafe, unreadable or exceeded inspection limits. Review the source details.");
-        if(selected.Any(s=>s.Access is SaveSourceAccess.Missing or SaveSourceAccess.Empty))return new(stored,SaveDiscoveryPhase.WaitingForSave,"Waiting for selected saves to exist and be readable. Discovery will retry; no verified backup yet.");
-        if(selected.Length>0)return new(stored,SaveDiscoveryPhase.SourcesFound,$"{selected.Length} readable source(s) found. No verified backup yet; dated copies arrive with the backup feature.");
+        if(selected.Any(s=>s.Access is SaveSourceAccess.Missing or SaveSourceAccess.Empty))return new(stored,SaveDiscoveryPhase.WaitingForSave,"Waiting for selected saves to exist and be readable. Discovery will retry. Existing backups are kept.");
+        if(selected.Length>0)return new(stored,SaveDiscoveryPhase.SourcesFound,$"{selected.Length} readable source(s) found. Backup status is shown separately in your library.");
         if(!doc.Automatic)return new(stored,SaveDiscoveryPhase.Disabled,"Automatic discovery is disabled. Choose manual sources in Edit game or enable discovery.");
         if(doc.Sources.Any(s=>s.CanConfirm))return new(stored,SaveDiscoveryPhase.NeedsConfirmation,"Readable candidate locations need confirmation before they can be used.");
         if(doc.Warnings.Any(w=>w.StartsWith("Waiting for the game",StringComparison.Ordinal)))return new(stored,SaveDiscoveryPhase.WaitingForSave,"Waiting for the first save in a known location. Discovery will retry during play and after exit.");
