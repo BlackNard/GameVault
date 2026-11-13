@@ -1,0 +1,9 @@
+GameVault development build
+
+This wizard installs GameVault for your Windows account. Choose a writable local folder. The bundled .NET runtime does not require a separate runtime installation.
+
+GameVault stores Data and Profiles beside its executable, including sessions, notes, covers and dated save backups. Upgrading and uninstalling preserve these folders. Keep a separate copy before moving an installation. Reinstall into the same folder to reuse retained data.
+
+Quit GameVault from its tray menu before upgrading or uninstalling. Closing its window may leave it running in the tray. Setup will not stop a game or force GameVault to quit.
+
+This unsigned development installer has automated build checks. Final installation, upgrade, uninstall, real-game and visual acceptance are still pending. This build is not a public release.

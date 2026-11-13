@@ -8,6 +8,7 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>GameVault</AssemblyName>
+    <ApplicationIcon>Assets/GameVault.ico</ApplicationIcon>
     <Version>0.1.0</Version>
     <Product>GameVault</Product>
     <Description>GameVault foundation development build</Description>
@@ -23,4 +24,5 @@
     <PackageReference Include="PDFsharp" Version="6.2.3" />
   </ItemGroup>
   <ItemGroup><Content Include="../../THIRD-PARTY-NOTICES.txt" Link="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" /></ItemGroup>
+  <ItemGroup><Resource Include="Assets/GameVault.ico" /></ItemGroup>
 </Project>

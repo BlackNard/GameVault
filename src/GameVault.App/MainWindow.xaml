@@ -2,14 +2,14 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="GameVault — Development build" Width="1200" Height="800" MinWidth="900" MinHeight="600"
-        WindowStartupLocation="CenterScreen" Background="{DynamicResource AppBackground}"
+        Icon="Assets/GameVault.ico" WindowStartupLocation="CenterScreen" Background="{DynamicResource AppBackground}"
         Foreground="{DynamicResource AppText}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14">
     <Grid>
         <Grid.ColumnDefinitions><ColumnDefinition Width="180" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
         <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppLine}" BorderThickness="0,0,1,0">
             <DockPanel Margin="16,24">
                 <StackPanel DockPanel.Dock="Top"><TextBlock Text="GameVault" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,6" /><TextBlock Text="Your games. Your device." Foreground="{DynamicResource AppMuted}" TextWrapping="Wrap" Margin="0,0,0,32" /></StackPanel>
-                <StackPanel DockPanel.Dock="Bottom"><Button x:Name="TrayAlertsButton" Content="Backup alerts" Click="ReviewNextAlert" Visibility="Collapsed" Margin="0,0,0,8"/><Button x:Name="QuitButton" Content="Quit GameVault" Click="QuitClicked" Margin="0,0,0,12"/><TextBlock x:Name="TrayBehaviorNotice" Text="Close keeps GameVault in the tray. Quit fully exits." Foreground="{DynamicResource AppMuted}" TextWrapping="Wrap"/><TextBlock Text="Local library · Development build" Foreground="{DynamicResource AppMuted}" TextWrapping="Wrap" Margin="0,12,0,0"/></StackPanel>
+                <StackPanel DockPanel.Dock="Bottom"><Button x:Name="TrayAlertsButton" Content="Backup alerts" Click="ReviewNextAlert" Visibility="Collapsed" Margin="0,0,0,8"/><Button x:Name="QuitButton" Content="Quit GameVault" Click="QuitClicked" Margin="0,0,0,12"/><TextBlock Text="Local library · Development build" Foreground="{DynamicResource AppMuted}" TextWrapping="Wrap" Margin="0,12,0,0"/></StackPanel>
                 <StackPanel><Button x:Name="LibraryNav" Content="Library" Click="ShowLibrary" HorizontalContentAlignment="Left" Margin="0,0,0,8" /><Button x:Name="SettingsNav" Content="Settings" Click="ShowSettings" HorizontalContentAlignment="Left" /></StackPanel>
             </DockPanel>
         </Border>
