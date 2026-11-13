@@ -42,6 +42,22 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
     public event EventHandler<SessionProgress>? SessionUpdated;
     public SessionProgress? GetSessionProgress(Guid id) => recorder.GetProgress(id);
     internal Task SaveCheckpointAsync(Guid id) => recorder.SampleAsync(id, true);
+    public LaunchState[] GetActiveStates(){lock(gate)return states.Values.Where(s=>s.IsActive).ToArray();}
+    public async Task<string[]> CheckpointActiveAsync()
+    {
+        var warnings=new List<string>();
+        foreach(var state in GetActiveStates())
+        {
+            try
+            {
+                await recorder.SampleAsync(state.GameId,true).ConfigureAwait(false);var progress=recorder.GetProgress(state.GameId);
+                if(progress?.Warning is string warning)warnings.Add(warning);
+                else if((progress is null||!progress.IsActive)&&GetState(state.GameId).IsActive)warnings.Add("A starting or unrecorded session has no saved timing checkpoint yet.");
+            }
+            catch(Exception error)when(error is IOException or UnauthorizedAccessException or InvalidOperationException or OverflowException){warnings.Add("The latest session checkpoint could not be saved. "+error.Message);}
+        }
+        return warnings.Distinct().ToArray();
+    }
     public LaunchState GetState(Guid id) { lock (gate) return states.GetValueOrDefault(id) ?? new(id, LaunchPhase.Stopped, "Not running"); }
 
     private readonly GameOperationLeases operations=new();

@@ -254,6 +254,36 @@ public sealed class LaunchTests : IAsyncLifetime
         await store.BeginRestoreAsync(new(1,profile.Id,Guid.NewGuid(),RestorePhase.Prepared,DateTimeOffset.UtcNow,"Synthetic recovery required"),null);
         await service.RunAsync(profile.Id).WaitAsync(TimeSpan.FromSeconds(5));Assert.Equal(0,processes.Starts);Assert.Equal(LaunchPhase.Failed,service.GetState(profile.Id).Phase);Assert.Contains("recovery",service.GetState(profile.Id).Message);
     }
+    [Fact] public async Task ExplicitQuitCheckpointKeepsTheObservedGameRunning()
+    {
+        var run=service.RunAsync(profile.Id);await WaitUntil(()=>service.GetState(profile.Id).Phase==LaunchPhase.Running);
+        Assert.Single(service.GetActiveStates());Assert.Empty(await service.CheckpointActiveAsync());Assert.False(run.IsCompleted);Assert.False(processes.Starter.HasExited);
+        var journal=Assert.Single(await store.LoadSessionJournalsAsync(profile.Id));Assert.Equal(SessionState.Active,journal.Document.Value!.State);
+        processes.Starter.Exit();await run;Assert.Empty(service.GetActiveStates());
+    }
+    [Fact] public async Task HidingTheWindowKeepsSessionAndPostExitBackupAlive()
+    {
+        var save=Path.Combine(root,"saves");Directory.CreateDirectory(save);File.WriteAllText(Path.Combine(save,"slot.sav"),"save");await store.SaveProfileAsync(profile with{SaveSources=[save]});
+        var env=new GameVault.Infrastructure.Saves.SaveDiscoveryEnvironment(Path.Combine(root,"user"),Path.Combine(root,"docs"),Path.Combine(root,"saved"),Path.Combine(root,"roam"),Path.Combine(root,"local"),Path.Combine(root,"public"),[]);
+        var backups=new GameVault.Infrastructure.Saves.BackupService(paths,store,new(paths,store,env),new(),service.IsGameRunningAsync);await using var coordinator=new GameVault.Infrastructure.Saves.BackupCoordinator(service,backups,service.WaitForIdleAsync);
+        var run=service.RunAsync(profile.Id);await WaitUntil(()=>service.GetState(profile.Id).Phase==LaunchPhase.Running);
+        var hidden=false;var lifetime=new TrayLifetime(()=>hidden=true,()=>hidden=false,()=>Task.FromResult(true),async()=>await service.DisposeAsync());await lifetime.CloseAsync(true,true);Assert.True(hidden);Assert.False(run.IsCompleted);
+        Assert.Empty(await service.CheckpointActiveAsync());processes.Starter.Exit();await run;await coordinator.FlushAsync();Assert.Equal(BackupPhase.Complete,(await backups.ReadAsync(profile.Id)).Phase);Assert.True(hidden);
+    }
+    [Fact] public async Task FailedQuitCheckpointReportsWarningWithoutStoppingGame()
+    {
+        var fail=false;var failing=new AppDataStore(paths,_=>{if(fail)throw new IOException("Synthetic full disk");});await using var launcher=new LaunchService(paths,failing,processes);
+        var run=launcher.RunAsync(profile.Id);await WaitUntil(()=>launcher.GetState(profile.Id).Phase==LaunchPhase.Running);fail=true;
+        Assert.NotEmpty(await launcher.CheckpointActiveAsync());Assert.False(run.IsCompleted);Assert.False(processes.Starter.HasExited);
+        fail=false;processes.Starter.Exit();await run;
+    }
+    [Fact] public async Task StartingAnotherSessionCannotReuseTheCompletedSessionCheckpoint()
+    {
+        await using var launcher=new LaunchService(paths,store,processes,TimeSpan.FromSeconds(30),TimeSpan.FromMilliseconds(5));
+        var first=launcher.RunAsync(profile.Id);await WaitUntil(()=>launcher.GetState(profile.Id).Phase==LaunchPhase.Running);processes.Starter.Exit();await first;Assert.False(launcher.GetSessionProgress(profile.Id)!.IsActive);
+        processes.Starter=new(50,200);await store.SaveLaunchSettingsAsync(new(1,profile.Id,target));var second=launcher.RunAsync(profile.Id);await WaitUntil(()=>processes.Starts==2);
+        Assert.NotEmpty(await launcher.CheckpointActiveAsync());Assert.False(second.IsCompleted);await launcher.DisposeAsync();await second;
+    }
     private sealed class FakeProcess(int id, long created) : IGameProcess
     {
         private readonly TaskCompletionSource exit = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -267,7 +297,7 @@ public sealed class LaunchTests : IAsyncLifetime
 
     private sealed class FakeProcesses : IGameProcessSystem
     {
-        public FakeProcess Starter { get; } = new(40, 100);
+        public FakeProcess Starter { get; set; } = new(40, 100);
         public FakeProcess Child { get; } = new(41, 101);
         public ProcessCandidate[] Candidates = [];
         public int Starts;

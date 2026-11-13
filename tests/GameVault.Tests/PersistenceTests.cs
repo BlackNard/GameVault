@@ -22,6 +22,12 @@ public sealed class PersistenceTests : IDisposable
     private string Folder(Guid id) => Path.Combine(paths.Profiles, id.ToString("N"));
     private string SettingsFile => Path.Combine(paths.Data, "settings.json");
 
+    [Fact] public async Task LegacySettingsGetTrayDefaultsAndPreferencesPersistWithTheme()
+    {
+        Directory.CreateDirectory(paths.Data);File.WriteAllText(SettingsFile,"{\"schemaVersion\":1,\"theme\":\"Crimson\",\"defaultBackupLimit\":20,\"keepAllBackups\":false,\"reduceMotion\":false}");
+        var legacy=await store.InitializeAsync();Assert.True(legacy.Settings.Value!.CloseToTray);Assert.True(legacy.Settings.Value.NotifyBackupFailures);
+        await store.SaveSettingsAsync(legacy.Settings.Value! with{CloseToTray=false,NotifyBackupFailures=false});var reopened=await new AppDataStore(paths).InitializeAsync();Assert.False(reopened.Settings.Value!.CloseToTray);Assert.False(reopened.Settings.Value.NotifyBackupFailures);Assert.Equal("Crimson",reopened.Settings.Value!.Theme);
+    }
     [Fact]
     public async Task FirstRunCreatesLocalDirectoriesAndMidnightDefaults()
     {
