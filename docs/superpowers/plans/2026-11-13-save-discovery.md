@@ -20,7 +20,7 @@
 - [x] Offline candidate catalog and SaveDiscoveryService. RED tests: RE2 non-store rules, version ambiguity, generic suggestions, absent then new saves, manual precedence, retained missing mappings, confirm revalidation/disabled mode. Implement; GREEN suite.
 - [x] Tracked lifecycle coordinator and confirmed-end signal. RED synthetic first-launch discovery/exit/cancel/disposal integration; implement without blocking measured time or requiring game monitoring privileges; GREEN suite.
 - [x] Same-window Save sources panel and library/add-game integration, deferred owner checklist. Full suite + focused review/regression fixes.
-- [ ] Full locked verify/publish, clean ZIP, private data import, draft PR and green CI. Do not merge; manual UAT stays pending for the final pass.
+- [x] Full locked verify/publish, clean ZIP, private data import and draft PR #32. GitHub CI is the remaining external check; confirm green before handoff. Do not merge; manual UAT stays pending for the final pass.
 ## Execution rulings and evidence
 - Friendly title rename is excluded from identity; executable/working path/manual overrides form the fingerprint. Revision CAS rejects stale scans. Payload markers persist so a recheck cannot silently substitute config-only files for expected save files.
 - Selected is an intended mapping, including missing/unsafe diagnostic state; backup consumers require a fresh successful result and every selected source Ready. Known ambiguity and generic guesses require explicit confirmation. Disabled and stale identity mappings are not probed.
