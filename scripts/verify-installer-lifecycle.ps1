@@ -108,6 +108,8 @@ function Assert-Registration([string]$Directory,[string]$Version) {
 }
 function Uninstall-Owned([string]$Directory,[string]$Scenario,[string]$Fingerprint) {
     $null=Invoke-Setup (Join-Path $Directory 'unins000.exe') $Directory $Scenario $true $true
+    # Inno's first phase exits before the cleanup phase calls DeinitializeUninstall.
+    Wait-InstallerLeaseRelease -Root $Directory
     Assert-Preserved $Directory $Fingerprint
     foreach($file in $currentManifest.payload){if(Test-Path -LiteralPath (Join-Path $Directory $file.path)){throw 'Uninstaller retained installer-owned payload.'}}
     if(Test-Path -LiteralPath $registration){throw 'Uninstall registration was retained.'}

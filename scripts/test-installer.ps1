@@ -98,6 +98,25 @@ public static class GameVaultInstallerLease {
     if ($fingerprint -ne (Get-InstallerLibraryFingerprint $library)) { throw 'Library fingerprint is unstable.' }; $count++
     [IO.File]::WriteAllText((Join-Path $library 'Data/settings.json'),'changed')
     if ($fingerprint -eq (Get-InstallerLibraryFingerprint $library)) { throw 'Library fingerprint missed a changed file.' }; $count++
+    if (-not ('InstallerLeaseTestRelease' -as [type])) {
+        Add-Type @"
+public static class InstallerLeaseTestRelease {
+    public static System.Threading.Tasks.Task ReleaseAfter(System.IO.FileStream stream, int milliseconds) {
+        return System.Threading.Tasks.Task.Run(async () => { await System.Threading.Tasks.Task.Delay(milliseconds); stream.Dispose(); });
+    }
+}
+"@
+    }
+    $held=[IO.File]::Open($lockPath,'Open','ReadWrite','None')
+    try { Assert-Rejected { Wait-InstallerLeaseRelease -Root $root -TimeoutSeconds 0.1 } 'timed out' } finally { $held.Dispose() }
+    $held=[IO.File]::Open($lockPath,'Open','ReadWrite','None')
+    try {
+        $release=[InstallerLeaseTestRelease]::ReleaseAfter($held,150)
+        Wait-InstallerLeaseRelease -Root $root -TimeoutSeconds 3
+        $release.GetAwaiter().GetResult()
+        if([IO.File]::ReadAllText($lockPath) -ne 'coordination marker'){throw 'Lease wait changed the coordination file'}
+        $count++
+    } finally {$held.Dispose()}
     Write-Host "Installer payload, lease and lifecycle-guard checks passed: $count"
 }
 finally {

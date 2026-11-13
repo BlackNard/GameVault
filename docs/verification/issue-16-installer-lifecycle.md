@@ -16,7 +16,7 @@ The automated gate combines local headless fixture tests, payload/lease checks, 
 
 Each run writes `artifacts/installer-lifecycle.json` and a uniquely named evidence directory with scenario observations, exact Windows/architecture information, setup logs and probe diagnostics. CI retains only synthetic evidence as an artifact for seven days. `automatedPassed` must be true; a failed run keeps partial evidence and fails CI. Installer/probe waits are bounded. Only test-created child processes may be stopped on a timeout. No owner app/game is launched or stopped.
 
-Local verification adds four synthetic fixture tests and three PowerShell guard/fingerprint checks to the existing suite. Full restore/build/test/publish and installer compilation remain required. The linked fixture source and entry points are test-only and excluded from clean publish, ZIP and setup payloads.
+Local verification adds four synthetic fixture tests and five PowerShell guard/fingerprint/cleanup-wait checks to the existing suite. Full restore/build/test/publish and installer compilation remain required. The linked fixture source and entry points are test-only and excluded from clean publish, ZIP and setup payloads.
 
 ## Still pending before closing #16 / release
 
@@ -27,3 +27,5 @@ Local verification adds four synthetic fixture tests and three PowerShell guard/
 Issue #16 stays open for this final acceptance. Passing automated lifecycle checks does not approve a public release or signing.
 
 Command and exit-code behavior follow the official [setup parameters](https://jrsoftware.org/inno-setup/documentation/topic_setupcmdline.htm), [uninstall parameters](https://jrsoftware.org/inno-setup/documentation/topic_uninstcmdline.htm), and [setup exit codes](https://jrsoftware.org/inno-setup/documentation/topic_setupexitcodes.htm).
+
+The initial real lifecycle run caught an immediate-reinstall race in the test driver: Inno's original uninstall process exits before the cleanup process calls DeinitializeUninstall and releases the application lock. The driver now waits for actual lease release with a bounded, regression-tested poll; it never deletes the coordination file or weakens mutual exclusion. This follows the [official Inno 7.1.1 uninstall source](https://github.com/jrsoftware/issrc/blob/is-7_1_1/Projects/Src/Setup.Uninstall.pas).

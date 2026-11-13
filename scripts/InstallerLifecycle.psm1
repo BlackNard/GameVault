@@ -29,4 +29,18 @@ function Get-InstallerLibraryFingerprint {
     [Array]::Sort($sorted,[StringComparer]::Ordinal)
     return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes(($sorted -join "`n"))))
 }
-Export-ModuleMember -Function Assert-DisposableInstallerRunner,Get-InstallerLibraryFingerprint
+function Wait-InstallerLeaseRelease {
+    param([Parameter(Mandatory)][string]$Root,[double]$TimeoutSeconds=15)
+    $watch=[Diagnostics.Stopwatch]::StartNew()
+    while($true){
+        try {
+            $lease=[IO.FileStream]::new((Join-Path $Root '.gamevault.lock'),'Open','ReadWrite','None')
+            $lease.Dispose()
+            return
+        } catch [IO.IOException] {
+            if($watch.Elapsed.TotalSeconds -ge $TimeoutSeconds){throw 'Uninstaller cleanup timed out while holding the application lease.'}
+            Start-Sleep -Milliseconds 50
+        }
+    }
+}
+Export-ModuleMember -Function Assert-DisposableInstallerRunner,Get-InstallerLibraryFingerprint,Wait-InstallerLeaseRelease
