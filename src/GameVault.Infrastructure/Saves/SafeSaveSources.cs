@@ -24,7 +24,7 @@ public sealed class SaveSourcePolicy
             if(raw.Any(p=>p is "." or ".."||p.EndsWith('.')||char.IsWhiteSpace(p[^1])))throw new IOException("Save paths must not contain traversal components.");
             var full=Canonical(path);var root=Path.GetPathRoot(full)!;
             if(OperatingSystem.IsWindows()&&new DriveInfo(root).DriveType==DriveType.Network)throw new IOException("Mapped network drives are not supported as local save sources.");
-            if(full.Equals(Canonical(root),StringComparison.OrdinalIgnoreCase)||broad.Contains(full,StringComparer.OrdinalIgnoreCase))
+            if(full.Equals(Canonical(root),StringComparison.OrdinalIgnoreCase)||broad.Any(protectedRoot=>Within(protectedRoot,full)))
                 throw new IOException("Choose a game's narrow save location, not an entire drive, user folder or shared system folder.");
             foreach(var part in full[root.Length..].Split(Path.DirectorySeparatorChar,StringSplitOptions.RemoveEmptyEntries))
                 if(part.IndexOfAny(Path.GetInvalidFileNameChars())>=0)throw new IOException("The save path contains unsupported characters or alternate streams.");

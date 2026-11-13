@@ -44,7 +44,7 @@ public partial class SaveSourcesView:UserControl
         result=value;Summary.Text=value.Summary;changing=true;Automatic.IsChecked=value.Document.Value?.Automatic??true;changing=false;
         CheckedAt.Text=value.Document.Value is SaveDiscoveryDocument doc?$"Last check: {doc.ScannedAt.ToLocalTime():g} · sources are verified again before backup use":"No completed source check yet";
         Diagnostics.Text=string.Join("\n",new[]{value.Document.Message}.Concat(value.Document.Value?.Warnings??[]).Where(s=>!string.IsNullOrWhiteSpace(s)).Distinct());
-        BindRows();Automatic.IsEnabled=!busy&&!value.Document.IsReadOnly;UpdateConfirm();
+        BindRows();Automatic.IsEnabled=!busy&&!value.Document.IsReadOnly;ManualButton.IsEnabled=!busy&&!isGameActive();UpdateConfirm();
     }
     private void BindRows()
     {

@@ -36,6 +36,8 @@ public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore sto
             token.ThrowIfCancellationRequested();var game=await store.LoadProfileAsync(id).ConfigureAwait(false);
             stored=await store.LoadSaveDiscoveryAsync(id).ConfigureAwait(false);JsonDocuments.RequireWritable(stored);
             if(game.Profile.State!=DocumentState.Ready||game.Profile.Value is not GameProfile profile)throw new IOException("The game profile needs attention; discovery cannot update it.");
+            if(automatic is null&&confirm is null&&stored.Value is {Automatic:false} cached&&profile.SaveSources.Length==0&&cached.Fingerprint==SaveDiscoveryIdentity.For(profile))
+            {var cachedResult=Summarize(stored);Publish(id,cachedResult);return cachedResult;}
             var enabled=automatic??stored.Value?.Automatic??true;
             pending=await Task.Run(()=>Build(profile,stored.Value,enabled,confirm,token),token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();await store.SaveDiscoveryAsync(pending,stored.Value?.Revision??0).ConfigureAwait(false);

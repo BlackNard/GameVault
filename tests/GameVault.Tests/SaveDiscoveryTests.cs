@@ -46,7 +46,7 @@ public sealed class SaveDiscoveryTests:IDisposable
     [Fact] public async Task DisabledModeProtectedDocumentsAndIdentityChangesNeverReuseStaleVerification()
     {
         await Seed();Save(Known);var service=Service;await service.ScanAsync(id);var disabled=await service.SetAutomaticAsync(id,false);Assert.Equal(SaveDiscoveryPhase.Disabled,disabled.Phase);
-        Assert.DoesNotContain(disabled.Document.Value!.Sources,s=>s.Selected);Assert.All(disabled.Document.Value.Sources,s=>Assert.Equal(SaveSourceAccess.NotChecked,s.Access));await service.SetAutomaticAsync(id,true);
+        Assert.DoesNotContain(disabled.Document.Value!.Sources,s=>s.Selected);Assert.All(disabled.Document.Value.Sources,s=>Assert.Equal(SaveSourceAccess.NotChecked,s.Access));Assert.Equal(disabled.Document.Value.Revision,(await service.ScanAsync(id)).Document.Value!.Revision);await service.SetAutomaticAsync(id,true);
         await Store.SaveProfileAsync(Profile with{ExecutablePath=Path.Combine(root,"Other","other.exe"),WorkingDirectory=Path.Combine(root,"Other")});
         Assert.Equal(SaveDiscoveryPhase.Error,(await service.ReadAsync(id)).Phase);Assert.DoesNotContain((await service.ScanAsync(id)).Document.Value!.Sources,s=>s.Selected);
         var file=Path.Combine(Paths.Profiles,id.ToString("N"),"save-discovery.json");File.WriteAllText(file,"{\"schemaVersion\":99}");

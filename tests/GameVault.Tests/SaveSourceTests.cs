@@ -59,5 +59,10 @@ public sealed class SaveSourceTests:IDisposable
     public void DeviceNamesAndWin32PathAliasesAreUnsafe(string leaf)
     {
         Assert.ThrowsAny<IOException>(()=>Policy.Validate(Path.Combine(root,leaf)));
+    }    [Fact] public void AncestorsOfProtectedProfileRootsAreRejectedButGameDescendantsRemainAllowed()
+    {
+        var parent=Path.Combine(root,"people");var home=Path.Combine(parent,"player");var policy=new SaveSourcePolicy(Paths,[home]);
+        Assert.ThrowsAny<IOException>(()=>policy.Validate(parent));
+        var narrow=Path.Combine(home,"Saved Games","Adventure");Assert.Equal(narrow,policy.Validate(narrow));
     }    public void Dispose(){if(Directory.Exists(root))Directory.Delete(root,true);}
 }
