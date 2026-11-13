@@ -95,7 +95,7 @@ public sealed class BackupHistoryService
     }
     private IDisposable Acquire(Guid id)=>leases.TryAcquire(id)??throw new InvalidOperationException("A game session, backup or history change is active. Retry after it finishes.");
     private async Task RequireIdle(Guid id,CancellationToken token)
-    {token.ThrowIfCancellationRequested();if(await isRunning(id).ConfigureAwait(false))throw new InvalidOperationException("Close the game before changing backup pins or retention.");}
+    {token.ThrowIfCancellationRequested();await store.RequireNoPendingRestoreAsync(id).ConfigureAwait(false);if(await isRunning(id).ConfigureAwait(false))throw new InvalidOperationException("Close the game before changing backup pins or retention.");}
     private sealed record Tree(string[] Files,string[] Directories);
     private Tree OwnedTree(CompletedBackup backup,CancellationToken token)
     {

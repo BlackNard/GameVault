@@ -41,7 +41,7 @@ public sealed class BackupService
         BackupResult result;
         try
         {
-            token.ThrowIfCancellationRequested();last=await Task.Run(()=>storage.Latest(id,token),token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();last=await Task.Run(()=>storage.Latest(id,token),token).ConfigureAwait(false);await store.RequireNoPendingRestoreAsync(id).ConfigureAwait(false);
             Publish(new(id,BackupPhase.Working,"Checking saves and preparing a verified backup…",last));
             var status=await Task.Run(()=>storage.ReadStatus(id),token).ConfigureAwait(false);JsonDocuments.RequireWritable(status);
             if(await isRunning(id).ConfigureAwait(false))result=new(id,BackupPhase.Blocked,"The game is running. Close it and retry the backup.",last);
