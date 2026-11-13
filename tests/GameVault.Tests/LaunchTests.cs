@@ -230,6 +230,25 @@ public sealed class LaunchTests : IAsyncLifetime
 
     public async Task DisposeAsync() { await service.DisposeAsync(); Directory.Delete(root, true); }
 
+    [Fact] public async Task BackupLeaseBlocksLaunchAndExternalProcessProbeDetectsGames()
+    {
+        var leases=new GameVault.Infrastructure.Saves.GameOperationLeases();
+        using(var lease=leases.TryAcquire(profile.Id)!)await Assert.ThrowsAsync<InvalidOperationException>(()=>service.RunAsync(profile.Id));
+        Assert.Equal(0,processes.Starts);Assert.False(await service.IsGameRunningAsync(profile.Id));
+        processes.Candidates=[new(new(88,1),[])];Assert.True(await service.IsGameRunningAsync(profile.Id));
+    }
+    [Fact] public async Task ConfirmedExitCreatesFirstSaveBackupAfterLaunchLeaseRelease()
+    {
+        var exe=Path.Combine(root,"re2.exe");File.WriteAllText(exe,"fixture");profile=profile with{Name="Resident Evil 2",ExecutablePath=exe};await store.SaveProfileAsync(profile);
+        var env=new GameVault.Infrastructure.Saves.SaveDiscoveryEnvironment(Path.Combine(root,"user"),Path.Combine(root,"docs"),Path.Combine(root,"saved"),Path.Combine(root,"roaming"),Path.Combine(root,"local"),Path.Combine(root,"public"),[]);
+        var discovery=new GameVault.Infrastructure.Saves.SaveDiscoveryService(paths,store,env);
+        var backups=new GameVault.Infrastructure.Saves.BackupService(paths,store,discovery,new(),service.IsGameRunningAsync);
+        await using var coordinator=new GameVault.Infrastructure.Saves.BackupCoordinator(service,backups,service.WaitForIdleAsync);
+        var run=service.RunAsync(profile.Id);await WaitUntil(()=>service.GetState(profile.Id).Phase==LaunchPhase.Running);
+        var save=Path.Combine(env.PublicDocuments,"Steam","CODEX","883710","remote","win64_save");Directory.CreateDirectory(save);File.WriteAllText(Path.Combine(save,"data000.bin"),"First save");
+        processes.Starter.Exit();await run;await coordinator.FlushAsync();
+        Assert.Equal(BackupPhase.Complete,(await backups.ReadAsync(profile.Id)).Phase);
+    }
     private sealed class FakeProcess(int id, long created) : IGameProcess
     {
         private readonly TaskCompletionSource exit = new(TaskCreationOptions.RunContinuationsAsynchronously);
