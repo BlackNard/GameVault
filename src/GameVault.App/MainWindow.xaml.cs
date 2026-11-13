@@ -12,6 +12,8 @@ namespace GameVault.App;
 
 public partial class MainWindow : Window
 {
+    private BackupsView? backupsView;
+    private readonly BackupHistoryService backupHistory;
     private long backupViewRevision;
     private readonly BackupService backups;
     private readonly BackupCoordinator backupCoordinator;
@@ -46,6 +48,7 @@ public partial class MainWindow : Window
         discoveryCoordinator = new(launches, discovery);
         backups=new(paths,store,discovery,new GameOperationLeases(),launches.IsGameRunningAsync);
         backupCoordinator=new(launches,backups,launches.WaitForIdleAsync);
+        backupHistory=new(paths,store,new(),launches.IsGameRunningAsync);
         backups.Changed+=BackupChanged;
         discovery.Changed += SourceDiscoveryChanged;
         launchSettings = new(paths, store);
@@ -327,7 +330,7 @@ public partial class MainWindow : Window
     }
     private void OpenNotes(object sender, RoutedEventArgs e)
     {
-        if (busy || editorOpen || stoppingObservation || notesView is not null || saveSourcesView is not null || GameList.SelectedItem is not LibraryItemView item) return;
+        if (busy || editorOpen || stoppingObservation || notesView is not null || saveSourcesView is not null || backupsView is not null || GameList.SelectedItem is not LibraryItemView item) return;
         notesView = new NotesView(paths, store, item.Game.Id, settings.Theme, () => launches.GetState(item.Game.Id).IsActive);
         notesView.GameDataChanged += NotesDataChanged;
         notesView.BackRequested += BackFromNotes;
@@ -340,23 +343,25 @@ public partial class MainWindow : Window
     private async void BackFromNotes(object? sender, EventArgs e) { if (await LeaveNotes()) SetNavigation(true); }
     private async Task<bool> LeaveNotes()
     {
-        if(notesView is null&&saveSourcesView is null)return true;
+        if(notesView is null&&saveSourcesView is null&&backupsView is null)return true;
         if(notesNavigationPending)return false;
         notesNavigationPending=true;LibraryNav.IsEnabled=SettingsNav.IsEnabled=false;
         try
         {
+            if(backupsView is not null&&!await backupsView.CanLeaveAsync())return false;
             if(notesView is not null&&!await notesView.CanLeaveAsync())return false;
             if(saveSourcesView is not null&&!await saveSourcesView.CanLeaveAsync())return false;
             if(notesView is not null){notesView.GameDataChanged-=NotesDataChanged;notesView.BackRequested-=BackFromNotes;}
             if(saveSourcesView is not null){saveSourcesView.ManualEditRequested-=EditManualSources;saveSourcesView.BackRequested-=BackFromNotes;}
-            NotesHost.Content=null;notesView=null;saveSourcesView=null;NotesHost.Visibility=Visibility.Collapsed;
+            if(backupsView is not null){backupsView.BackRequested-=BackFromNotes;backupsView.GameDataChanged-=NotesDataChanged;}
+            backupsView=null;NotesHost.Content=null;notesView=null;saveSourcesView=null;NotesHost.Visibility=Visibility.Collapsed;
             UpdateButtons();return true;
         }
         finally{notesNavigationPending=false;LibraryNav.IsEnabled=SettingsNav.IsEnabled=true;}
     }
     private void OpenSaveSources(object sender,RoutedEventArgs e)
     {
-        if(busy||editorOpen||stoppingObservation||notesView is not null||saveSourcesView is not null||GameList.SelectedItem is not LibraryItemView item)return;
+        if(busy||editorOpen||stoppingObservation||notesView is not null||saveSourcesView is not null||backupsView is not null||GameList.SelectedItem is not LibraryItemView item)return;
         saveSourcesView=new(discovery,item.Game.Id,item.Name,()=>launches.GetState(item.Game.Id).IsActive||backups.IsWorking(item.Game.Id));
         saveSourcesView.BackRequested+=BackFromNotes;saveSourcesView.ManualEditRequested+=EditManualSources;
         NotesHost.Content=saveSourcesView;LibraryPanel.Visibility=SettingsPanel.Visibility=Visibility.Collapsed;NotesHost.Visibility=Visibility.Visible;
@@ -392,6 +397,14 @@ public partial class MainWindow : Window
         var sources=result.Phase==SaveDiscoveryPhase.Error?[]:result.Document.Value?.Sources.Where(s=>s.Selected).Select(s=>s.Path+" ("+s.Access+")").ToArray()??[];
         DetailSaves.Text=result.Summary+(sources.Length==0?"":"\n"+string.Join("\n",sources));
     }
+    private void OpenBackupHistory(object sender,RoutedEventArgs e)
+    {
+        if(busy||editorOpen||stoppingObservation||notesView is not null||saveSourcesView is not null||backupsView is not null||GameList.SelectedItem is not LibraryItemView item)return;
+        backupsView=new(backupHistory,item.Game.Id,item.Name,()=>launches.GetState(item.Game.Id).IsActive||backups.IsWorking(item.Game.Id));
+        backupsView.BackRequested+=BackFromNotes;backupsView.GameDataChanged+=NotesDataChanged;
+        NotesHost.Content=backupsView;LibraryPanel.Visibility=SettingsPanel.Visibility=Visibility.Collapsed;NotesHost.Visibility=Visibility.Visible;
+        OperationNotice.Text="Backups · "+item.Name;UpdateButtons();
+    }
     private async void BackUpNow(object sender,RoutedEventArgs e)
     {
         if(busy||editorOpen||stoppingObservation||GameList.SelectedItem is not LibraryItemView item)return;
@@ -408,7 +421,7 @@ public partial class MainWindow : Window
     private void BackupChanged(object? sender,BackupResult result)
     {
         if(Dispatcher.HasShutdownStarted)return;
-        _=Dispatcher.InvokeAsync(()=>{if(stoppingObservation)return;if(GameList.SelectedItem is LibraryItemView item&&item.Game.Id==result.GameId){backupViewRevision++;ApplyBackupSummary(result);}UpdateButtons();});
+        _=Dispatcher.InvokeAsync(()=>{if(stoppingObservation)return;if(backupsView is not null&&backupsView.GameId==result.GameId&&result.Phase!=BackupPhase.Working)_=backupsView.RefreshAsync();if(GameList.SelectedItem is LibraryItemView item&&item.Game.Id==result.GameId){backupViewRevision++;ApplyBackupSummary(result);}UpdateButtons();});
     }
     private void ApplyBackupSummary(BackupResult result)
     {
@@ -418,6 +431,8 @@ public partial class MainWindow : Window
     }
     private void UpdateButtons()
     {
+        backupsView?.UpdateAvailability();
+        BackupHistoryButton.IsEnabled=!busy&&!editorOpen&&!stoppingObservation&&GameList.SelectedItem is LibraryItemView;
         SaveSourcesButton.IsEnabled = !busy && !editorOpen && !stoppingObservation && GameList.SelectedItem is LibraryItemView;
         NotesButton.IsEnabled = !busy && !editorOpen && !stoppingObservation && GameList.SelectedItem is LibraryItemView;
         AddButton.IsEnabled = !busy && !editorOpen && !settingsReadOnly;

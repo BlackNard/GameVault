@@ -65,6 +65,7 @@
                                     <TextBlock x:Name="BackupNotice" TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,6,0,8" AutomationProperties.LiveSetting="Polite"/>
                                     <TextBlock x:Name="LastBackup" TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,0,0,12"/>
                                     <Button x:Name="BackupButton" Content="Back up now" Click="BackUpNow" Margin="0,0,0,8"/>
+                                    <Button x:Name="BackupHistoryButton" Content="Browse backups" Click="OpenBackupHistory" Margin="0,0,0,8"/>
                                     <Button x:Name="SaveSourcesButton" Content="Save sources" Click="OpenSaveSources" Margin="0,0,0,8" />
                                     <Button x:Name="EditButton" Content="Edit game" Click="EditGame" Margin="0,0,0,8" />
                                     <Button x:Name="LaunchSettingsButton" Content="Launch settings" Click="ConfigureLaunch" Margin="0,0,0,8" />

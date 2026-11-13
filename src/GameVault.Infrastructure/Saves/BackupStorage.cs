@@ -19,26 +19,39 @@ internal sealed class BackupStorage(ApplicationPaths paths)
     {
         Check(StatusFile(result.GameId));documents.Write(StatusFile(result.GameId),new BackupStatus(1,result.GameId,result.Phase,result.Message,DateTimeOffset.UtcNow),s=>s.SchemaVersion==1&&s.GameId==result.GameId&&Enum.IsDefined(s.Phase)&&s.Message is {Length:>0 and <8192}&&s.UpdatedAt!=default);
     }
+    public sealed record CatalogResult(CompletedBackup[] Backups,string[] Warnings,int RecoveryFolders);
+    public CatalogResult Catalog(Guid id,CancellationToken token)
+    {
+        var root=Root(id);Check(root);if(!Directory.Exists(root))return new([],[],0);
+        var entries=Directory.EnumerateFileSystemEntries(root).Take(4097).ToArray();
+        if(entries.Length>4096)throw new IOException("Backup history exceeded its inspection limit; existing snapshots were preserved.");
+        var backups=new List<CompletedBackup>();var warnings=new List<string>();var recovery=0;
+        foreach(var folder in entries)
+        {
+            token.ThrowIfCancellationRequested();
+            try
+            {
+                Check(folder);
+                if(!Directory.Exists(folder))throw new IOException("An unrecognized file in Backups was preserved.");
+                if(Path.GetFileName(folder).StartsWith(".pending-",StringComparison.Ordinal)||Path.GetFileName(folder).StartsWith(".prune-",StringComparison.Ordinal)){recovery++;continue;}
+                var file=Path.Combine(folder,"manifest.json");Check(file);
+                if(new FileInfo(file).Length>8*1024*1024)throw new IOException("A backup manifest exceeded its inspection limit.");
+                var stored=documents.Read<BackupManifest>(file,m=>Valid(m,id));
+                if(stored.State!=DocumentState.Ready)throw new IOException(stored.Message??"An incomplete backup was preserved; inspect it before retrying.");
+                var manifest=stored.Value!;
+                if(Path.GetFileName(folder)!=Name(manifest))throw new IOException("A backup folder does not match its manifest identity.");
+                backups.Add(new(folder,manifest));
+            }
+            catch(Exception e)when(e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+            {warnings.Add(Path.GetFileName(folder)+": "+e.Message);}
+        }
+        return new(backups.OrderByDescending(b=>b.Manifest.CreatedAt).ThenByDescending(b=>b.Manifest.Id).ToArray(),warnings.ToArray(),recovery);
+    }
     public CompletedBackup? Latest(Guid id,CancellationToken token)
     {
-        var root=Root(id);Check(root);if(!Directory.Exists(root))return null;
-        var directories=Directory.EnumerateDirectories(root).Take(4097).ToArray();
-        if(directories.Length>4096)throw new IOException("Backup history exceeded its inspection limit; existing snapshots were preserved.");
-        CompletedBackup? latest=null;
-        foreach(var folder in directories)
-        {
-            token.ThrowIfCancellationRequested();Check(folder);
-            if(Path.GetFileName(folder).StartsWith(".pending-",StringComparison.Ordinal))continue;
-            var file=Path.Combine(folder,"manifest.json");Check(file);
-            if(new FileInfo(file).Length>8*1024*1024)throw new IOException("A backup manifest exceeded its inspection limit.");
-            var stored=documents.Read<BackupManifest>(file,m=>Valid(m,id));
-            if(stored.State!=DocumentState.Ready)throw new IOException(stored.Message??"An incomplete backup was preserved; inspect it before retrying.");
-            var manifest=stored.Value!;
-            if(Path.GetFileName(folder)!=Name(manifest))throw new IOException("A backup folder does not match its manifest identity.");
-            if(latest is null||manifest.CreatedAt>latest.Manifest.CreatedAt||manifest.CreatedAt==latest.Manifest.CreatedAt&&manifest.Id.CompareTo(latest.Manifest.Id)>0)latest=new(folder,manifest);
-        }
-        if(latest is not null)Verify(latest,token);
-        return latest;
+        var catalog=Catalog(id,token);
+        if(catalog.Warnings.Length>0)throw new IOException(string.Join(" ",catalog.Warnings));
+        var latest=catalog.Backups.FirstOrDefault();if(latest is not null)Verify(latest,token);return latest;
     }
     public static string Name(BackupManifest m)=>m.CreatedAt.UtcDateTime.ToString("yyyyMMdd'T'HHmmssfffffff'Z'",System.Globalization.CultureInfo.InvariantCulture)+"-"+m.Id.ToString("N");
     public void WriteManifest(string folder,BackupManifest manifest)
@@ -47,6 +60,14 @@ internal sealed class BackupStorage(ApplicationPaths paths)
         var file=Path.Combine(folder,"manifest.json");Check(file);
         using var stream=new FileStream(file,FileMode.CreateNew,FileAccess.Write,FileShare.None,4096,FileOptions.WriteThrough);
         JsonSerializer.Serialize(stream,manifest,Json);if(stream.Position>8*1024*1024)throw new IOException("Backup manifest exceeded the 8 MiB inspection limit.");stream.Flush(true);
+    }
+    public void ConfirmManifest(CompletedBackup backup)
+    {
+        var file=Path.Combine(backup.Directory,"manifest.json");Check(file);
+        if(new FileInfo(file).Length>8*1024*1024)throw new IOException("Backup manifest exceeded its inspection limit.");
+        var current=documents.Read<BackupManifest>(file,m=>Valid(m,backup.Manifest.GameId));
+        if(current.State!=DocumentState.Ready||JsonSerializer.Serialize(current.Value,Json)!=JsonSerializer.Serialize(backup.Manifest,Json))
+            throw new IOException("Backup manifest changed or needs recovery. Cleanup stopped.");
     }
     public void Verify(CompletedBackup backup,CancellationToken token)
     {

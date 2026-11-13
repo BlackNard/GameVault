@@ -1,0 +1,19 @@
+# Backup history, pins and retention - issue #11
+
+Players need to see independent dated snapshots, preserve favorites and control storage. Add a same-window Backups page with newest-first dates (local time with seconds), short stable ID, recorded payload size/file count and pinned status. Dates describe backup creation, never progress in the game. Show completed payload totals separately from preserved incomplete/recovery folders; no claim of full disk-allocation measurement or reverified historical integrity during metadata browsing. Retain existing Midnight/Crimson resources and fixed Back controls.
+
+## Approach
+Keep snapshot manifests immutable; store pin IDs in a separate schema-1 atomic per-game backup-pins.json document, preserving existing stable IDs and no pin changes to payloads. Existing profile BackupLimit and KeepAllBackups fields are the retention policy (default 20 unpinned plus all pins). A monolithic replacement index would duplicate manifests; changing every snapshot to pin it risks immutable-copy integrity. Use existing AppDataStore protected-document and root-lock rules with revision/expected-policy checks.
+
+## Cleanup
+Run only after a newly committed verified snapshot (not unchanged/failed/blocked/canceled backup), or Apply retention settings. Saving a pin does not trigger cleanup. Positive per-game limit; keep-everything bypasses cleanup. Shared game-operation leases serialize launch, backup, pin and retention changes. Reading history is allowed while playing; mutating actions require no active game/session/backup and fresh checks.
+
+Sort by creation UTC then stable UUID deterministically. Select newest N unpinned plus every pinned snapshot. Always protect the newest verified snapshot, and the just-created successful ID if clock adjustments make it sort earlier. Never remove .pending-* or .prune-* recovery folders, unknown/future/corrupt documents or trees containing extra/unexpected files or links.
+
+Preflight the entire pruning plan before any deletion: validate paths remain exactly under the game Backups directory, read current protected pins/policy, verify newest retained payload and every deletion candidate, inspect bounded exact manifest-owned files/directories with no reparse points and no extra data, recheck manifest/pins/policy/active state. Rename an old candidate to a unique .prune-<backup-id>-<attempt-id> in the same directory, validate again, then delete only known files and empty directories (no general recursive delete). An interruption leaves the remaining quarantine intact for recovery; it is never retried/deleted automatically. Stop with an actionable warning on any failure, preserving latest/pins and unrelated data. Settings may persist before cleanup fails; report that accurately and permit retry. Cleanup failure after successful capture does not turn verified backup success into failure.
+
+## Scope and limits
+Browse/pin/unpin/apply retention only; restore is the next ticket. Existing backup bounds remain, including <=4096 folders and per-manifest 4096 files/8192 entries/depth limits. Cancellation checked before each destructive step; no silent startup cleanup or background automation. Storage totals are recorded completed payload bytes; recovery/unknown space is explicitly excluded rather than guessed.
+
+## Verification
+Synthetic-only tests: newest ordering/timestamp collisions and payload totals; pin restart/protected pins; default 20 plus pins, custom limit/keep all; fail/unchanged backups never prune; pinning alone never prunes; post-success cleanup; explicit apply preview/results; latest protection/clock adjustment; extra files, corrupt/future manifests, junctions, cancellation/interrupted prune and conflicts preserve data. One final focused review, full locked release verification, clean ZIP before private data import, draft PR and CI. Owner manual UI/native/game testing stays deferred until all planned issues are finished.
