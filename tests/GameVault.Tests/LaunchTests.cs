@@ -249,6 +249,11 @@ public sealed class LaunchTests : IAsyncLifetime
         processes.Starter.Exit();await run;await coordinator.FlushAsync();
         Assert.Equal(BackupPhase.Complete,(await backups.ReadAsync(profile.Id)).Phase);
     }
+    [Fact] public async Task PendingRestorePreventsLaunchingTheGame()
+    {
+        await store.BeginRestoreAsync(new(1,profile.Id,Guid.NewGuid(),RestorePhase.Prepared,DateTimeOffset.UtcNow,"Synthetic recovery required"),null);
+        await service.RunAsync(profile.Id).WaitAsync(TimeSpan.FromSeconds(5));Assert.Equal(0,processes.Starts);Assert.Equal(LaunchPhase.Failed,service.GetState(profile.Id).Phase);Assert.Contains("recovery",service.GetState(profile.Id).Message);
+    }
     private sealed class FakeProcess(int id, long created) : IGameProcess
     {
         private readonly TaskCompletionSource exit = new(TaskCreationOptions.RunContinuationsAsynchronously);

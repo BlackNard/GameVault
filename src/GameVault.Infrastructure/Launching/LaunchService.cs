@@ -78,6 +78,7 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
             var game = await store.LoadProfileAsync(id).ConfigureAwait(false);
             if (game.Profile.IsReadOnly || game.Profile.Value is not GameProfile profile || profile.IsArchived)
                 throw new IOException("This game profile is missing, removed, or read-only. It cannot be launched safely.");
+            await store.RequireNoPendingRestoreAsync(id).ConfigureAwait(false);
             ValidateExecutable(profile.ExecutablePath);
             if (!Directory.Exists(profile.WorkingDirectory)) throw new IOException("The working directory is missing. Repair it through Edit game.");
             var configuration = await settings.LoadAsync(id).ConfigureAwait(false);

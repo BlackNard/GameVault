@@ -8,23 +8,33 @@ namespace GameVault.App;
 
 public partial class BackupsView:UserControl
 {
+    private readonly RestoreService restores;
+    private bool recoveryBlocked;private Guid? pendingRecovery;
     private readonly BackupHistoryService history;
     private readonly Func<bool> active;
     private BackupHistorySnapshot? snapshot;
     private bool changing=true,busy;
     private TaskCompletionSource? idle;
     public Guid GameId{get;}
+    public event EventHandler<RestoreChoice>? RestoreRequested;
     public event EventHandler? BackRequested;
     public event EventHandler? GameDataChanged;
-    public BackupsView(BackupHistoryService history,Guid id,string name,Func<bool> active)
+    public BackupsView(BackupHistoryService history,RestoreService restores,Guid id,string name,Func<bool> active)
     {
-        this.history=history;this.active=active;GameId=id;InitializeComponent();Heading.Text=name+" · Backups";
+        this.history=history;this.restores=restores;this.active=active;GameId=id;InitializeComponent();Heading.Text=name+" · Backups";
         Loaded+=async(_,_)=>{changing=false;await RefreshAsync();};
     }
     public async Task RefreshAsync()
     {
         if(busy)return;SetBusy(true);
-        try{Apply(await history.ListAsync(GameId));}
+        try
+        {
+            Apply(await history.ListAsync(GameId));var recoveries=await restores.ListRecoveriesAsync(GameId);
+            recoveryBlocked=recoveries.Journal.IsReadOnly||recoveries.Journal.Value?.Phase is RestorePhase.Prepared or RestorePhase.RecoveryRequired;
+            pendingRecovery=recoveries.Journal.Value?.Phase is RestorePhase.Prepared or RestorePhase.RecoveryRequired?recoveries.Journal.Value.RequiredRecoveryId??recoveries.Journal.Value.OperationId:null;
+            RecoveryList.ItemsSource=recoveries.Snapshots.Select(r=>new RecoveryRow(r)).ToArray();RecoveryList.SelectedIndex=recoveries.Snapshots.Length>0?0:-1;
+            Warnings.Text+=Warnings.Text.Length>0?"\n":"";Warnings.Text+=string.Join("\n",recoveries.Warnings);
+        }
         catch(Exception e)when(Expected(e)){Notice.Text="History could not be refreshed. "+e.Message;}
         finally{SetBusy(false);}
     }
@@ -48,7 +58,7 @@ public partial class BackupsView:UserControl
     }
     public void UpdateAvailability()
     {
-        if(changing)return;var canChange=!busy&&!active()&&snapshot?.CanChange==true;
+        if(changing)return;var canChange=!busy&&!active()&&!recoveryBlocked&&snapshot?.CanChange==true;
         RefreshButton.IsEnabled=BackButton.IsEnabled=!busy;KeepEverything.IsEnabled=canChange;Limit.IsEnabled=canChange&&KeepEverything.IsChecked!=true;
         var draft=Draft();ApplyButton.IsEnabled=canChange&&draft is not null;
         PinButton.IsEnabled=canChange&&HistoryList.SelectedItem is BackupRow;
@@ -61,6 +71,7 @@ public partial class BackupsView:UserControl
             RetentionPreview.Text=$"Apply keeps the newest {draft.Limit} unpinned copies and every pinned copy. Up to {count} older copy/copies will be removed after safety checks. Recovery folders are kept.";
         }
         UpdateSelection();
+        UndoButton.IsEnabled=!busy&&!active()&&RecoveryList.SelectedItem is RecoveryRow selected&&(!recoveryBlocked||selected.Info.Id==pendingRecovery);
     }
     private void SetBusy(bool value)
     {
@@ -71,7 +82,8 @@ public partial class BackupsView:UserControl
     private void UpdateSelection()
     {
         var row=HistoryList.SelectedItem as BackupRow;PinButton.Content=row?.Entry.Pinned==true?"Unpin backup":"Pin backup";
-        PinButton.IsEnabled=!busy&&!active()&&snapshot?.CanChange==true&&row is not null;
+        PinButton.IsEnabled=!busy&&!active()&&!recoveryBlocked&&snapshot?.CanChange==true&&row is not null;
+        RestoreButton.IsEnabled=PinButton.IsEnabled;
         SelectedInfo.Text=row is null?"Select a backup to keep it beyond the retention limit.":$"Backup ID: {row.Entry.Backup.Manifest.Id:N}\n{row.Entry.Backup.Directory}";
     }
     private async void TogglePin(object sender,RoutedEventArgs e)
@@ -88,6 +100,12 @@ public partial class BackupsView:UserControl
         catch(Exception error)when(Expected(error)){Notice.Text=error.Message;Apply(await history.ListAsync(GameId));}
         finally{SetBusy(false);}
     }
+    private void RestoreSelected(object sender,RoutedEventArgs e)
+    {if(!busy&&!active()&&!recoveryBlocked&&HistoryList.SelectedItem is BackupRow row)RestoreRequested?.Invoke(this,new(row.Entry.Backup.Manifest.Id,null));}
+    private void UndoSelected(object sender,RoutedEventArgs e)
+    {if(!busy&&!active()&&RecoveryList.SelectedItem is RecoveryRow row&&(!recoveryBlocked||row.Info.Id==pendingRecovery))RestoreRequested?.Invoke(this,new(null,row.Info.Id));}
+    private void RecoverySelectionChanged(object sender,SelectionChangedEventArgs e){if(!changing)UpdateAvailability();}
+    private sealed record RecoveryRow(RestoreRecoveryInfo Info){public string Label=>$"{Info.CreatedAt.ToLocalTime():G} · {Info.Description} · {Info.Id.ToString("N")[..8]}";}
     public async Task<bool> CanLeaveAsync(){if(busy&&idle is not null)await idle.Task;return true;}
     private void Back(object sender,RoutedEventArgs e){if(!busy)BackRequested?.Invoke(this,EventArgs.Empty);}
     private static bool Expected(Exception e)=>e is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or OverflowException or OperationCanceledException;

@@ -12,6 +12,7 @@ namespace GameVault.App;
 
 public partial class MainWindow : Window
 {
+    private readonly RestoreService restores;private RestoreView? restoreView;
     private BackupsView? backupsView;
     private readonly BackupHistoryService backupHistory;
     private long backupViewRevision;
@@ -49,6 +50,7 @@ public partial class MainWindow : Window
         backups=new(paths,store,discovery,new GameOperationLeases(),launches.IsGameRunningAsync);
         backupCoordinator=new(launches,backups,launches.WaitForIdleAsync);
         backupHistory=new(paths,store,new(),launches.IsGameRunningAsync);
+        restores=new(paths,store,new(),launches.IsGameRunningAsync);
         backups.Changed+=BackupChanged;
         discovery.Changed += SourceDiscoveryChanged;
         launchSettings = new(paths, store);
@@ -348,12 +350,14 @@ public partial class MainWindow : Window
         notesNavigationPending=true;LibraryNav.IsEnabled=SettingsNav.IsEnabled=false;
         try
         {
+            if(restoreView is not null&&!await restoreView.CanLeaveAsync())return false;
             if(backupsView is not null&&!await backupsView.CanLeaveAsync())return false;
             if(notesView is not null&&!await notesView.CanLeaveAsync())return false;
             if(saveSourcesView is not null&&!await saveSourcesView.CanLeaveAsync())return false;
             if(notesView is not null){notesView.GameDataChanged-=NotesDataChanged;notesView.BackRequested-=BackFromNotes;}
             if(saveSourcesView is not null){saveSourcesView.ManualEditRequested-=EditManualSources;saveSourcesView.BackRequested-=BackFromNotes;}
-            if(backupsView is not null){backupsView.BackRequested-=BackFromNotes;backupsView.GameDataChanged-=NotesDataChanged;}
+            if(restoreView is not null){restoreView.BackRequested-=BackFromRestore;restoreView.GameDataChanged-=NotesDataChanged;restoreView=null;}
+            if(backupsView is not null){backupsView.BackRequested-=BackFromNotes;backupsView.GameDataChanged-=NotesDataChanged;backupsView.RestoreRequested-=OpenRestore;}
             backupsView=null;NotesHost.Content=null;notesView=null;saveSourcesView=null;NotesHost.Visibility=Visibility.Collapsed;
             UpdateButtons();return true;
         }
@@ -400,10 +404,23 @@ public partial class MainWindow : Window
     private void OpenBackupHistory(object sender,RoutedEventArgs e)
     {
         if(busy||editorOpen||stoppingObservation||notesView is not null||saveSourcesView is not null||backupsView is not null||GameList.SelectedItem is not LibraryItemView item)return;
-        backupsView=new(backupHistory,item.Game.Id,item.Name,()=>launches.GetState(item.Game.Id).IsActive||backups.IsWorking(item.Game.Id));
-        backupsView.BackRequested+=BackFromNotes;backupsView.GameDataChanged+=NotesDataChanged;
+        backupsView=new(backupHistory,restores,item.Game.Id,item.Name,()=>launches.GetState(item.Game.Id).IsActive||backups.IsWorking(item.Game.Id));
+        backupsView.BackRequested+=BackFromNotes;backupsView.GameDataChanged+=NotesDataChanged;backupsView.RestoreRequested+=OpenRestore;
         NotesHost.Content=backupsView;LibraryPanel.Visibility=SettingsPanel.Visibility=Visibility.Collapsed;NotesHost.Visibility=Visibility.Visible;
         OperationNotice.Text="Backups · "+item.Name;UpdateButtons();
+    }
+    private void OpenRestore(object? sender,RestoreChoice choice)
+    {
+        if(busy||editorOpen||stoppingObservation||backupsView is null||restoreView is not null)return;
+        var id=backupsView.GameId;restoreView=new(restores,id,choice,()=>launches.GetState(id).IsActive||backups.IsWorking(id));
+        restoreView.BackRequested+=BackFromRestore;restoreView.GameDataChanged+=NotesDataChanged;NotesHost.Content=restoreView;
+        OperationNotice.Text="Restore saves · review destinations and changes before applying.";UpdateButtons();
+    }
+    private async void BackFromRestore(object? sender,EventArgs e)
+    {
+        if(restoreView is null||!await restoreView.CanLeaveAsync())return;
+        restoreView.BackRequested-=BackFromRestore;restoreView.GameDataChanged-=NotesDataChanged;restoreView=null;
+        NotesHost.Content=backupsView;UpdateButtons();
     }
     private async void BackUpNow(object sender,RoutedEventArgs e)
     {
@@ -431,6 +448,7 @@ public partial class MainWindow : Window
     }
     private void UpdateButtons()
     {
+        restoreView?.UpdateAvailability();
         backupsView?.UpdateAvailability();
         BackupHistoryButton.IsEnabled=!busy&&!editorOpen&&!stoppingObservation&&GameList.SelectedItem is LibraryItemView;
         SaveSourcesButton.IsEnabled = !busy && !editorOpen && !stoppingObservation && GameList.SelectedItem is LibraryItemView;
