@@ -28,3 +28,11 @@ jobs:
       - name: Build, test, and verify self-contained publish
         shell: pwsh
         run: ./scripts/verify.ps1
+      - name: Test clean installer payload boundaries
+        shell: pwsh
+        run: ./scripts/test-installer.ps1
+      - name: Compile development setup wizard (does not install)
+        shell: pwsh
+        run: |
+          $verified = Get-Content artifacts/verification.json -Raw | ConvertFrom-Json
+          ./scripts/build-installer.ps1 -PublishDirectory $verified.publishDirectory
