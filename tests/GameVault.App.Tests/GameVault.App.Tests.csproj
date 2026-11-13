@@ -16,4 +16,5 @@
     <ItemGroup><FixtureFiles Include="../Fixtures/GameProcessFixture/bin/$(Configuration)/net10.0/*" /></ItemGroup>
     <Copy SourceFiles="@(FixtureFiles)" DestinationFolder="$(OutDir)ProcessFixture" />
   </Target>
+  <ItemGroup><Compile Include="../Fixtures/GameProcessFixture/InstallerLibrary.cs" Link="InstallerLibrary.cs" /></ItemGroup>
 </Project>

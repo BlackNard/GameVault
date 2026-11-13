@@ -83,7 +83,22 @@ public static class GameVaultInstallerLease {
     $managed.Dispose()
     if ([IO.File]::ReadAllText($lockPath) -ne 'coordination marker') { throw 'Lease acquisition modified file contents.' }
     $count++
-    Write-Host "Installer payload and exclusive-lease checks passed: $count"
+    $lifecycleModule = Join-Path $PSScriptRoot 'InstallerLifecycle.psm1'
+    if (-not (Test-Path -LiteralPath $lifecycleModule)) { throw 'Lifecycle safety guard has not been implemented.' }
+    Import-Module $lifecycleModule -Force
+    $previousRunner = $env:RUNNER_ENVIRONMENT
+    try {
+        $env:RUNNER_ENVIRONMENT = 'self-hosted'
+        Assert-Rejected { Assert-DisposableInstallerRunner } 'GitHub-hosted Windows'
+    } finally { $env:RUNNER_ENVIRONMENT = $previousRunner }
+    $library = Join-Path $root 'hash-library'
+    New-Item -ItemType Directory (Join-Path $library 'Data'),(Join-Path $library 'Profiles') | Out-Null
+    [IO.File]::WriteAllText((Join-Path $library 'Data/settings.json'),'synthetic')
+    $fingerprint = Get-InstallerLibraryFingerprint $library
+    if ($fingerprint -ne (Get-InstallerLibraryFingerprint $library)) { throw 'Library fingerprint is unstable.' }; $count++
+    [IO.File]::WriteAllText((Join-Path $library 'Data/settings.json'),'changed')
+    if ($fingerprint -eq (Get-InstallerLibraryFingerprint $library)) { throw 'Library fingerprint missed a changed file.' }; $count++
+    Write-Host "Installer payload, lease and lifecycle-guard checks passed: $count"
 }
 finally {
     $full = [IO.Path]::GetFullPath($root)

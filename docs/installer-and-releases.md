@@ -37,7 +37,7 @@ Each compile creates a fresh `artifacts/installer-<id>` directory with:
 - `manifest.json` containing version, compiler identity, installer checksum, and per-file payload hashes;
 - generated explicit file entries and destination guards for audit.
 
-`artifacts/installer.json` points at the latest successful compile. Manifests contain local build paths; they are build evidence, not intended public release assets. CI runs the full app verification, synthetic installer boundary/Win32 lease checks, and actual compiler, but never executes setup on the owner's machine. Tests are automated evidence only; they do not claim end-to-end installation success.
+`artifacts/installer.json` points at the latest successful compile. Manifests contain local build paths; they are build evidence, not intended public release assets. CI runs the full app verification, synthetic installer boundary/Win32 lease checks, actual compiler, and silent install/upgrade/uninstall on a disposable GitHub-hosted Windows runner. Setup is never executed by this workflow on the owner's machine. Tests are automated evidence only; they do not claim end-to-end installation success.
 
 ## Release and signing
 
@@ -45,7 +45,9 @@ The current installer is an **unsigned development artifact**. Signing and a cer
 
 Once all release acceptance is complete, GitHub Releases can distribute the versioned installer, SHA-256, release notes, and supported Windows matrix. The repository is private, so downloads require repository access; public distribution will require a visibility/distribution decision. Release publishing/automation belongs to #17. Clean downloadable ZIPs and installers must be produced before a separate local development directory is seeded from the private test-data vault.
 
-## Deferred installation lifecycle acceptance (#16)
+## Installation lifecycle acceptance (#16)
+
+[Automated lifecycle coverage and evidence limits](verification/issue-16-installer-lifecycle.md) describe the real setup/uninstall CI scenarios. The lifecycle command refuses local/self-hosted execution. Interactive cancellation, clean client-machine and owner UI acceptance remain pending; #16 stays open for those checks.
 
 Use a disposable Windows environment for automated lifecycle execution and the owner's final UI pass:
 
