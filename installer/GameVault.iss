@@ -15,6 +15,7 @@ DefaultGroupName=GameVault
 DisableDirPage=no
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
+SetupIconFile=../src/GameVault.App/Assets/GameVault.ico
 SetupArchitecture=x64
 ArchitecturesAllowed=x64os
 ArchitecturesInstallIn64BitMode=x64os

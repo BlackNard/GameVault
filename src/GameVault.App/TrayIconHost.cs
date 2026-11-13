@@ -8,7 +8,7 @@ internal sealed class TrayIconHost:IDisposable
     private readonly Forms.NotifyIcon icon=new();
     private readonly Forms.ContextMenuStrip menu=new();
     private readonly Forms.ToolStripMenuItem alerts=new("Backup alerts");
-    private readonly System.Drawing.Icon image=(System.Drawing.Icon)System.Drawing.SystemIcons.Application.Clone();
+    private readonly System.Drawing.Icon image=AppIcon.LoadTrayIcon();
     private readonly Action<Guid> review;
     private Guid? balloonGameId;private bool disposed;private string signature="";
     public bool Available=>!disposed&&icon.Visible;

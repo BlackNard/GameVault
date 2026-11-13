@@ -20,7 +20,7 @@ public partial class MainWindow
             trayTimer.Tick+=TrayTick;trayTimer.Start();UpdateTray();
         }
         catch(Exception error)when(IsTrayError(error)){DisposeTrayOnApplicationExit();OperationNotice.Text="The tray icon is unavailable. Keep the window open for tracking, or use Quit GameVault. "+error.Message;}
-        UpdateTrayExplanation();
+
     }
     private void PostTray(Action action){if(!Dispatcher.HasShutdownStarted)_=Dispatcher.InvokeAsync(()=>{if(!observationStopped&&!stoppingObservation)action();});}
     private void RestoreWindow()
@@ -98,7 +98,7 @@ public partial class MainWindow
             if(tray?.Available==true&&backupAlerts.TakeNotification(DateTimeOffset.UtcNow,settings.NotifyBackupFailures,active>0) is BackupAlert alert)tray.Notify(alert);
         }
         catch(Exception error)when(IsTrayError(error))
-        {DisposeTrayOnApplicationExit();RestoreWindow();OperationNotice.Text="The tray icon stopped responding. GameVault is still running in this window. "+error.Message;UpdateTrayExplanation();}
+        {DisposeTrayOnApplicationExit();RestoreWindow();OperationNotice.Text="The tray icon stopped responding. GameVault is still running in this window. "+error.Message;}
     }
     private void RecordBackupAlert(BackupResult result)
     {backupAlerts.Record(result,items.FirstOrDefault(i=>i.Game.Id==result.GameId)?.Name??"Game",DateTimeOffset.UtcNow);UpdateTray();}
@@ -115,13 +115,11 @@ public partial class MainWindow
         }
         catch(Exception error)when(IsTrayError(error)){OperationNotice.Text="Could not open backup diagnostics. "+error.Message;}
     }
-    private void UpdateTrayExplanation()
-    {TrayBehaviorNotice.Text=tray?.Available!=true?"Tray unavailable. Keep this window open to track games.":settings.CloseToTray?"Close keeps GameVault in the tray. Quit fully exits.":"Closing this window fully quits GameVault.";}
     private async void TrayPreferencesChanged(object sender,RoutedEventArgs e)
     {
         if(initializing||busy||settingsReadOnly||stoppingObservation||quitPreparing)return;var close=CloseToTrayChoice.IsChecked==true;var notify=BackupNotificationsChoice.IsChecked==true;
         if(close==settings.CloseToTray&&notify==settings.NotifyBackupFailures)return;busy=true;UpdateButtons();
-        try{var updated=settings with{CloseToTray=close,NotifyBackupFailures=notify};await store.SaveSettingsAsync(updated);settings=updated;OperationNotice.Text="Background preferences saved.";UpdateTrayExplanation();UpdateTray();}
+        try{var updated=settings with{CloseToTray=close,NotifyBackupFailures=notify};await store.SaveSettingsAsync(updated);settings=updated;OperationNotice.Text="Background preferences saved.";UpdateTray();}
         catch(Exception error)when(IsTrayError(error))
         {initializing=true;CloseToTrayChoice.IsChecked=settings.CloseToTray;BackupNotificationsChoice.IsChecked=settings.NotifyBackupFailures;initializing=false;OperationNotice.Text="Preferences could not be saved. "+error.Message;}
         finally{EndOperation();}

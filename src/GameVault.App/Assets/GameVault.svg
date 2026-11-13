@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>GameVault — controller inside a vault</title>
+  <path fill="#101821" d="M48 8 H208 Q248 8 248 48 V208 Q248 248 208 248 H48 Q8 248 8 208 V48 Q8 8 48 8 Z"/>
+  <path fill="#D84C60" fill-rule="evenodd" d="M66 36 H190 L220 66 V190 L190 220 H66 L36 190 V66 Z M70 50 L50 70 V186 L70 206 H186 L206 186 V70 L186 50 Z"/>
+  <path fill="#7F93A7" d="M29 81 H51 V103 H29 Z M29 153 H51 V175 H29 Z"/>
+  <path fill="#D84C60" d="M112 66 H144 V77 H112 Z"/>
+  <path fill="#EEF3FA" d="M96 95 H160 C180 95 187 108 193 130 L202 165 C207 184 189 194 176 181 L156 161 H100 L80 181 C67 194 49 184 54 165 L63 130 C69 108 76 95 96 95 Z"/>
+  <path fill="#101821" d="M83 116 H95 V130 H109 V142 H95 V156 H83 V142 H69 V130 H83 Z"/>
+  <path fill="#D84C60" d="M172 122 A8 8 0 1 1 156 122 A8 8 0 1 1 172 122 Z M190 142 A8 8 0 1 1 174 142 A8 8 0 1 1 190 142 Z"/>
+</svg>
