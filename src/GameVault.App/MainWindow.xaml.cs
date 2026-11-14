@@ -298,6 +298,7 @@ public partial class MainWindow : Window
                 }
                 await discovery.ScanAsync(result.Profile.Id);
                 await RefreshLibrary(result.Profile.Id);
+                if(profile is null){ShowGamePage();ShowGameSection("Overview");}
                 OperationNotice.Text = result.Warning ?? $"{result.Profile.Name} saved.";
             }
         }

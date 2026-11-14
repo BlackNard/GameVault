@@ -94,6 +94,8 @@ public partial class MainWindow
  }
  private async Task<bool> ShowInlineEditorAsync(UserControl view,Action<EventHandler<bool>> subscribe,Action<EventHandler<bool>> unsubscribe)
  {
+  var returnToLibrary=LibraryPanel.Visibility==Visibility.Visible;
+  var returnToSettings=SettingsPanel.Visibility==Visibility.Visible;
   var result=new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
   void Completed(object? sender,bool saved)=>result.TrySetResult(saved);
   subscribe(Completed);
@@ -103,7 +105,9 @@ public partial class MainWindow
   finally
   {
    unsubscribe(Completed);EditorHost.Content=null;EditorHost.Visibility=Visibility.Collapsed;
-   if(GameList.SelectedItem is LibraryItemView){ShowGamePage();ShowGameSection(gameSection);}else SetNavigation(true);
+   if(returnToLibrary)SetNavigation(true);
+   else if(returnToSettings)SetNavigation(false);
+   else if(GameList.SelectedItem is LibraryItemView){ShowGamePage();ShowGameSection(gameSection);}else SetNavigation(true);
   }
  }
  private async Task RefreshBackupDestinationsAsync()
