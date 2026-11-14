@@ -41,7 +41,8 @@ public sealed class BackupService
         BackupResult result;
         try
         {
-            token.ThrowIfCancellationRequested();last=await Task.Run(()=>storage.Latest(id,token),token).ConfigureAwait(false);await store.RequireNoPendingRestoreAsync(id).ConfigureAwait(false);
+            using var backupLease=storage.Acquire();
+            storage.Root(id);token.ThrowIfCancellationRequested();last=await Task.Run(()=>storage.Latest(id,token),token).ConfigureAwait(false);await store.RequireNoPendingRestoreAsync(id).ConfigureAwait(false);
             Publish(new(id,BackupPhase.Working,"Checking saves and preparing a verified backup…",last));
             var status=await Task.Run(()=>storage.ReadStatus(id),token).ConfigureAwait(false);JsonDocuments.RequireWritable(status);
             if(await isRunning(id).ConfigureAwait(false))result=new(id,BackupPhase.Blocked,"The game is running. Close it and retry the backup.",last);
@@ -85,7 +86,7 @@ public sealed class BackupService
             {ValidateCurrent();return new(id,BackupPhase.Unchanged,"Saves are unchanged; the last verified backup was kept.",last);}
             var manifest=new BackupManifest(1,id,Guid.NewGuid(),DateTimeOffset.UtcNow,fingerprint,sources.Select(s=>new BackupSource(s.Id,s.Path,s.Kind)).ToArray(),files.ToArray(),
                 last?.Manifest.Files.Where(f=>!files.Any(n=>n.SourceId==f.SourceId&&n.RelativePath.Equals(f.RelativePath,StringComparison.OrdinalIgnoreCase))).Select(f=>new DeletedSaveFile(f.SourceId,f.RelativePath)).ToArray()??[]);
-            var root=storage.Root(id);storage.Ensure(root);var stage=Path.Combine(root,".pending-"+manifest.Id.ToString("N"));storage.Ensure(stage);
+            var root=storage.Root(id);if(new DriveInfo(Path.GetPathRoot(root)!).AvailableFreeSpace<bytes+16L*1024*1024)throw new IOException("The backup destination has insufficient free space.");storage.Ensure(root);var stage=Path.Combine(root,".pending-"+manifest.Id.ToString("N"));storage.Ensure(stage);
             for(var i=0;i<files.Count;i++)
             {
                 token.ThrowIfCancellationRequested();var target=Path.Combine(stage,"Files",files[i].StoragePath);storage.Ensure(Path.GetDirectoryName(target)!);storage.Check(target);checkpoint?.Invoke("copy");
@@ -98,7 +99,7 @@ public sealed class BackupService
 
             void ValidateCurrent()
             {
-                token.ThrowIfCancellationRequested();policy.ValidateSet(sources.Select(s=>s.Path));
+                token.ThrowIfCancellationRequested();storage.ValidateDestinations();storage.Root(id);policy.ValidateSet(sources.Select(s=>s.Path));
                 var again=Inventory(sources,policy,token);
                 if(!inventory.SequenceEqual(again))throw new IOException("Save files changed while backing up. Retry after the game finishes saving.");
                 for(var i=0;i<held.Count;i++){token.ThrowIfCancellationRequested();held[i].Position=0;if(held[i].Length!=files[i].Size||BackupStorage.Hash(held[i],token)!=files[i].Sha256)throw new IOException("A save changed during the backup. Retry after saving finishes.");}

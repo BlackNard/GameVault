@@ -34,6 +34,7 @@ public partial class MainWindow
     }
     private void DisposePerformanceFeatures()
     {
+        heroCoverRequest?.Cancel();heroCoverRequest?.Dispose();heroCoverRequest=null;GameHeroCover.Source=null;
         filterTimer.Stop();foreach(var item in visibleCoverRows.Values.Distinct())item.ReleaseCover();visibleCoverRows.Clear();
     }
 }

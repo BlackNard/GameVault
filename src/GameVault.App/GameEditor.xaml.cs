@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -6,11 +5,11 @@ using GameVault.Core;
 
 namespace GameVault.App;
 
-public partial class GameEditor : Window
+public partial class GameEditor : UserControl
 {
     private readonly Guid? id;
     private readonly Func<GameDraft, byte[]?, Task<GameSaveResult>> save;
-    private string? newCover;
+    private int coverRevision;
     private byte[]? newCoverBytes;
     private CoverSearchView? coverSearch;
     private bool saving;
@@ -22,13 +21,9 @@ public partial class GameEditor : Window
         id = profile?.Id;
         InitializeComponent();
         ThemePalette.Apply(this, theme);
-        MaxHeight = SystemParameters.WorkArea.Height;
-        MaxWidth = SystemParameters.WorkArea.Width;
-        MinHeight = Math.Min(MinHeight, MaxHeight);
-        MinWidth = Math.Min(MinWidth, MaxWidth);
         if (profile is not null)
         {
-            Title = Heading.Text = "Edit game";
+            Heading.Text = "Edit game";
             SaveButton.Content = "Save changes";
             GameName.Text = profile.Name;
             Executable.Text = profile.ExecutablePath;
@@ -38,14 +33,14 @@ public partial class GameEditor : Window
             foreach (ComboBoxItem item in StatusChoice.Items)
                 if ((string)item.Tag == profile.Status.ToString()) StatusChoice.SelectedItem = item;
         }
-        Closing += BeforeClosing;
-        Closed += (_, _) => coverSearch?.Dispose();
+        Unloaded += (_, _) => coverSearch?.Dispose();
+        navigation = new(Snapshot());
         Loaded += (_, _) => GameName.Focus();
     }
 
     private void BrowseExecutable(object sender, RoutedEventArgs e) => Pick(() =>
     {
-        var path = NativePickers.File(this, "Choose game executable", "Windows executables (*.exe)|*.exe", Executable.Text);
+        var path = NativePickers.File(Window.GetWindow(this)!, "Choose game executable", "Windows executables (*.exe)|*.exe", Executable.Text);
         if (path is null) return;
         WorkingDirectory.Text = GamePathSuggestions.WorkingDirectory(Executable.Text, WorkingDirectory.Text, path);
         Executable.Text = path;
@@ -54,17 +49,25 @@ public partial class GameEditor : Window
 
     private void BrowseWorking(object sender, RoutedEventArgs e) => Pick(() =>
     {
-        var path = NativePickers.Folder(this, "Choose working directory", WorkingDirectory.Text);
+        var path = NativePickers.Folder(Window.GetWindow(this)!, "Choose working directory", WorkingDirectory.Text);
         if (path is not null) WorkingDirectory.Text = path;
     });
 
-    private void BrowseCover(object sender, RoutedEventArgs e) => Pick(() =>
+    private async void BrowseCover(object sender, RoutedEventArgs e)
     {
-        var path = NativePickers.File(this, "Choose cover image", "Cover images (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg", newCover ?? "");
-        if (path is not null) { newCover = path; newCoverBytes = null; CoverPath.Text = path; }
-    });
+        try
+        {
+            var path = NativePickers.File(Window.GetWindow(this)!, "Choose cover image", "Cover images (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg");
+            if (path is null) return;
+            OpenArtwork();
+            await coverSearch!.ImportAsync(path);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or System.Runtime.InteropServices.COMException)
+        { ErrorNotice.Text = "The image browser could not open. " + error.Message; }
+    }
 
-    private void FindArtwork(object sender, RoutedEventArgs e)
+    private void FindArtwork(object sender, RoutedEventArgs e) => OpenArtwork();
+    private void OpenArtwork()
     {
         coverSearch?.Dispose();
         coverSearch = new CoverSearchView(GameName.Text);
@@ -72,8 +75,8 @@ public partial class GameEditor : Window
         coverSearch.CoverChosen += (png, credit) =>
         {
             newCoverBytes = png;
-            newCover = null;
-            CoverPath.Text = "Downloaded cover · " + credit;
+            coverRevision++;
+            CoverPath.Text = "Imported cover: " + credit;
             CloseArtwork();
         };
         ArtworkHost.Content = coverSearch;
@@ -91,8 +94,8 @@ public partial class GameEditor : Window
         GameName.Focus();
     }
 
-    private void BrowseSaveFolder(object sender, RoutedEventArgs e) => Pick(() => AppendSavePath(NativePickers.Folder(this, "Choose game save folder")));
-    private void BrowseSaveFile(object sender, RoutedEventArgs e) => Pick(() => AppendSavePath(NativePickers.File(this, "Choose game save file", "All files (*.*)|*.*")));
+    private void BrowseSaveFolder(object sender, RoutedEventArgs e) => Pick(() => AppendSavePath(NativePickers.Folder(Window.GetWindow(this)!, "Choose game save folder")));
+    private void BrowseSaveFile(object sender, RoutedEventArgs e) => Pick(() => AppendSavePath(NativePickers.File(Window.GetWindow(this)!, "Choose game save file", "All files (*.*)|*.*")));
 
     private void AppendSavePath(string? path)
     {
@@ -117,11 +120,11 @@ public partial class GameEditor : Window
         ErrorNotice.Text = "Saving game…";
         try
         {
-            var coverPath = newCover;
-            byte[]? png = newCoverBytes ?? (coverPath is null ? null : await Task.Run(() => CoverImages.Normalize(coverPath)));
+            byte[]? png = newCoverBytes;
             Result = await save(draft, png);
+            navigation.AcceptSaved(Snapshot());
             saving = false;
-            DialogResult = true;
+            Completed?.Invoke(this, true);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException or System.Runtime.InteropServices.COMException)
         { ErrorNotice.Text = error.Message; }
@@ -132,10 +135,16 @@ public partial class GameEditor : Window
         }
     }
 
-    private void BeforeClosing(object? sender, CancelEventArgs e)
+    public bool IsBusy => saving || coverSearch?.IsBusy == true;
+    public event EventHandler<bool>? Completed;
+    private readonly InlineDraftGuard navigation;
+    private string Snapshot() => string.Join("\n", GameName.Text, Executable.Text, WorkingDirectory.Text, SaveSources.Text, StatusChoice.SelectedIndex.ToString(), coverRevision.ToString());
+    public async Task<bool> CanLeaveAsync()
     {
-        if (!saving) return;
-        e.Cancel = true;
-        ErrorNotice.Text = "Please wait for the game to finish saving.";
+        if (IsBusy) { ErrorNotice.Text = "Please wait for the current operation to finish."; return false; }
+        if (coverSearch is not null && !await coverSearch.CanLeaveAsync()) return false;
+        return await navigation.CanLeaveAsync(IsBusy, Snapshot(), async () => await InlinePrompts.ShowAsync(this, "Discard changes to this game?", "Unsaved game", MessageBoxButton.YesNo, MessageBoxResult.No) == MessageBoxResult.Yes);
     }
+    private async void CancelEditing(object sender, RoutedEventArgs e)
+    { if (await CanLeaveAsync()) Completed?.Invoke(this, false); }
 }

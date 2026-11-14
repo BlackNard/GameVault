@@ -17,7 +17,8 @@ public partial class NotesView : UserControl
     private GameNotes? catalog;
     private NoteEditorState editor=new(null);
     private SessionRow? selected;
-    private bool review,activity,changing=true,busy,exportOpen;
+    private bool review,activity,changing=true,busy;
+    private NoteExportWindow? exportView;
     private TaskCompletionSource? idle;
     public event EventHandler? BackRequested;
     public event EventHandler? GameDataChanged;
@@ -95,11 +96,9 @@ public partial class NotesView : UserControl
     private async Task<bool> LeaveDraft()
     {
         if(busy||!await LeaveCorrection())return false;
-        return await editor.TryLeaveAsync(()=>
-        {
-            var answer=MessageBox.Show(Window.GetWindow(this),"Save changes before leaving this entry?\n\nYes: save changes.\nNo: discard changes.\nCancel: keep editing.","Unsaved note",MessageBoxButton.YesNoCancel,MessageBoxImage.Question,MessageBoxResult.Cancel);
-            return answer switch{MessageBoxResult.No=>NoteLeaveChoice.Discard,MessageBoxResult.Yes=>NoteLeaveChoice.Save,_=>NoteLeaveChoice.Cancel};
-        },Save);
+        if(!editor.IsDirty)return true;
+        var answer=await InlinePrompts.ShowAsync(this,"Save changes before leaving this entry?\n\nYes: save changes.\nNo: discard changes.\nCancel: keep editing.","Unsaved note",MessageBoxButton.YesNoCancel,MessageBoxResult.Cancel);
+        return await editor.TryLeaveAsync(()=>answer switch{MessageBoxResult.No=>NoteLeaveChoice.Discard,MessageBoxResult.Yes=>NoteLeaveChoice.Save,_=>NoteLeaveChoice.Cancel},Save);
     }
     private async void SessionChanged(object sender,SelectionChangedEventArgs e)
     {
@@ -113,18 +112,23 @@ public partial class NotesView : UserControl
     private async void RefreshSessions(object sender,RoutedEventArgs e){if(await LeaveDraft())await Reload();}
     private async void ExportNotes(object sender,RoutedEventArgs e)
     {
-        if(busy||catalog is null)return;
+        if(busy||catalog is null||exportView is not null)return;
         if(editor.IsDirty)
         {
-            var answer=MessageBox.Show(Window.GetWindow(this),"This entry has unsaved changes.\n\nYes: save before exporting.\nNo: export saved notes only (keep this draft).\nCancel: return to the note.","Export notes",MessageBoxButton.YesNoCancel,MessageBoxImage.Question,MessageBoxResult.Cancel);
+            var answer=await InlinePrompts.ShowAsync(this,"This entry has unsaved changes.\n\nYes: save before exporting.\nNo: export saved notes only (keep this draft).\nCancel: return to the note.","Export notes",MessageBoxButton.YesNoCancel,MessageBoxResult.Cancel);
             if(answer==MessageBoxResult.Cancel||(answer==MessageBoxResult.Yes&&!await Save()))return;
         }
         NoteExportEntry? entry=editor.Saved is NoteDocument saved?new(GameHeading.Text,saved,review?null:selected?.Row.Session,review?"Game review":selected?.Context??"Session metadata unavailable"):null;
         var warning=Document?.IsReadOnly==true?Document.Message??"Recovered/protected entry: exported read-only copy.":null;
-        var dialog=new NoteExportWindow(paths,store,gameId,theme,entry,warning){Owner=Window.GetWindow(this)};
-        exportOpen=true;try{dialog.ShowDialog();}finally{exportOpen=false;}
+        exportView=new NoteExportWindow(paths,store,gameId,theme,entry,warning);
+        exportView.Completed+=(_,_)=>CloseExportView();
+        ExportHost.Content=exportView;NotesContent.Visibility=Visibility.Collapsed;ExportHost.Visibility=Visibility.Visible;
+    }
+    private void CloseExportView()
+    {
+        ExportHost.Content=null;exportView=null;ExportHost.Visibility=Visibility.Collapsed;NotesContent.Visibility=Visibility.Visible;
     }
     private void BackToLibrary(object sender,RoutedEventArgs e)=>BackRequested?.Invoke(this,EventArgs.Empty);
-    public async Task<bool> CanLeaveAsync(){while(busy&&idle is not null)await idle.Task;if(exportOpen)return false;return await LeaveDraft();}
+    public async Task<bool> CanLeaveAsync(){while(busy&&idle is not null)await idle.Task;if(exportView is not null&&!await exportView.CanLeaveAsync())return false;if(!await LeaveDraft())return false;if(exportView is not null)CloseExportView();return true;}
     private static bool Expected(Exception e)=>e is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or OverflowException;
 }

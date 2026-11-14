@@ -1,12 +1,12 @@
-using System.ComponentModel;
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using GameVault.Core;
 using GameVault.Infrastructure.Launching;
 
 namespace GameVault.App;
 
-public partial class LaunchSettingsWindow : Window
+public partial class LaunchSettingsWindow : UserControl
 {
     private readonly Guid gameId;
     private readonly LaunchSettingsStore store;
@@ -17,8 +17,6 @@ public partial class LaunchSettingsWindow : Window
     {
         gameId = profile.Id; this.store = store;
         InitializeComponent(); ThemePalette.Apply(this, theme);
-        MaxHeight = SystemParameters.WorkArea.Height; MaxWidth = SystemParameters.WorkArea.Width;
-        MinHeight = Math.Min(MinHeight, MaxHeight); MinWidth = Math.Min(MinWidth, MaxWidth);
         GameTitle.Text = profile.Name;
         TargetPath.Text = settings.Value?.TargetExecutablePath ?? "";
         UseLaunchExecutable.IsChecked = settings.Value?.TargetExecutablePath is null;
@@ -26,7 +24,7 @@ public partial class LaunchSettingsWindow : Window
         TargetFields.IsEnabled = UseLaunchExecutable.IsChecked != true;
         Notice.Text = settings.Message ?? "";
         Fields.IsEnabled = SaveButton.IsEnabled = !settings.IsReadOnly;
-        Closing += BeforeClosing;
+        navigation = new(Snapshot());
     }
 
     private void TrackingChoiceChanged(object sender, RoutedEventArgs e)
@@ -36,7 +34,7 @@ public partial class LaunchSettingsWindow : Window
     {
         try
         {
-            var path = NativePickers.File(this, "Choose actual game executable", "Windows executables (*.exe)|*.exe", TargetPath.Text);
+            var path = NativePickers.File(Window.GetWindow(this)!, "Choose actual game executable", "Windows executables (*.exe)|*.exe", TargetPath.Text);
             if (path is not null) TargetPath.Text = path;
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or System.Runtime.InteropServices.COMException)
@@ -51,13 +49,22 @@ public partial class LaunchSettingsWindow : Window
         {
             var path = UseLaunchExecutable.IsChecked == true ? null : TargetPath.Text.Trim().Trim('"');
             await store.SaveAsync(new(1, gameId, path));
-            saving = false; DialogResult = true;
+            navigation.AcceptSaved(Snapshot()); saving = false; Completed?.Invoke(this, true);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
         { Notice.Text = error.Message; }
         finally { saving = false; Fields.IsEnabled = SaveButton.IsEnabled = CancelButton.IsEnabled = true; }
     }
 
-    private void BeforeClosing(object? sender, CancelEventArgs e)
-    { if (saving) { e.Cancel = true; Notice.Text = "Finishing the launch settings save…"; } }
+    public bool IsBusy => saving;
+    public event EventHandler<bool>? Completed;
+    private readonly InlineDraftGuard navigation;
+    private string Snapshot() => $"{UseLaunchExecutable.IsChecked}|{TargetPath.Text}";
+    public async Task<bool> CanLeaveAsync()
+    {
+        if (saving) { Notice.Text = "Finishing the launch settings save..."; return false; }
+        return await navigation.CanLeaveAsync(IsBusy, Snapshot(), async () => await InlinePrompts.ShowAsync(this, "Discard changes to launch settings?", "Unsaved launch settings", MessageBoxButton.YesNo, MessageBoxResult.No) == MessageBoxResult.Yes);
+    }
+    private async void CancelEditing(object sender, RoutedEventArgs e)
+    { if (await CanLeaveAsync()) Completed?.Invoke(this, false); }
 }

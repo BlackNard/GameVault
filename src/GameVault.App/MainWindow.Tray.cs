@@ -30,7 +30,7 @@ public partial class MainWindow
     }
     private async void BeforeClosing(object? sender,CancelEventArgs e)
     {
-        if(observationStopped)return;e.Cancel=true;
+        if(observationStopped)return;e.Cancel=true;if(InlinePrompts.IsOpen(this))return;
         try
         {
             var result=await lifetime.CloseAsync(settings.CloseToTray,tray?.Available==true);
@@ -41,6 +41,7 @@ public partial class MainWindow
     private void QuitClicked(object sender,RoutedEventArgs e)=>RequestQuit();
     private async void RequestQuit()
     {
+        if(InlinePrompts.IsOpen(this))return;
         try{await lifetime.QuitAsync();}
         catch(Exception error)when(IsTrayError(error)){RestoreWindow();OperationNotice.Text="GameVault could not finish quitting. "+error.Message;}
     }
@@ -53,9 +54,9 @@ public partial class MainWindow
         try
         {
             var count=launches.GetActiveStates().Length;
-            if(count>0&&MessageBox.Show(this,$"{count} game session(s) are still active or starting.\n\nQuitting finalizes recordings, then stops tracking and automatic backups. GameVault will save a checkpoint and leave the games open. Reopen it to recover supported running sessions.\n\nQuit GameVault?","Quit GameVault?",MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)!=MessageBoxResult.Yes)return false;
+            if(count>0&&await InlinePrompts.ShowAsync(this,$"{count} game session(s) are still active or starting.\n\nQuitting finalizes recordings, then stops tracking and automatic backups. GameVault will save a checkpoint and leave the games open. Reopen it to recover supported running sessions.\n\nQuit GameVault?","Quit GameVault?",MessageBoxButton.YesNo,MessageBoxResult.No)!=MessageBoxResult.Yes)return false;
             var warnings=await launches.CheckpointActiveAsync();
-            if(warnings.Length>0&&MessageBox.Show(this,"The latest checkpoint could not be fully saved:\n\n"+string.Join("\n",warnings)+"\n\nThe last successful checkpoint is retained. Quit anyway?","Checkpoint needs attention",MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)!=MessageBoxResult.Yes)return false;
+            if(warnings.Length>0&&await InlinePrompts.ShowAsync(this,"The latest checkpoint could not be fully saved:\n\n"+string.Join("\n",warnings)+"\n\nThe last successful checkpoint is retained. Quit anyway?","Checkpoint needs attention",MessageBoxButton.YesNo,MessageBoxResult.No)!=MessageBoxResult.Yes)return false;
             proceed=true;return true;
         }
         finally{if(!proceed){quitPreparing=false;UpdateButtons();}}
@@ -74,7 +75,7 @@ public partial class MainWindow
             }
         }
         catch(Exception error)when(IsTrayError(error))
-        {MessageBox.Show(this,"Some work could not finish while quitting. Existing checkpoints and recovery copies were preserved.\n\n"+error.Message,"GameVault shutdown needs attention",MessageBoxButton.OK,MessageBoxImage.Warning);}
+        {await InlinePrompts.ShowAsync(this,"Some work could not finish while quitting. Existing checkpoints and recovery copies were preserved.\n\n"+error.Message,"GameVault shutdown needs attention",MessageBoxButton.OK,MessageBoxResult.OK);}
         finally
         {
             backups.Changed-=BackupChanged;discovery.Changed-=SourceDiscoveryChanged;launches.StateChanged-=LaunchStateChanged;launches.SessionUpdated-=SessionUpdated;

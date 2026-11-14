@@ -10,10 +10,25 @@ internal sealed class BackupStorage(ApplicationPaths paths)
     private readonly ManagedPaths managed=new(paths);
     private readonly JsonDocuments documents=new(new ManagedPaths(paths));
     private static readonly JsonSerializerOptions Json=new(){PropertyNamingPolicy=JsonNamingPolicy.CamelCase,WriteIndented=true,Converters={new JsonStringEnumConverter()}};
-    public string Root(Guid id)=>Path.Combine(paths.Profiles,id.ToString("N"),"Backups");
+    private readonly BackupDestinationService destinations=new(paths);
+    public string Root(Guid id)=>destinations.ResolveCurrent(id);
+    public bool OwnsRoot(Guid id,string root)=>destinations.Directories(id).Contains(root,StringComparer.OrdinalIgnoreCase);
+    public IDisposable Acquire()=>destinations.Acquire();
+    public void ValidateDestinations()=>destinations.ValidateKnownRoots();
     private string StatusFile(Guid id)=>Path.Combine(paths.Profiles,id.ToString("N"),"backup-status.json");
-    public void Check(string path){SaveSourcePolicy.CheckLinks(paths.Root);managed.Check(path);SaveSourcePolicy.CheckLinks(path);}
-    public void Ensure(string path){Check(path);managed.EnsureDirectory(path);Check(path);}
+    public void Check(string path)
+    {
+        SaveSourcePolicy.CheckLinks(paths.Root);path=Path.GetFullPath(path);SaveSourcePolicy.CheckLinks(path);
+        if(SaveSourcePolicy.Within(path,paths.Root)){managed.Check(path);return;}
+        foreach(var root in destinations.ExternalRoots())
+        {
+            var relative=Path.GetRelativePath(root,path).Split(Path.DirectorySeparatorChar);
+            if(relative.Length>=2&&Guid.TryParseExact(relative[0],"N",out var id)&&id!=Guid.Empty&&relative[1]=="Backups"&&SaveSourcePolicy.Within(path,Path.Combine(root,relative[0],"Backups")))return;
+        }
+        throw new IOException("The path is outside registered backup storage.");
+    }
+    private JsonDocuments DocumentsFor(string file)=>SaveSourcePolicy.Within(file,paths.Root)?documents:new(new ManagedPaths(ApplicationPaths.FromRoot(destinations.ExternalRoots().Where(r=>SaveSourcePolicy.Within(file,r)).OrderByDescending(r=>r.Length).First())));
+    public void Ensure(string path){Check(path);if(SaveSourcePolicy.Within(path,paths.Root))managed.EnsureDirectory(path);else {var root=destinations.ExternalRoots().First(r=>SaveSourcePolicy.Within(path,r));if(!Directory.Exists(root))throw new DirectoryNotFoundException("The backup destination is unavailable.");Directory.CreateDirectory(path);}Check(path);}
     public StoredDocument<BackupStatus> ReadStatus(Guid id)=>documents.Read<BackupStatus>(StatusFile(id),s=>s.SchemaVersion==1&&s.GameId==id&&Enum.IsDefined(s.Phase)&&s.Message is {Length:>0 and <8192}&&s.UpdatedAt!=default);
     public void WriteStatus(BackupResult result)
     {
@@ -22,10 +37,20 @@ internal sealed class BackupStorage(ApplicationPaths paths)
     public sealed record CatalogResult(CompletedBackup[] Backups,string[] Warnings,int RecoveryFolders);
     public CatalogResult Catalog(Guid id,CancellationToken token)
     {
-        var root=Root(id);Check(root);if(!Directory.Exists(root))return new([],[],0);
-        var entries=Directory.EnumerateFileSystemEntries(root).Take(4097).ToArray();
-        if(entries.Length>4096)throw new IOException("Backup history exceeded its inspection limit; existing snapshots were preserved.");
         var backups=new List<CompletedBackup>();var warnings=new List<string>();var recovery=0;
+        foreach(var root in destinations.Directories(id))
+        {
+        string[] entries;
+        try
+        {
+            Check(root);
+            var external=destinations.ExternalRoots().FirstOrDefault(r=>SaveSourcePolicy.Within(root,r));
+            if(external is not null&&!Directory.Exists(external))throw new IOException("Backup location is offline: "+external);
+            if(!Directory.Exists(root))continue;
+            entries=Directory.EnumerateFileSystemEntries(root).Take(4097).ToArray();
+            if(entries.Length>4096)throw new IOException("Backup history exceeded its inspection limit; existing snapshots were preserved.");
+        }
+        catch(Exception e)when(e is IOException or UnauthorizedAccessException){warnings.Add(e.Message);continue;}
         foreach(var folder in entries)
         {
             token.ThrowIfCancellationRequested();
@@ -36,7 +61,7 @@ internal sealed class BackupStorage(ApplicationPaths paths)
                 if(Path.GetFileName(folder).StartsWith(".pending-",StringComparison.Ordinal)||Path.GetFileName(folder).StartsWith(".prune-",StringComparison.Ordinal)){recovery++;continue;}
                 var file=Path.Combine(folder,"manifest.json");Check(file);
                 if(new FileInfo(file).Length>8*1024*1024)throw new IOException("A backup manifest exceeded its inspection limit.");
-                var stored=documents.Read<BackupManifest>(file,m=>Valid(m,id));
+                var stored=DocumentsFor(file).Read<BackupManifest>(file,m=>Valid(m,id));
                 if(stored.State!=DocumentState.Ready)throw new IOException(stored.Message??"An incomplete backup was preserved; inspect it before retrying.");
                 var manifest=stored.Value!;
                 if(Path.GetFileName(folder)!=Name(manifest))throw new IOException("A backup folder does not match its manifest identity.");
@@ -45,6 +70,8 @@ internal sealed class BackupStorage(ApplicationPaths paths)
             catch(Exception e)when(e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {warnings.Add(Path.GetFileName(folder)+": "+e.Message);}
         }
+        }
+        if(backups.GroupBy(b=>b.Manifest.Id).Any(g=>g.Count()>1))warnings.Add("Duplicate snapshot identities were found across backup locations; resolve them before restore or cleanup.");
         return new(backups.OrderByDescending(b=>b.Manifest.CreatedAt).ThenByDescending(b=>b.Manifest.Id).ToArray(),warnings.ToArray(),recovery);
     }
     public CompletedBackup? Latest(Guid id,CancellationToken token)
@@ -65,7 +92,7 @@ internal sealed class BackupStorage(ApplicationPaths paths)
     {
         var file=Path.Combine(backup.Directory,"manifest.json");Check(file);
         if(new FileInfo(file).Length>8*1024*1024)throw new IOException("Backup manifest exceeded its inspection limit.");
-        var current=documents.Read<BackupManifest>(file,m=>Valid(m,backup.Manifest.GameId));
+        var current=DocumentsFor(file).Read<BackupManifest>(file,m=>Valid(m,backup.Manifest.GameId));
         if(current.State!=DocumentState.Ready||JsonSerializer.Serialize(current.Value,Json)!=JsonSerializer.Serialize(backup.Manifest,Json))
             throw new IOException("Backup manifest changed or needs recovery. Cleanup stopped.");
     }
