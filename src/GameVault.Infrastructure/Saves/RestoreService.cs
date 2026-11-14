@@ -26,16 +26,17 @@ public sealed partial class RestoreService
     }
     public async Task<BackupSource[]> GetTargetsAsync(Guid id,RestoreChoice choice,CancellationToken token=default)
     {
-        using var lease=Acquire(id);await Idle(id,token).ConfigureAwait(false);await store.RequireRestoreAllowedAsync(id,choice.RecoveryId).ConfigureAwait(false);
+        using var lease=Acquire(id);using var backupLease=backups.Acquire();await Idle(id,token).ConfigureAwait(false);await store.RequireRestoreAllowedAsync(id,choice.RecoveryId).ConfigureAwait(false);
         return (await Task.Run(()=>LoadImage(id,choice,token),token).ConfigureAwait(false)).Sources;
     }
     public async Task<RestorePreview> PreviewAsync(RestoreRequest request,CancellationToken token=default)
-    {request=Freeze(request);using var lease=Acquire(request.GameId);return (await Build(request,token).ConfigureAwait(false)).Preview;}
+    {request=Freeze(request);using var lease=Acquire(request.GameId);using var backupLease=backups.Acquire();return (await Build(request,token).ConfigureAwait(false)).Preview;}
     public async Task<RestoreResult> ExecuteAsync(RestoreRequest request,string expectedFingerprint,CancellationToken token=default)
     {
-        request=Freeze(request);using var lease=Acquire(request.GameId);Guid? operation=null;string? folder=null;var prepared=false;var held=new List<FileStream>();var mutated=new List<RestoreChange>();var createdDirectories=new List<string>();Plan? plan=null;RestoreRecoveryDocument? document=null;
+        request=Freeze(request);using var lease=Acquire(request.GameId);Guid? operation=null;string? folder=null;var prepared=false;var held=new List<FileStream>();var mutated=new List<RestoreChange>();var createdDirectories=new List<string>();Plan? plan=null;RestoreRecoveryDocument? document=null;IDisposable? backupLease=null;
         try
         {
+            backupLease=backups.Acquire();
             plan=await Build(request,token).ConfigureAwait(false);
             if(string.IsNullOrWhiteSpace(expectedFingerprint)||plan.Preview.Fingerprint!=expectedFingerprint)throw new IOException("The backup, destinations or current saves changed. Preview again before restoring.");
             var op=Guid.NewGuid();var stage=Path.Combine(recovery.Root(request.GameId),".pending-"+op.ToString("N"));recovery.Ensure(stage);
@@ -103,7 +104,7 @@ public sealed partial class RestoreService
                 return new(RestorePhase.RecoveryRequired,message,authoritative,authoritativeFolder);
             }
         }
-        finally{foreach(var stream in held)stream.Dispose();}
+        finally{foreach(var stream in held)stream.Dispose();backupLease?.Dispose();}
     }
     private static bool MatchesBefore(RestoreChange change)
     {

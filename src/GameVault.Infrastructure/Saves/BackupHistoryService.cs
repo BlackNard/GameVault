@@ -29,7 +29,7 @@ public sealed class BackupHistoryService
     }
     public async Task<BackupHistorySnapshot> SetPinnedAsync(Guid id,Guid backupId,bool pinned,CancellationToken token=default)
     {
-        using var lease=Acquire(id);await RequireIdle(id,token).ConfigureAwait(false);
+        using var lease=Acquire(id);using var backupLease=storage.Acquire();await RequireIdle(id,token).ConfigureAwait(false);
         var catalog=await Task.Run(()=>storage.Catalog(id,token),token).ConfigureAwait(false);
         if(catalog.Warnings.Length>0||!catalog.Backups.Any(b=>b.Manifest.Id==backupId))throw new IOException("Refresh backup history and resolve its warnings before changing pins.");
         var doc=await store.LoadBackupPinsAsync(id).ConfigureAwait(false);JsonDocuments.RequireWritable(doc);
@@ -39,7 +39,7 @@ public sealed class BackupHistoryService
     }
     public async Task<RetentionResult> ApplyRetentionAsync(Guid id,BackupRetentionPolicy policy,BackupRetentionPolicy expected,CancellationToken token=default)
     {
-        using var lease=Acquire(id);await RequireIdle(id,token).ConfigureAwait(false);
+        using var lease=Acquire(id);using var backupLease=storage.Acquire();await RequireIdle(id,token).ConfigureAwait(false);
         var pins=await store.LoadBackupPinsAsync(id).ConfigureAwait(false);
         if(pins.IsReadOnly)return new(false,0,"Settings were not changed. "+pins.Message,await ListAsync(id,token).ConfigureAwait(false));
         await store.SetBackupRetentionAsync(id,policy,expected).ConfigureAwait(false);
@@ -81,7 +81,7 @@ public sealed class BackupHistoryService
             }
             async Task CheckState()
             {
-                await RequireIdle(id,token).ConfigureAwait(false);
+                await RequireIdle(id,token).ConfigureAwait(false);storage.ValidateDestinations();
                 var currentPins=await store.LoadBackupPinsAsync(id).ConfigureAwait(false);JsonDocuments.RequireWritable(currentPins);
                 var currentGame=await store.LoadProfileAsync(id).ConfigureAwait(false);
                 if(currentPins.Value?.Revision!=pins.Value?.Revision||!pinned.SequenceEqual(currentPins.Value?.PinnedIds??[])||currentGame.Profile.State!=DocumentState.Ready||currentGame.Profile.Value is not GameProfile current||current.BackupLimit!=policy.Limit||current.KeepAllBackups!=policy.KeepEverything)
@@ -99,8 +99,8 @@ public sealed class BackupHistoryService
     private sealed record Tree(string[] Files,string[] Directories);
     private Tree OwnedTree(CompletedBackup backup,CancellationToken token)
     {
-        var folder=Path.GetFullPath(backup.Directory);var root=storage.Root(backup.Manifest.GameId);
-        if(!string.Equals(Path.GetDirectoryName(folder),root,StringComparison.OrdinalIgnoreCase))throw new IOException("Cleanup path is not a direct child of this game's Backups directory.");
+        var folder=Path.GetFullPath(backup.Directory);var root=Path.GetDirectoryName(folder)!;
+        if(!storage.OwnsRoot(backup.Manifest.GameId,root))throw new IOException("Cleanup path is not a direct child of this game's Backups directory.");
         storage.Check(folder);
         var expected=new HashSet<string>(StringComparer.OrdinalIgnoreCase){Path.Combine(folder,"manifest.json")};var expectedDirs=new HashSet<string>(StringComparer.OrdinalIgnoreCase){folder};
         foreach(var file in backup.Manifest.Files)
@@ -128,7 +128,7 @@ public sealed class BackupHistoryService
         checkpoint?.Invoke("before-prune");token.ThrowIfCancellationRequested();checkState();storage.ConfirmManifest(backup);storage.Verify(backup,token);OwnedTree(backup,token);
         var folder=backup.Directory;
         if(Path.GetFileName(folder)!=BackupStorage.Name(backup.Manifest))throw new IOException("Backup identity changed before cleanup.");
-        var quarantine=Path.Combine(storage.Root(backup.Manifest.GameId),".prune-"+backup.Manifest.Id.ToString("N")+"-"+Guid.NewGuid().ToString("N"));storage.Check(quarantine);
+        var quarantine=Path.Combine(Path.GetDirectoryName(folder)!,".prune-"+backup.Manifest.Id.ToString("N")+"-"+Guid.NewGuid().ToString("N"));storage.Check(quarantine);
         Directory.Move(folder,quarantine);var moved=backup with{Directory=quarantine};var tree=OwnedTree(moved,token);checkState();storage.ConfirmManifest(moved);
         foreach(var file in tree.Files){checkpoint?.Invoke("delete");token.ThrowIfCancellationRequested();storage.Check(file);File.Delete(file);}
         foreach(var directory in tree.Directories){token.ThrowIfCancellationRequested();storage.Check(directory);Directory.Delete(directory,false);}

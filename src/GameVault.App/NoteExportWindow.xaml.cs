@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -8,7 +7,7 @@ using GameVault.Infrastructure.Notes;
 using GameVault.Infrastructure.Storage;
 using Microsoft.Win32;
 namespace GameVault.App;
-public partial class NoteExportWindow : Window
+public partial class NoteExportWindow : UserControl
 {
     private readonly ApplicationPaths paths;
     private readonly AppDataStore store;
@@ -21,14 +20,17 @@ public partial class NoteExportWindow : Window
     {
         this.paths = paths; this.store = store; this.gameId = gameId; this.selected = selected; selectedWarning = warning;
         InitializeComponent(); ThemePalette.Apply(this, theme);
-        MaxHeight = SystemParameters.WorkArea.Height; MaxWidth = SystemParameters.WorkArea.Width;
-        MinHeight = Math.Min(MinHeight, MaxHeight); MinWidth = Math.Min(MinWidth, MaxWidth);
         SelectedScope.IsEnabled = selected is not null;
         if (selected is null) ScopeChoice.SelectedIndex = 1;
+        navigation = new(Snapshot());
         Loaded += async (_, _) => { initializing = false; await LoadScope(); };
-        Closing += BeforeClosing;
     }
-    private void BeforeClosing(object? sender, CancelEventArgs e) { if (busy) e.Cancel = true; }
+    public bool IsBusy => busy;
+    public event EventHandler<bool>? Completed;
+    private readonly InlineDraftGuard navigation;
+    private string Snapshot() => $"{ScopeChoice.SelectedIndex}|{FormatChoice.SelectedIndex}|{SeparateChoice.IsChecked}";
+    public Task<bool> CanLeaveAsync() => navigation.CanLeaveAsync(busy, Snapshot(), async () =>
+        await InlinePrompts.ShowAsync(this, "Leave this export and discard the changed options? Your notes and completed files are kept.", "Unfinished export", MessageBoxButton.YesNo, MessageBoxResult.No) == MessageBoxResult.Yes);
     private async void ScopeChanged(object sender, SelectionChangedEventArgs e) { if (!initializing && !busy) await LoadScope(); }
     private async Task LoadScope()
     {
@@ -57,22 +59,23 @@ public partial class NoteExportWindow : Window
             var extension = pdf ? ".pdf" : ".md";
             var separate = ScopeChoice.SelectedIndex != 0 && SeparateChoice.IsChecked == true;
             string? target;
-            if (separate) target = NativePickers.Folder(this, "Choose a folder for the exported notes");
+            if (separate) target = NativePickers.Folder(Window.GetWindow(this)!, "Choose a folder for the exported notes");
             else
             {
                 var dialog = new SaveFileDialog { Title = "Export GameVault notes", Filter = pdf ? "PDF document (*.pdf)|*.pdf" : "Markdown document (*.md)|*.md", DefaultExt = extension,
                     AddExtension = true, OverwritePrompt = true, FileName = "GameVault-notes" + extension };
-                target = dialog.ShowDialog(this) == true ? dialog.FileName : null;
+                target = dialog.ShowDialog(Window.GetWindow(this)!) == true ? dialog.FileName : null;
             }
             if (target is null) return;
             SetBusy(true); ResultNotice.Text = "Exporting…";
             var result = await NoteExports.WriteAsync(paths, catalog.Entries, target, extension, separate, !separate, pdf ? PdfNoteWriter.Write : NoteExports.WriteMarkdown);
+            if(result.Failures.Length == 0) navigation.AcceptSaved(Snapshot());
             ResultNotice.Text = $"{result.Paths.Length} file(s) exported; {result.Failures.Length} failed; {catalog.Warnings.Length} scope warning(s).\n" +
                 string.Join("\n", result.Paths) + (result.Failures.Length == 0 ? "" : "\nFailures (completed files were kept):\n" + string.Join("\n", result.Failures));
         }
         catch (Exception error) when (Expected(error)) { ResultNotice.Text = "Could not export. " + error.Message; }
         finally { SetBusy(false); }
     }
-    private void CloseExport(object sender, RoutedEventArgs e) => Close();
+    private async void CloseExport(object sender, RoutedEventArgs e) { if (await CanLeaveAsync()) Completed?.Invoke(this, false); }
     private static bool Expected(Exception e) => e is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException or System.Runtime.InteropServices.COMException;
 }

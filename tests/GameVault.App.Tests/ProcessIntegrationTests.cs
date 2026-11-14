@@ -257,6 +257,6 @@ public sealed class ProcessIntegrationTests : IAsyncLifetime
             foreach (var candidate in processes.Find(path))
                 using (var process = processes.Open(candidate.Identity))
                     if (process is not null) await process.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(16));
-        Directory.Delete(root, true);
+        await NativeFixtureCleanup.DeleteAsync(root);
     }
 }

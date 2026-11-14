@@ -100,6 +100,19 @@ public partial class BackupsView:UserControl
         catch(Exception error)when(Expected(error)){Notice.Text=error.Message;Apply(await history.ListAsync(GameId));}
         finally{SetBusy(false);}
     }
+    private async void OpenSelectedFolder(object sender,RoutedEventArgs e)
+    {
+        if(busy||HistoryList.SelectedItem is not BackupRow row)return;SetBusy(true);
+        try
+        {
+            var current=await history.ListAsync(GameId);
+            var selected=current.Entries.SingleOrDefault(entry=>entry.Backup.Manifest.Id==row.Entry.Backup.Manifest.Id);
+            if(selected is null||!Directory.Exists(selected.Backup.Directory))throw new IOException("This backup location is unavailable.");
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(selected.Backup.Directory){UseShellExecute=true});
+        }
+        catch(Exception error)when(Expected(error)||error is System.ComponentModel.Win32Exception){Notice.Text="Could not open backup location. "+error.Message;}
+        finally{SetBusy(false);}
+    }
     private void RestoreSelected(object sender,RoutedEventArgs e)
     {if(!busy&&!active()&&!recoveryBlocked&&HistoryList.SelectedItem is BackupRow row)RestoreRequested?.Invoke(this,new(row.Entry.Backup.Manifest.Id,null));}
     private void UndoSelected(object sender,RoutedEventArgs e)

@@ -101,7 +101,7 @@ public partial class NotesView
     {
         if(correction is null)return true;
         if(!correction.IsDirty){CloseCorrection();return true;}
-        var choice=MessageBox.Show(Window.GetWindow(this),"Save this time correction before leaving?\n\nYes: save correction.\nNo: discard correction.\nCancel: keep editing.","Unsaved time correction",MessageBoxButton.YesNoCancel,MessageBoxImage.Question,MessageBoxResult.Cancel);
+        var choice=await InlinePrompts.ShowAsync(this,"Save this time correction before leaving?\n\nYes: save correction.\nNo: discard correction.\nCancel: keep editing.","Unsaved time correction",MessageBoxButton.YesNoCancel,MessageBoxResult.Cancel);
         if(choice==MessageBoxResult.Yes)return await SaveCorrectionCore();
         if(choice==MessageBoxResult.No){CloseCorrection();return true;}return false;
     }

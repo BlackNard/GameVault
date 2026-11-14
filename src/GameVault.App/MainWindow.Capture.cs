@@ -23,6 +23,15 @@ public partial class MainWindow
     private readonly SemaphoreSlim mediaReadGate=new(1,1);
     private long mediaRevision;
     private string? captureFeedback;
+    private bool? shortcutsSessionActive;
+    private bool HasCaptureSession()=>launches.GetActiveStates().Any(state=>state.Phase==LaunchPhase.Running);
+    private void UpdateCaptureSessionShortcuts()
+    {
+        if(captureHotkeys is null || captureDisposed)return;
+        var active=HasCaptureSession();if(shortcutsSessionActive==active)return;
+        shortcutsSessionActive=active;var result=captureHotkeys.Apply(capturePreferences,active);CaptureSettings.SetNotice(result.Message);
+        if(!active)captureOverlay?.Hide();
+    }
     private void InitializeCaptureFeatures()
     {
         capture=new(paths,()=>new WindowsCaptureBackend());capture.Changed+=CaptureChanged;
@@ -48,7 +57,8 @@ public partial class MainWindow
             captureHwnd=HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
             captureHwnd?.AddHook(CaptureMessage);
             captureHotkeys=new(new CaptureHotkeyPlatform(new WindowInteropHelper(this).Handle));
-            var result=captureHotkeys.Apply(capturePreferences);
+            var result=captureHotkeys.Apply(capturePreferences,HasCaptureSession());
+            shortcutsSessionActive=HasCaptureSession();
             CaptureSettings.SetNotice(saved.Message??result.Message);
             captureTimer.Start();UpdateCaptureControls();
         }
@@ -56,7 +66,7 @@ public partial class MainWindow
     }
     private nint CaptureMessage(nint hwnd,int message,nint wParam,nint lParam,ref bool handled)
     {
-        if(message!=0x0312)return 0;
+        if(message!=0x0312 || InlinePrompts.IsOpen(this))return 0;
         var number=wParam.ToInt64()-CaptureHotkeySet.IdBase;
         if(number<1 || number>3 || captureHotkeys?.IsRegistered((CaptureCommand)number)!=true)return 0;
         handled=true;
@@ -85,7 +95,7 @@ public partial class MainWindow
     }
     private async Task RunCaptureCommandAsync(CaptureCommand command)
     {
-        if(captureDisposed || capture is null || stoppingObservation || quitPreparing || editorOpen)return;
+        if(captureDisposed || capture is null || stoppingObservation || quitPreparing || editorOpen || InlinePrompts.IsOpen(this))return;
         if(command==CaptureCommand.Overlay)
         {
             try{ToggleCaptureOverlay();}catch(Exception error){OperationNotice.Text="Capture controls could not open. "+error.Message;}
@@ -145,6 +155,7 @@ public partial class MainWindow
     private async void CaptureTick(object? sender,EventArgs e)
     {
         if(captureDisposed || capture is null)return;
+        UpdateCaptureSessionShortcuts();
         if(!captureUiBusy && capture.ActiveProfileId is Guid id && !launches.GetState(id).IsActive)
         {
             captureUiBusy=true;
@@ -194,12 +205,12 @@ public partial class MainWindow
         var old=capturePreferences;
         try
         {
-            var result=captureHotkeys?.Apply(value)??new(false,"Shortcuts are unavailable. Reopen GameVault and retry.");
+            var result=captureHotkeys?.Apply(value,HasCaptureSession())??new(false,"Shortcuts are unavailable. Reopen GameVault and retry.");
             if(!result.Success){CaptureSettings.SetNotice(result.Message);return;}
-            try{await store.SaveCapturePreferencesAsync(value);capturePreferences=value;CaptureSettings.SetNotice("Capture settings saved. "+result.Message);}
+            try{await store.SaveCapturePreferencesAsync(value);capturePreferences=value;shortcutsSessionActive=HasCaptureSession();CaptureSettings.SetNotice("Capture settings saved. "+result.Message);}
             catch(Exception error)
             {
-                var restored=captureHotkeys?.Apply(old);CaptureSettings.SetNotice("Settings could not be saved. "+error.Message+" "+restored?.Message);CaptureSettings.SetPreferences(old);
+                var restored=captureHotkeys?.Apply(old,HasCaptureSession());CaptureSettings.SetNotice("Settings could not be saved. "+error.Message+" "+restored?.Message);CaptureSettings.SetPreferences(old);
             }
         }
         finally{captureUiBusy=false;CaptureSettings.SetEditingEnabled(!capturePreferencesReadOnly);UpdateCaptureControls();ContinueDeferredQuit();}
@@ -207,7 +218,7 @@ public partial class MainWindow
     private async void CaptureMediaExpanded(object sender,RoutedEventArgs e)=>await RefreshCaptureMediaAsync();
     private async Task RefreshCaptureMediaAsync()
     {
-        if(captureDisposed || capture is null || !CaptureMediaExpander.IsExpanded)return;
+        if(captureDisposed || capture is null || libraryVisible || gameSection!="Media" || GamePage.Visibility!=Visibility.Visible || !CaptureMediaExpander.IsExpanded)return;
         var revision=++mediaRevision;
         var id=(GameList.SelectedItem as LibraryItemView)?.Game.Id;
         await mediaReadGate.WaitAsync();

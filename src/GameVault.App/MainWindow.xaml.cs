@@ -62,10 +62,8 @@ public partial class MainWindow : Window
         lifetime=new(Hide,RestoreWindow,PrepareToQuitAsync,QuitRuntimeAsync);
         ThemePalette.Apply(this, settings.Theme);
         CloseToTrayChoice.IsChecked=settings.CloseToTray;BackupNotificationsChoice.IsChecked=settings.NotifyBackupFailures;
-        MaxHeight = SystemParameters.WorkArea.Height;
-        MaxWidth = SystemParameters.WorkArea.Width;
-        MinHeight = Math.Min(MinHeight, MaxHeight);
-        MinWidth = Math.Min(MinWidth, MaxWidth);
+        MinHeight = Math.Min(MinHeight, SystemParameters.WorkArea.Height);
+        MinWidth = Math.Min(MinWidth, SystemParameters.WorkArea.Width);
         ThemeChoice.SelectedIndex = settings.Theme == "Crimson" ? 1 : 0;
         ProfilesPath.Text = paths.Profiles;
         StorageNotice.Text = string.Join("\n", snapshot.Warnings.Distinct());
@@ -76,6 +74,7 @@ public partial class MainWindow : Window
         Loaded += InitializeTray;
         Loaded += LoadLibrary;
         InitializePerformanceFeatures();
+        InitializeRedesign();
         InitializeCaptureFeatures();
     }
 
@@ -139,6 +138,7 @@ public partial class MainWindow : Window
     private void ShowSelection()
     {
         var item = GameList.SelectedItem as LibraryItemView;
+        if(item is not null)_=RefreshHeroCoverAsync(item);else {GameHeroCover.Source=null;heroCoverGame=null;heroCoverRequest?.Cancel();}
         DetailTitle.Text = item?.Name ?? "A home for every game";
         DetailState.Text = item is null ? "Select a game to see its details or choose Add game to get started." :
             string.Join("\n", new[] { item.Status, item.Availability, item.Game.Warning }.Where(s => !string.IsNullOrWhiteSpace(s)));
@@ -163,7 +163,8 @@ public partial class MainWindow : Window
             PlayButton.Content = launch.Phase switch { LaunchPhase.Starting => "Starting…", LaunchPhase.Running => "Running", _ => "Play" };
         }
         UpdateButtons();
-        _=RefreshCaptureMediaAsync();
+        _=RefreshBackupDestinationsAsync();
+        if(gameSection=="Media"&&!libraryVisible)_=RefreshCaptureMediaAsync();
     }
 
     private async void CoverRowLoaded(object sender, RoutedEventArgs e)
@@ -176,13 +177,17 @@ public partial class MainWindow : Window
         if(sender is FrameworkElement row)await BindCoverRowAsync(row);
     }
 
-    private async void ShowLibrary(object sender, RoutedEventArgs e) { if (await LeaveNotes()) SetNavigation(true); }
-    private async void ShowSettings(object sender, RoutedEventArgs e) { if (await LeaveNotes()) SetNavigation(false); }
+    private async void ShowLibrary(object sender, RoutedEventArgs e) { if (!editorOpen && !InlinePrompts.IsOpen(this) && await LeaveNotes()) SetNavigation(true); }
+    private async void ShowSettings(object sender, RoutedEventArgs e) { if (!editorOpen && !InlinePrompts.IsOpen(this) && await LeaveNotes()) SetNavigation(false); }
 
     private void SetNavigation(bool showLibrary)
     {
+        libraryVisible=showLibrary;
+        GamePage.Visibility=Visibility.Collapsed;
         LibraryPanel.Visibility = showLibrary ? Visibility.Visible : Visibility.Collapsed;
         SettingsPanel.Visibility = showLibrary ? Visibility.Collapsed : Visibility.Visible;
+        if(!showLibrary)_=RefreshBackupDestinationsAsync();
+        else if(IsLoaded)RestoreLibraryFocus();
         LibraryNav.SetResourceReference(Control.BorderBrushProperty, showLibrary ? "AppAccent" : "AppLine");
         SettingsNav.SetResourceReference(Control.BorderBrushProperty, showLibrary ? "AppLine" : "AppAccent");
     }
@@ -254,13 +259,14 @@ public partial class MainWindow : Window
 
     private async void ConfigureLaunch(object sender, RoutedEventArgs e)
     {
+        GameOptionsPopup.IsOpen=false;
         if (busy || editorOpen || GameList.SelectedItem is not LibraryItemView { Game.IsReadOnly: false, Game.Profile: not null } item || launches.GetState(item.Game.Id).IsActive) return;
         busy = editorOpen = true; UpdateButtons();
         try
         {
             var configuration = await launchSettings.LoadAsync(item.Game.Id);
-            var dialog = new LaunchSettingsWindow(settings.Theme, item.Game.Profile, launchSettings, configuration) { Owner = this };
-            if (dialog.ShowDialog() == true) OperationNotice.Text = "Launch settings saved.";
+            var dialog = new LaunchSettingsWindow(settings.Theme, item.Game.Profile, launchSettings, configuration);
+            if (await ShowInlineEditorAsync(dialog,h=>dialog.Completed+=h,h=>dialog.Completed-=h)) OperationNotice.Text = "Launch settings saved.";
         }
         catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = error.Message; }
         finally { editorOpen = false; EndOperation(); }
@@ -268,6 +274,7 @@ public partial class MainWindow : Window
 
     private async void OpenEditor(GameProfile? profile)
     {
+        GameOptionsPopup.IsOpen=false;
         if (busy || editorOpen || quitPreparing || stoppingObservation) return;
         editorOpen = true;
         UpdateButtons();
@@ -278,8 +285,8 @@ public partial class MainWindow : Window
                 busy = true;
                 try { return await library.SaveAsync(draft, cover); }
                 finally { busy = false; }
-            }) { Owner = this };
-            if (editor.ShowDialog() == true && editor.Result is GameSaveResult result)
+            });
+            if (await ShowInlineEditorAsync(editor,h=>editor.Completed+=h,h=>editor.Completed-=h) && editor.Result is GameSaveResult result)
             {
                 busy = true;
                 // A new game should be visible immediately; editing retains the current library filters.
@@ -291,6 +298,7 @@ public partial class MainWindow : Window
                 }
                 await discovery.ScanAsync(result.Profile.Id);
                 await RefreshLibrary(result.Profile.Id);
+                if(profile is null){ShowGamePage();ShowGameSection("Overview");}
                 OperationNotice.Text = result.Warning ?? $"{result.Profile.Name} saved.";
             }
         }
@@ -306,11 +314,12 @@ public partial class MainWindow : Window
 
     private async void ArchiveGame(object sender, RoutedEventArgs e)
     {
+        GameOptionsPopup.IsOpen=false;
         if (busy || quitPreparing || stoppingObservation || GameList.SelectedItem is not LibraryItemView { Game.IsReadOnly: false, Game.Profile: not null } item || launches.GetState(item.Game.Id).IsActive) return;
         var profile = item.Game.Profile;
         var remove = !profile.IsArchived;
-        if (remove && MessageBox.Show(this, $"Remove {profile.Name} from your library?\n\nIts profile, statistics, and any existing backups will be kept. You can restore it from Removed profiles. The installed game is untouched.",
-            "Remove from library", MessageBoxButton.OKCancel, MessageBoxImage.Question, MessageBoxResult.Cancel) != MessageBoxResult.OK) return;
+        if (remove && await InlinePrompts.ShowAsync(this, $"Remove {profile.Name} from your library?\n\nIts profile, statistics, and any existing backups will be kept. You can restore it from Removed profiles. The installed game is untouched.",
+            "Remove from library", MessageBoxButton.OKCancel, MessageBoxResult.Cancel) != MessageBoxResult.OK) return;
         busy = true; UpdateButtons();
         try
         {
@@ -357,10 +366,11 @@ public partial class MainWindow : Window
         NotesHost.Content = notesView;
         LibraryPanel.Visibility = SettingsPanel.Visibility = Visibility.Collapsed;
         NotesHost.Visibility = Visibility.Visible;
+        DetailFields.Visibility=Visibility.Collapsed;
         OperationNotice.Text = "Sessions & notes · " + item.Name;
         UpdateButtons();
     }
-    private async void BackFromNotes(object? sender, EventArgs e) { if (await LeaveNotes()) SetNavigation(true); }
+    private async void BackFromNotes(object? sender, EventArgs e) { var section=gameSection=="Sessions"?"Overview":gameSection; if (await LeaveNotes()){ShowGamePage();ShowGameSection(section);} }
     private async Task<bool> LeaveNotes(bool detach = true)
     {
         if(notesView is null&&saveSourcesView is null&&backupsView is null)return true;
@@ -377,7 +387,7 @@ public partial class MainWindow : Window
             if(saveSourcesView is not null){saveSourcesView.ManualEditRequested-=EditManualSources;saveSourcesView.BackRequested-=BackFromNotes;}
             if(restoreView is not null){restoreView.BackRequested-=BackFromRestore;restoreView.GameDataChanged-=NotesDataChanged;restoreView=null;}
             if(backupsView is not null){backupsView.BackRequested-=BackFromNotes;backupsView.GameDataChanged-=NotesDataChanged;backupsView.RestoreRequested-=OpenRestore;}
-            backupsView=null;NotesHost.Content=null;notesView=null;saveSourcesView=null;NotesHost.Visibility=Visibility.Collapsed;
+            DetailFields.Visibility=Visibility.Visible;backupsView=null;NotesHost.Content=null;notesView=null;saveSourcesView=null;NotesHost.Visibility=Visibility.Collapsed;
             UpdateButtons();return true;
         }
         finally{notesNavigationPending=false;LibraryNav.IsEnabled=SettingsNav.IsEnabled=true;}
@@ -387,7 +397,7 @@ public partial class MainWindow : Window
         if(busy||editorOpen||stoppingObservation||quitPreparing||notesView is not null||saveSourcesView is not null||backupsView is not null||GameList.SelectedItem is not LibraryItemView item)return;
         saveSourcesView=new(discovery,item.Game.Id,item.Name,()=>quitPreparing||stoppingObservation||launches.GetState(item.Game.Id).IsActive||backups.IsWorking(item.Game.Id));
         saveSourcesView.BackRequested+=BackFromNotes;saveSourcesView.ManualEditRequested+=EditManualSources;
-        NotesHost.Content=saveSourcesView;LibraryPanel.Visibility=SettingsPanel.Visibility=Visibility.Collapsed;NotesHost.Visibility=Visibility.Visible;
+        NotesHost.Content=saveSourcesView;LibraryPanel.Visibility=SettingsPanel.Visibility=Visibility.Collapsed;NotesHost.Visibility=Visibility.Visible;DetailFields.Visibility=Visibility.Collapsed;
         OperationNotice.Text="Save sources · "+item.Name;UpdateButtons();
     }
     private async void EditManualSources(object? sender,EventArgs e)
@@ -425,7 +435,7 @@ public partial class MainWindow : Window
         if(busy||editorOpen||stoppingObservation||quitPreparing||notesView is not null||saveSourcesView is not null||backupsView is not null||GameList.SelectedItem is not LibraryItemView item)return;
         backupsView=new(backupHistory,restores,item.Game.Id,item.Name,()=>quitPreparing||stoppingObservation||launches.GetState(item.Game.Id).IsActive||backups.IsWorking(item.Game.Id));
         backupsView.BackRequested+=BackFromNotes;backupsView.GameDataChanged+=NotesDataChanged;backupsView.RestoreRequested+=OpenRestore;
-        NotesHost.Content=backupsView;LibraryPanel.Visibility=SettingsPanel.Visibility=Visibility.Collapsed;NotesHost.Visibility=Visibility.Visible;
+        NotesHost.Content=backupsView;LibraryPanel.Visibility=SettingsPanel.Visibility=Visibility.Collapsed;NotesHost.Visibility=Visibility.Visible;DetailFields.Visibility=Visibility.Collapsed;
         OperationNotice.Text="Backups · "+item.Name;UpdateButtons();
     }
     private void OpenRestore(object? sender,RestoreChoice choice)
@@ -470,7 +480,7 @@ public partial class MainWindow : Window
         CloseToTrayChoice.IsEnabled=BackupNotificationsChoice.IsEnabled=!busy&&!editorOpen&&!stoppingObservation&&!quitPreparing&&!settingsReadOnly;
         NotesHost.IsEnabled=!quitPreparing&&!stoppingObservation;
         QuitButton.IsEnabled=!stoppingObservation&&!quitPreparing;
-        LibraryNav.IsEnabled=SettingsNav.IsEnabled=!quitPreparing&&!stoppingObservation;
+        LibraryNav.IsEnabled=SettingsNav.IsEnabled=!editorOpen&&!quitPreparing&&!stoppingObservation;
         UpdateTray();
         UpdateCaptureControls();
         restoreView?.UpdateAvailability();

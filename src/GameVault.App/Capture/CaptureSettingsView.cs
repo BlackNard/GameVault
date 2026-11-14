@@ -24,8 +24,8 @@ public sealed class CaptureSettingsView:UserControl
         {
             var label=command switch{CaptureCommand.Screenshot=>"Screenshot",CaptureCommand.Recording=>"Recording toggle",_=>"Controls toggle"};
             inputs.Children.Add(new TextBlock{Text=label,Margin=new(0,8,0,4)});
-            var modifier=new ComboBox{Width=180,Margin=new(0,0,8,0),ItemsSource=new[]{new ModChoice("Ctrl + Alt",3),new ModChoice("Ctrl + Shift",6),new ModChoice("Alt + Shift",5),new ModChoice("Ctrl + Alt + Shift",7)}};
-            var key=new ComboBox{Width=90,ItemsSource=Enumerable.Range(1,12).Select(number=>"F"+number).ToArray()};
+            var modifier=new ComboBox{Width=180,Margin=new(0,0,8,0),ItemsSource=new[]{new ModChoice("Alt",1),new ModChoice("Ctrl",2),new ModChoice("Ctrl + Alt",3),new ModChoice("Ctrl + Shift",6),new ModChoice("Alt + Shift",5),new ModChoice("Ctrl + Alt + Shift",7)}};
+            var key=new ComboBox{Width=90,ItemsSource=Enumerable.Range(1,12).Select(number=>"F"+number).Concat(Enumerable.Range(0x41,26).Select(value=>((char)value).ToString())).ToArray()};
             System.Windows.Automation.AutomationProperties.SetName(modifier,label+" modifiers");System.Windows.Automation.AutomationProperties.SetName(key,label+" function key");
             var row=new StackPanel{Orientation=Orientation.Horizontal};row.Children.Add(modifier);row.Children.Add(key);inputs.Children.Add(row);shortcuts.Add(command,(modifier,key));
         }
@@ -37,7 +37,7 @@ public sealed class CaptureSettingsView:UserControl
         {
             try
             {
-                CaptureShortcut Get(CaptureCommand command){var row=shortcuts[command];return new((row.Modifier.SelectedItem as ModChoice)?.Value??0,0x70+row.Key.SelectedIndex);}
+                CaptureShortcut Get(CaptureCommand command){var row=shortcuts[command];return new((row.Modifier.SelectedItem as ModChoice)?.Value??0,row.Key.SelectedIndex<12?0x70+row.Key.SelectedIndex:0x41+row.Key.SelectedIndex-12);}
                 var value=new CapturePreferences(1,resolution.SelectedIndex==0?720:1080,rate.SelectedIndex==1?60:30,audio.IsChecked==true,Get(CaptureCommand.Screenshot),Get(CaptureCommand.Recording),Get(CaptureCommand.Overlay));
                 value.Validate();ApplyRequested?.Invoke(this,value);
             }catch(ArgumentException error){notice.Text=error.Message;}
@@ -48,7 +48,7 @@ public sealed class CaptureSettingsView:UserControl
     {
         resolution.SelectedIndex=value.Height==720?0:1;rate.SelectedIndex=value.FramesPerSecond==60?1:0;audio.IsChecked=value.GameAudio;
         foreach(var (command,binding) in new[]{(CaptureCommand.Screenshot,value.Screenshot),(CaptureCommand.Recording,value.Recording),(CaptureCommand.Overlay,value.Overlay)})
-        {var row=shortcuts[command];row.Modifier.SelectedItem=row.Modifier.Items.Cast<ModChoice>().FirstOrDefault(item=>item.Value==binding.Modifiers);row.Key.SelectedIndex=binding.VirtualKey-0x70;}
+        {var row=shortcuts[command];row.Modifier.SelectedItem=row.Modifier.Items.Cast<ModChoice>().FirstOrDefault(item=>item.Value==binding.Modifiers);row.Key.SelectedIndex=binding.VirtualKey>=0x70?binding.VirtualKey-0x70:12+binding.VirtualKey-0x41;}
     }
     public void SetNotice(string text)=>notice.Text=text;
     public void SetEditingEnabled(bool enabled)=>inputs.IsEnabled=enabled;

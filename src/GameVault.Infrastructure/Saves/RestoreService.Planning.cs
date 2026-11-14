@@ -23,7 +23,7 @@ public sealed partial class RestoreService
         if(policy.ValidateSet(targets.Select(t=>t.Path)).Length!=targets.Length)throw new IOException("Restore destinations must be distinct and nonoverlapping.");
         foreach(var target in targets)
         {
-            if(SaveSourcePolicy.Overlaps(target.Path,profile.ExecutablePath)||SaveSourcePolicy.Within(target.Path,paths.Root))throw new IOException("Restore destinations must not overwrite the game executable or GameVault files.");
+            if(SaveSourcePolicy.Overlaps(target.Path,profile.ExecutablePath)||SaveSourcePolicy.Within(target.Path,paths.Root)||new BackupDestinationService(paths).ExternalRoots().Any(r=>SaveSourcePolicy.Overlaps(target.Path,r)))throw new IOException("Restore destinations must not overwrite the game executable or GameVault files.");
         }
         var before=await Task.Run(()=>RestoreFiles.Inventory(targets,image.FileNames,policy,token),token).ConfigureAwait(false);
         var desired=new Dictionary<string,(BackupFile File,string Target)>(StringComparer.OrdinalIgnoreCase);

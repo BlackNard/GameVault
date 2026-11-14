@@ -1,3 +1,7 @@
+# Artwork provider history
+
+The redesign replaces the normal SteamGridDB key-based UI with browser-assisted title search and local preview/import. Existing saved covers are retained. The provider implementation/tests remain for historical compatibility; the design below records its original evaluation and is not the current user setup flow.
+
 # Artwork search delivery — issue #27
 
 Implemented files: Core/ArtworkModels.cs; Infrastructure/Artwork/SteamGridDbProvider.cs; App/Artwork/{WindowsArtworkCredentialStore,ArtworkImageNormalizer}.cs; App/CoverSearchView.xaml/.cs; App/GameEditor.xaml/.cs; tests/GameVault.Tests/ArtworkTests.cs; tests/GameVault.App.Tests/ArtworkImageTests.cs. No packages, shared cover renderer, MainWindow, project graph or owner data changed.
