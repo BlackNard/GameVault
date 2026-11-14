@@ -45,6 +45,8 @@ try {
         '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true', '--no-restore',
         '-o', $publishDirectory)
 
+    & (Join-Path $PSScriptRoot 'copy-runtime-notices.ps1') -PublishDirectory $publishDirectory
+
     foreach ($file in @('GameVault.exe', 'GameVault.dll', 'GameVault.deps.json',
         'GameVault.runtimeconfig.json', 'coreclr.dll', 'hostfxr.dll', 'PresentationFramework.dll')) {
         if (-not (Test-Path -LiteralPath (Join-Path $publishDirectory $file) -PathType Leaf)) {

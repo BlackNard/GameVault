@@ -120,6 +120,7 @@ try {
     $priorPublish=Join-Path $root 'prior publish'
     $probePublish=Join-Path $root 'probe publish'
     Invoke-Build @('publish',(Join-Path $repository 'src/GameVault.App/GameVault.App.csproj'),'-c','Release','-r','win-x64','--self-contained','true','--no-restore','-p:Version=0.0.1','-o',$priorPublish)
+    & (Join-Path $PSScriptRoot 'copy-runtime-notices.ps1') -PublishDirectory $priorPublish
     & (Join-Path $PSScriptRoot 'build-installer.ps1') -PublishDirectory $priorPublish
     $prior=Get-Content -LiteralPath $installerState -Raw | ConvertFrom-Json
     $priorManifest=Get-Content -LiteralPath $prior.manifest -Raw | ConvertFrom-Json
@@ -192,7 +193,7 @@ try {
 } finally {
     try {Stop-Probe} finally {
         [IO.File]::WriteAllText($installerState,$originalInstallerState)
-        $report=[ordered]@{schemaVersion=1;automatedPassed=$passed;os=[Environment]::OSVersion.VersionString;architecture=[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();runnerEnvironment=$env:RUNNER_ENVIRONMENT;syntheticPriorVersion=$true;observations=$observations.ToArray();interactiveUiValidated=$false;cleanMachineWithoutDevelopmentToolsValidated=$false;interactiveCancellation='pending-owner-final-pass';supportedWindowsMatrix='pending';releaseApproved=$false}
+        $report=[ordered]@{schemaVersion=1;automatedPassed=$passed;verificationRunId=$verified.runId;installerSha256=$current.sha256;os=[Environment]::OSVersion.VersionString;architecture=[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();runnerEnvironment=$env:RUNNER_ENVIRONMENT;syntheticPriorVersion=$true;observations=$observations.ToArray();interactiveUiValidated=$false;cleanMachineWithoutDevelopmentToolsValidated=$false;interactiveCancellation='pending-owner-final-pass';supportedWindowsMatrix='pending';releaseApproved=$false}
         $report|ConvertTo-Json -Depth 8|Set-Content -LiteralPath (Join-Path $evidence 'report.json') -Encoding utf8
         $report|ConvertTo-Json -Depth 8|Set-Content -LiteralPath (Join-Path $repository 'artifacts/installer-lifecycle.json') -Encoding utf8
         if(-not $passed){

@@ -17,8 +17,10 @@ function Assert-Rejected([scriptblock]$Action, [string]$Pattern) {
 function New-Payload([string]$Name) {
     $dir = Join-Path $root $Name
     New-Item -ItemType Directory $dir | Out-Null
-    foreach ($name in @('GameVault.exe','GameVault.dll','GameVault.deps.json','coreclr.dll','hostfxr.dll','PresentationFramework.dll','THIRD-PARTY-NOTICES.txt')) {
-        [IO.File]::WriteAllText((Join-Path $dir $name), 'synthetic payload')
+    foreach ($name in @('GameVault.exe','GameVault.dll','GameVault.deps.json','coreclr.dll','hostfxr.dll','PresentationFramework.dll','THIRD-PARTY-NOTICES.txt','licenses/dotnet/LICENSE.txt','licenses/dotnet/THIRD-PARTY-NOTICES.txt','licenses/windowsdesktop/LICENSE.txt')) {
+        $file=Join-Path $dir $name
+        New-Item -ItemType Directory -Path (Split-Path $file -Parent) -Force | Out-Null
+        [IO.File]::WriteAllText($file, 'synthetic payload')
     }
     [IO.File]::WriteAllText((Join-Path $dir 'GameVault.runtimeconfig.json'), '{"runtimeOptions":{"includedFrameworks":[{"name":"Microsoft.NETCore.App","version":"10.0.0"},{"name":"Microsoft.WindowsDesktop.App","version":"10.0.0"}]}}')
     return $dir
@@ -26,7 +28,7 @@ function New-Payload([string]$Name) {
 try {
     $good = New-Payload 'clean'
     $files = @(Get-InstallerPayload $good)
-    if ($files.Count -ne 8) { throw 'Incomplete explicit file manifest' }; $count++
+    if ($files.Count -ne 11) { throw 'Incomplete explicit file manifest' }; $count++
     New-Item -ItemType Directory (Join-Path $good 'fr') | Out-Null
     [IO.File]::WriteAllText((Join-Path $good 'fr/messages.dll'),'satellite')
     $entries = @(Get-InstallerFileEntries $good)
@@ -113,7 +115,7 @@ public static class InstallerLeaseTestRelease {
     try {
         $release=[InstallerLeaseTestRelease]::ReleaseAfter($held,150)
         Wait-InstallerLeaseRelease -Root $root -TimeoutSeconds 3
-        $release.GetAwaiter().GetResult()
+        $null=$release.GetAwaiter().GetResult()
         if([IO.File]::ReadAllText($lockPath) -ne 'coordination marker'){throw 'Lease wait changed the coordination file'}
         $count++
     } finally {$held.Dispose()}

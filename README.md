@@ -56,7 +56,7 @@ The approved foundation uses C#/WPF on .NET 10 with Data and Profiles beside the
 
 The first completed version will provide a downloadable Windows setup wizard through GitHub Releases. The wizard will install GameVault's executable and required application files. Updates and uninstallation must preserve user profiles, statistics, and backups by default.
 
-See [installer and release requirements](docs/installer-and-releases.md).
+See [installer and release requirements](docs/installer-and-releases.md) and the [private draft release procedure](docs/release-process.md).
 
 ## Privacy
 
