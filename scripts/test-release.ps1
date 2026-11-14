@@ -20,7 +20,7 @@ try {
     if(-not(Test-ReleaseSecret ('ghp_'+('a'*36)))){throw 'Credential marker not detected'};$count++
     if(Test-ReleaseSecret 'Source fixture says synthetic saved progress'){throw 'Synthetic test content was treated as a secret'};$count++
     $publish=Join-Path $root 'publish';New-Item -ItemType Directory $publish|Out-Null
-    foreach($name in @('GameVault.exe','GameVault.dll','GameVault.deps.json','coreclr.dll','hostfxr.dll','PresentationFramework.dll','THIRD-PARTY-NOTICES.txt','licenses/dotnet/LICENSE.txt','licenses/dotnet/THIRD-PARTY-NOTICES.txt','licenses/windowsdesktop/LICENSE.txt')){
+    foreach($name in @('GameVault.exe','GameVault.dll','GameVault.Capture.dll','ScreenRecorderLib.dll','Prerequisites/VC_redist.x64.exe','licenses/screenrecorderlib/LICENSE.txt','GameVault.deps.json','coreclr.dll','hostfxr.dll','PresentationFramework.dll','THIRD-PARTY-NOTICES.txt','licenses/dotnet/LICENSE.txt','licenses/dotnet/THIRD-PARTY-NOTICES.txt','licenses/windowsdesktop/LICENSE.txt')){
         $path=Join-Path $publish $name;New-Item -ItemType Directory (Split-Path $path -Parent) -Force|Out-Null;[IO.File]::WriteAllText($path,'synthetic binary or notice')
     }
     [IO.File]::WriteAllText((Join-Path $publish 'GameVault.runtimeconfig.json'),'{"runtimeOptions":{"includedFrameworks":[{"name":"Microsoft.NETCore.App","version":"10.0.15"},{"name":"Microsoft.WindowsDesktop.App","version":"10.0.15"}]}}')

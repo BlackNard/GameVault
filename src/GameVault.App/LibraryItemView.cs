@@ -5,9 +5,10 @@ using GameVault.Core;
 
 namespace GameVault.App;
 
-internal sealed class LibraryItemView(LibraryGame game) : INotifyPropertyChanged
+internal sealed class LibraryItemView(LibraryGame game, Func<string, CancellationToken, Task<BitmapImage>>? coverLoader = null) : INotifyPropertyChanged
 {
-    private bool coverRequested;
+    private CancellationTokenSource? coverRequest;
+    private int coverGeneration;
     private LaunchState? launch;
     private SessionProgress? session;
     public LibraryGame Game { get; private set; } = game;
@@ -47,15 +48,39 @@ internal sealed class LibraryItemView(LibraryGame game) : INotifyPropertyChanged
             PropertyChanged?.Invoke(this, new(name));
     }
 
-    public async Task LoadCoverAsync()
+    public void RefreshGame(LibraryGame game)
     {
-        if (coverRequested || Game.CoverFile is null) return;
-        coverRequested = true;
-        try { Cover = await Task.Run(() => CoverImages.Load(Game.CoverFile, 240)); }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException or System.Runtime.InteropServices.COMException) { return; }
+        if (game.Id != Game.Id) throw new ArgumentException("A library row must retain its game identity.", nameof(game));
+        CoverImages.InvalidateThumbnail(Game.CoverFile);
+        ReleaseCover();
+        Game = game;
+        if (session is { IsActive: false } && game.PlayedSeconds is long seconds) session = session with { TotalSeconds = seconds };
+        foreach (var name in new[] { nameof(Game), nameof(Name), nameof(Initial), nameof(Status), nameof(Availability), nameof(Played), nameof(SessionTime), nameof(SessionWarning) })
+            PropertyChanged?.Invoke(this, new(name));
+    }
+
+    public void ReleaseCover()
+    {
+        coverGeneration++;
+        coverRequest?.Cancel(); coverRequest?.Dispose(); coverRequest = null;
+        Cover = null;
         PropertyChanged?.Invoke(this, new(nameof(Cover)));
     }
 
+    public async Task LoadCoverAsync()
+    {
+        if (coverRequest is not null || Cover is not null || Game.CoverFile is null) return;
+        var request = new CancellationTokenSource(); coverRequest = request;
+        var generation = coverGeneration;
+        try {
+            var image = await (coverLoader ?? CoverImages.LoadThumbnailAsync)(Game.CoverFile, request.Token);
+            if (generation != coverGeneration || request.IsCancellationRequested) return;
+            Cover = image;
+            PropertyChanged?.Invoke(this, new(nameof(Cover)));
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException or OperationCanceledException or System.Runtime.InteropServices.COMException) { }
+        finally { if (ReferenceEquals(coverRequest, request)) { coverRequest = null; request.Dispose(); } }
+    }
     public static string StatusText(GameStatus status) => status switch
     { GameStatus.NotStarted => "Not started", GameStatus.OnHold => "On hold", _ => status.ToString() };
 }

@@ -8,6 +8,7 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>GameVault</AssemblyName>
+    <PlatformTarget>x64</PlatformTarget>
     <ApplicationIcon>Assets/GameVault.ico</ApplicationIcon>
     <Version>0.1.0</Version>
     <Product>GameVault</Product>
@@ -17,6 +18,7 @@
   <ItemGroup><Using Remove="System.Windows.Forms" /><Using Remove="System.Drawing" /></ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../GameVault.Core/GameVault.Core.csproj" />
+    <ProjectReference Include="../GameVault.Capture/GameVault.Capture.csproj" />
     <ProjectReference Include="../GameVault.Infrastructure/GameVault.Infrastructure.csproj" />
   </ItemGroup>
 
@@ -25,4 +27,5 @@
   </ItemGroup>
   <ItemGroup><Content Include="../../THIRD-PARTY-NOTICES.txt" Link="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" /></ItemGroup>
   <ItemGroup><Resource Include="Assets/GameVault.ico" /></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="../../scripts/capture-runtime.json" LogicalName="GameVault.CaptureRuntime.json" /></ItemGroup>
 </Project>

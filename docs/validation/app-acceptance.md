@@ -33,6 +33,6 @@ FixtureProtocolLoadsProgressAndRejectsTraversalAndReplayedSequence checks the na
 
 ## Remaining work and owner final pass
 
-Remaining implementation includes capture (#26), online covers (#27), responsiveness/performance (#18) and installer/release work (#15-#17). Keep owner gameplay and UI checklists pending while these are developed. At the agreed final pass, the owner will confirm actual game paths, preserve current saves, restore and load representative real-game backups, and report bugs or requested changes as separate tickets.
+The combined first-phase candidate implements capture (#26), online covers (#27) and responsiveness improvements (#18), alongside installer/release work (#15-#17). Automated gates and the synthetic measurements are documented separately; full app timing, capture compatibility, actual game behavior and visual acceptance remain pending. Use [the consolidated checklist](../phase-one-manual-testing.md) for the final pass. At the agreed final pass, the owner will confirm actual game paths, preserve current saves, restore and load representative real-game backups, and report bugs or requested changes as separate tickets.
 
 Use the existing [restore](../design/restore-manual-tests.md), [backup](../design/backups-manual-tests.md), [history](../design/backup-history-manual-tests.md), [discovery](../design/save-discovery-manual-tests.md) and [tray](../design/system-tray-manual-tests.md) checklists then. No manual testing is requested for this PR. No production behavior changed in the automated-validation work.

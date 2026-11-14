@@ -45,6 +45,7 @@ Name: "{userprograms}\GameVault"; Filename: "{app}\GameVault.exe"; WorkingDir: "
 Name: "{userdesktop}\GameVault"; Filename: "{app}\GameVault.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
+Filename: "{app}\Prerequisites\VC_redist.x64.exe"; Parameters: "/install /passive /norestart"; Description: "Install Microsoft Visual C++ x64 runtime for screenshots and recording (administrator approval required)"; Verb: "runas"; Flags: shellexec waituntilterminated postinstall skipifsilent unchecked
 Filename: "{app}\GameVault.exe"; Description: "Launch GameVault"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent unchecked
 
 ; Deliberately no wildcard cleanup / UninstallDelete. Data, Profiles and the

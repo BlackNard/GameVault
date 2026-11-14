@@ -46,6 +46,7 @@ try {
         '-o', $publishDirectory)
 
     & (Join-Path $PSScriptRoot 'copy-runtime-notices.ps1') -PublishDirectory $publishDirectory
+    & (Join-Path $PSScriptRoot 'copy-capture-prerequisites.ps1') -PublishDirectory $publishDirectory
 
     foreach ($file in @('GameVault.exe', 'GameVault.dll', 'GameVault.deps.json',
         'GameVault.runtimeconfig.json', 'coreclr.dll', 'hostfxr.dll', 'PresentationFramework.dll')) {

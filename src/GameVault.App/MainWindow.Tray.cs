@@ -48,12 +48,12 @@ public partial class MainWindow
     {
         RestoreWindow();if(stoppingObservation)return false;
         if(!await LeaveNotes(detach:false))return false;
-        if(busy||editorOpen){closeAfterSave=true;OperationNotice.Text=editorOpen?"Finish or cancel the editor; GameVault will then continue quitting.":"Finishing the current operation before quitting…";return false;}
+        if(busy||editorOpen||captureUiBusy){closeAfterSave=true;OperationNotice.Text=editorOpen?"Finish or cancel the editor; GameVault will then continue quitting.":"Finishing the current operation before quitting…";return false;}
         quitPreparing=true;UpdateButtons();var proceed=false;
         try
         {
             var count=launches.GetActiveStates().Length;
-            if(count>0&&MessageBox.Show(this,$"{count} game session(s) are still active or starting.\n\nQuitting stops tracking and automatic backups. GameVault will save a checkpoint and leave the games open. Reopen it to recover supported running sessions.\n\nQuit GameVault?","Quit GameVault?",MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)!=MessageBoxResult.Yes)return false;
+            if(count>0&&MessageBox.Show(this,$"{count} game session(s) are still active or starting.\n\nQuitting finalizes recordings, then stops tracking and automatic backups. GameVault will save a checkpoint and leave the games open. Reopen it to recover supported running sessions.\n\nQuit GameVault?","Quit GameVault?",MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)!=MessageBoxResult.Yes)return false;
             var warnings=await launches.CheckpointActiveAsync();
             if(warnings.Length>0&&MessageBox.Show(this,"The latest checkpoint could not be fully saved:\n\n"+string.Join("\n",warnings)+"\n\nThe last successful checkpoint is retained. Quit anyway?","Checkpoint needs attention",MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)!=MessageBoxResult.Yes)return false;
             proceed=true;return true;
@@ -65,6 +65,7 @@ public partial class MainWindow
         stoppingObservation=true;busy=true;trayTimer.Stop();UpdateButtons();OperationNotice.Text="Saving checkpoints and finishing confirmed-exit backups. Running games stay open…";
         try
         {
+            await PrepareCaptureShutdownAsync();
             try{await launches.DisposeAsync();}
             finally
             {
@@ -77,11 +78,11 @@ public partial class MainWindow
         finally
         {
             backups.Changed-=BackupChanged;discovery.Changed-=SourceDiscoveryChanged;launches.StateChanged-=LaunchStateChanged;launches.SessionUpdated-=SessionUpdated;
-            DisposeTrayOnApplicationExit();observationStopped=true;_=Dispatcher.BeginInvoke(new Action(Close));
+            DisposeCaptureFeatures();DisposePerformanceFeatures();DisposeTrayOnApplicationExit();observationStopped=true;_=Dispatcher.BeginInvoke(new Action(Close));
         }
     }
     private void ContinueDeferredQuit()
-    {if(closeAfterSave&&!busy&&!editorOpen&&!stoppingObservation){closeAfterSave=false;_=Dispatcher.BeginInvoke(new Action(RequestQuit));}}
+    {if(closeAfterSave&&!busy&&!editorOpen&&!captureUiBusy&&!stoppingObservation){closeAfterSave=false;_=Dispatcher.BeginInvoke(new Action(RequestQuit));}}
     internal void DisposeTrayOnApplicationExit()
     {
         trayTimer.Stop();trayTimer.Tick-=TrayTick;

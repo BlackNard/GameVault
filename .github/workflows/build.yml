@@ -36,9 +36,27 @@ jobs:
       - name: Build, test, and verify self-contained publish
         shell: pwsh
         run: ./scripts/verify.ps1
+      - name: Prepare image-only native encoder on disposable runner
+        shell: pwsh
+        run: ./scripts/prepare-capture-probe-runner.ps1
+      - name: Prove synthetic image-only native MP4 encoding and finalization
+        shell: pwsh
+        env:
+          GAMEVAULT_CAPTURE_ENCODE_PROBE: '1'
+        run: dotnet test tests/GameVault.App.Tests/GameVault.App.Tests.csproj -c Release --no-build --no-restore --filter FullyQualifiedName~CaptureEncodeProbeTests --logger trx --results-directory artifacts/capture-encode-probe --blame-hang-timeout 90s
+      - name: Measure synthetic library storage and query performance
+        shell: pwsh
+        run: |
+          dotnet restore tests/PerformanceHarness/PerformanceHarness.csproj --locked-mode
+          if ($LASTEXITCODE -ne 0) { throw 'Performance harness locked restore failed.' }
+          dotnet run --project tests/PerformanceHarness/PerformanceHarness.csproj -c Release --no-restore 2>&1 | Tee-Object -FilePath artifacts/performance-harness.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Performance harness failed.' }
       - name: Test clean installer payload boundaries
         shell: pwsh
         run: ./scripts/test-installer.ps1
+      - name: Test capture package prerequisite and notice boundaries
+        shell: pwsh
+        run: ./scripts/test-capture-packaging.ps1
       - name: Test release evidence and asset boundaries
         shell: pwsh
         run: ./scripts/test-release.ps1
@@ -62,6 +80,17 @@ jobs:
           name: private-draft-assets
           path: artifacts/release-*/*
           if-no-files-found: error
+          retention-days: 7
+      - name: Keep test and synthetic performance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: phase-one-automated-evidence
+          path: |
+            artifacts/test-results-*/*.trx
+            artifacts/capture-encode-probe/**
+            artifacts/performance-harness.txt
+          if-no-files-found: ignore
           retention-days: 7
       - name: Keep synthetic installer lifecycle evidence
         if: always()

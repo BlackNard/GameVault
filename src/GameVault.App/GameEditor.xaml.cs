@@ -11,6 +11,8 @@ public partial class GameEditor : Window
     private readonly Guid? id;
     private readonly Func<GameDraft, byte[]?, Task<GameSaveResult>> save;
     private string? newCover;
+    private byte[]? newCoverBytes;
+    private CoverSearchView? coverSearch;
     private bool saving;
     public GameSaveResult? Result { get; private set; }
 
@@ -37,6 +39,7 @@ public partial class GameEditor : Window
                 if ((string)item.Tag == profile.Status.ToString()) StatusChoice.SelectedItem = item;
         }
         Closing += BeforeClosing;
+        Closed += (_, _) => coverSearch?.Dispose();
         Loaded += (_, _) => GameName.Focus();
     }
 
@@ -58,8 +61,35 @@ public partial class GameEditor : Window
     private void BrowseCover(object sender, RoutedEventArgs e) => Pick(() =>
     {
         var path = NativePickers.File(this, "Choose cover image", "Cover images (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg", newCover ?? "");
-        if (path is not null) { newCover = path; CoverPath.Text = path; }
+        if (path is not null) { newCover = path; newCoverBytes = null; CoverPath.Text = path; }
     });
+
+    private void FindArtwork(object sender, RoutedEventArgs e)
+    {
+        coverSearch?.Dispose();
+        coverSearch = new CoverSearchView(GameName.Text);
+        coverSearch.Cancelled += CloseArtwork;
+        coverSearch.CoverChosen += (png, credit) =>
+        {
+            newCoverBytes = png;
+            newCover = null;
+            CoverPath.Text = "Downloaded cover · " + credit;
+            CloseArtwork();
+        };
+        ArtworkHost.Content = coverSearch;
+        EditorScroll.Visibility = EditorFooter.Visibility = Visibility.Collapsed;
+        ArtworkHost.Visibility = Visibility.Visible;
+    }
+
+    private void CloseArtwork()
+    {
+        coverSearch?.Dispose();
+        coverSearch = null;
+        ArtworkHost.Content = null;
+        ArtworkHost.Visibility = Visibility.Collapsed;
+        EditorScroll.Visibility = EditorFooter.Visibility = Visibility.Visible;
+        GameName.Focus();
+    }
 
     private void BrowseSaveFolder(object sender, RoutedEventArgs e) => Pick(() => AppendSavePath(NativePickers.Folder(this, "Choose game save folder")));
     private void BrowseSaveFile(object sender, RoutedEventArgs e) => Pick(() => AppendSavePath(NativePickers.File(this, "Choose game save file", "All files (*.*)|*.*")));
@@ -88,7 +118,7 @@ public partial class GameEditor : Window
         try
         {
             var coverPath = newCover;
-            byte[]? png = coverPath is null ? null : await Task.Run(() => CoverImages.Normalize(coverPath));
+            byte[]? png = newCoverBytes ?? (coverPath is null ? null : await Task.Run(() => CoverImages.Normalize(coverPath)));
             Result = await save(draft, png);
             saving = false;
             DialogResult = true;

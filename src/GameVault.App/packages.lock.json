@@ -56,6 +56,18 @@
         "resolved": "8.0.0",
         "contentHash": "bXJEZrW9ny8vjMF1JV253WeLhpEVzFo1lyaZu1vQ4ZxWUlVvknZ/+ftFgVheLubb4eZPSwwxBeqS1JkCOjxd8g=="
       },
+      "ScreenRecorderLib": {
+        "type": "Transitive",
+        "resolved": "7.0.1",
+        "contentHash": "QwDAc3IpTgjaRAw3HLLc+pnznQp+D5W3us9VckpPPasszpCOs5C1lAScc6AOGaEtssjSlKfHKHeI61p4djWXOA=="
+      },
+      "gamevault.capture": {
+        "type": "Project",
+        "dependencies": {
+          "GameVault.Infrastructure": "[1.0.0, )",
+          "ScreenRecorderLib": "[7.0.1, 7.0.1]"
+        }
+      },
       "gamevault.core": {
         "type": "Project"
       },

@@ -1,0 +1,26 @@
+# First-phase completion — issues #18, #26, #27
+
+**Goal:** Complete the remaining implementation scope in one integrated PR and deliver a clean installer/ZIP plus a privately seeded local build for the owner's full manual test round. No UI/native-dialog/real-game checks on the owner's PC; no automatic merge/publication.
+
+## Scope and decisions
+
+- Performance: responsive startup and filtering, no eager all-game save scans blocking library interaction, viewport-only cover requests, bounded reusable thumbnail cache/decode concurrency, stable selection/rows, recycling virtualization, measured 500/1000-game synthetic workloads and honest reference-machine/budget reports. Final Windows frame pacing, game impact and scaling are owner manual checks.
+- Capture: PNG screenshots, H.264 MP4 1080p/30 default; both launcher and lightweight non-injecting topmost overlay, configurable global shortcuts, obvious recording state/time, explicit selected actual-session window, explicit optional monitor fallback, session-linked Media folders, no implicit microphone. Game-audio selection is explicit; process-only audio if supported, never silent all-system fallback. Stop/finalize on game exit/quit; partial files remain labelled incomplete. Unsupported fullscreen/elevation/protected content is reported with launcher/hotkey fallback, never bypassed.
+- Use pinned ScreenRecorderLib 7.0.1 / Windows Media Foundation for native capture. Capture must be lazy so unavailable native prerequisites never break launcher startup. Document/handle VC++ x64 runtime and Windows Media Foundation prerequisites; parent owns installer prerequisites and notices.
+- Covers: supported SteamGridDB v2 API, explicit online search by editable directory-derived title; show multiple games then artwork previews/selection inside the editor. Personal key optional and stored in Windows Credential Manager, never source/config/plaintext shared secrets. Explain provider account/key requirements; no API account needed to use the launcher/local images. Bounded HTTP/downloads/decodes, allowlisted HTTPS API/CDN hosts, no full paths/saves/notes/history sent, stale-result cancellation, clear offline/rate-limit/auth fallback. Downloaded cover normalized and independently persisted by existing library save path.
+
+## Parallel ownership and contracts
+
+1. **Capture domain worker:** new Core/CaptureModels.cs, Infrastructure/Capture/*, new GameVault.Capture Windows adapter project (including its own csproj/lock), capture-domain tests. Do not touch app existing files, solution, app csproj, global locks, installer or shared docs/notices. Expose coordinator/backend contracts and report them early. Parent supplies active session identity from LaunchService + persisted journal and owns launcher/overlay/hotkey UI.
+2. **Artwork worker:** new Core/ArtworkModels.cs, Infrastructure/Artwork/*, App/Artwork/*, App/CoverSearchView.*, existing GameEditor.xaml and .xaml.cs, artwork tests. Do not touch CoverImages.cs/LibraryItemView.cs, app csproj, main window, solution/installer/global lock files. Use a separate bounded memory image normalizer if necessary. Parent owns dependency graph refresh.
+3. **Performance worker:** existing LibraryService.cs, LibraryItemView.cs, CoverImages.cs; new thumbnail-cache/filter/performance helpers and tests/benchmark harness. Do not touch MainWindow*, GameEditor*, app csproj, installer or other worker modules. Keep data freshness/corruption safeguards; benchmark first, avoid fragile filesystem timestamp-only parsed-data caches. Expose ReleaseCover/RefreshGame contracts to parent and bound cache memory.
+4. **Parent integration:** MainWindow*.cs/.xaml, overlay/hotkeys/settings/media UI, app/solution/package graph, native prerequisite delivery, performance hooks, docs/manual checklist, automated release checks, final focused whole-branch review, clean delivery and PR. All workers share workspace; preserve others' edits. Commit only owned changes when asked, no whole-branch staging.
+
+## Verification and handoff
+
+- TDD for meaningful domain behavior: fake capture lifecycle/errors/partial outputs/session identity, mocked artwork HTTP/auth/cancellation/limits and persistence, bounded cover cache and synthetic scale workloads. No actual owner capture or secret access.
+- Locked full restore/build/test/publish; capture dependency load/controlled file-frame encode only if headless and test-owned, otherwise explicitly record capability/environment limits. No local UI/native pickers or actual games.
+- Update third-party/runtime notices, installer/release payload validators, CI lifecycle/provenance as needed. Keep all UI/game/Windows compatibility measurements pending for owner's checklist.
+- Refresh private vault at start/delivery; clean ZIP/setup must exist and be verified before Import into fresh outputs/Builds folder. Preserve all snapshots/builds. Create one reviewable PR for all three tickets, await green CI; do not publish a release or merge.
+
+Rulings: use existing approved repo branch workflow and same-window editor direction; routine implementation choices are delegated by owner. Lightweight overlay cannot promise exclusive-fullscreen coverage. Provider credential input is an optional feature setup step, not a mandatory launcher login. Do not claim unperformed manual acceptance as passed.

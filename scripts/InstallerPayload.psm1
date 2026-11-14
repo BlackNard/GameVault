@@ -24,7 +24,7 @@ function Get-InstallerPayload {
             else { $files.Add($item) }
         }
     }
-    foreach ($name in @('GameVault.exe','GameVault.dll','GameVault.deps.json','GameVault.runtimeconfig.json',
+    foreach ($name in @('GameVault.exe','GameVault.dll','GameVault.Capture.dll','ScreenRecorderLib.dll','Prerequisites/VC_redist.x64.exe','licenses/screenrecorderlib/LICENSE.txt','GameVault.deps.json','GameVault.runtimeconfig.json',
         'coreclr.dll','hostfxr.dll','PresentationFramework.dll','THIRD-PARTY-NOTICES.txt',
         'licenses/dotnet/LICENSE.txt','licenses/dotnet/THIRD-PARTY-NOTICES.txt','licenses/windowsdesktop/LICENSE.txt')) {
         if (-not (Test-Path -LiteralPath (Join-Path $root $name) -PathType Leaf)) { throw "Payload is missing $name." }

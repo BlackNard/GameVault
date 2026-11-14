@@ -106,6 +106,11 @@
           "Microsoft.Extensions.Logging": "8.0.1"
         }
       },
+      "ScreenRecorderLib": {
+        "type": "Transitive",
+        "resolved": "7.0.1",
+        "contentHash": "QwDAc3IpTgjaRAw3HLLc+pnznQp+D5W3us9VckpPPasszpCOs5C1lAScc6AOGaEtssjSlKfHKHeI61p4djWXOA=="
+      },
       "xunit.abstractions": {
         "type": "Transitive",
         "resolved": "2.0.3",
@@ -149,9 +154,17 @@
       "GameVault": {
         "type": "Project",
         "dependencies": {
+          "GameVault.Capture": "[1.0.0, )",
           "GameVault.Core": "[1.0.0, )",
           "GameVault.Infrastructure": "[1.0.0, )",
           "PDFsharp": "[6.2.3, )"
+        }
+      },
+      "gamevault.capture": {
+        "type": "Project",
+        "dependencies": {
+          "GameVault.Infrastructure": "[1.0.0, )",
+          "ScreenRecorderLib": "[7.0.1, 7.0.1]"
         }
       },
       "gamevault.core": {

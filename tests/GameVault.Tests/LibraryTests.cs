@@ -175,5 +175,25 @@ public sealed class LibraryTests : IDisposable
         Assert.Equal("Saved despite artwork failure", Assert.Single((await service.ListAsync()).Games).Profile!.Name);
     }
 
+    [Fact]
+    public async Task RepeatedListsObserveProfileStatisticsAndSameTimestampExternalChanges()
+    {
+        var saved = await service.SaveAsync(Draft());
+        Assert.Equal("My game", Assert.Single((await service.ListAsync()).Games).Profile!.Name);
+        await store.SaveProfileAsync(saved.Profile with { Name = "New game" });
+        await store.SaveStatisticsAsync(new(1, saved.Profile.Id,
+            [new(Guid.NewGuid(), DateTimeOffset.UtcNow, null, 1234)], []));
+        var fresh = Assert.Single((await service.ListAsync()).Games);
+        Assert.Equal("New game", fresh.Profile!.Name); Assert.Equal(1234, fresh.PlayedSeconds);
+        var file = Path.Combine(paths.Profiles, saved.Profile.Id.ToString("N"), "profile.json");
+        var timestamp = File.GetLastWriteTimeUtc(file);
+        var json = await File.ReadAllTextAsync(file);
+        await File.WriteAllTextAsync(file, json.Replace("New game", "Alt game"));
+        File.SetLastWriteTimeUtc(file, timestamp);
+        Assert.Equal("Alt game", Assert.Single((await service.ListAsync()).Games).Profile!.Name);
+        await File.WriteAllTextAsync(file, "{\"schemaVersion\":99}");
+        File.SetLastWriteTimeUtc(file, timestamp);
+        Assert.True(Assert.Single((await service.ListAsync()).Games).IsReadOnly);
+    }
     public void Dispose() => Directory.Delete(root, recursive: true);
 }
