@@ -1,6 +1,6 @@
 # Artwork provider history
 
-The redesign replaces the normal SteamGridDB key-based UI with browser-assisted title search and local preview/import. Existing saved covers are retained. The provider implementation/tests remain for historical compatibility; the design below records its original evaluation and is not the current user setup flow.
+The current UI uses [in-app portrait cover search](portrait-cover-search.md) and local preview/import instead of the original SteamGridDB key-based setup. Existing saved covers are retained. The provider implementation/tests remain for historical compatibility; the design below records its original evaluation and is not the current user setup flow.
 
 # Artwork search delivery — issue #27
 

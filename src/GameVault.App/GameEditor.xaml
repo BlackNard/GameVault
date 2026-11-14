@@ -22,7 +22,7 @@
                 </ComboBox>
                 <Label Content="_Cover image (optional)" Target="{Binding ElementName=CoverPath}" />
                 <DockPanel><Button DockPanel.Dock="Right" Content="Browse…" Click="BrowseCover" Margin="8,0,0,0" AutomationProperties.Name="Browse cover image" /><TextBox x:Name="CoverPath" IsReadOnly="True" TextWrapping="Wrap" AutomationProperties.Name="Cover image path" /></DockPanel>
-                <Button Content="Find artwork online…" Click="FindArtwork" HorizontalAlignment="Left" Margin="0,8,0,0" AutomationProperties.Name="Find a cover with browser image search" />
+                <Button Content="Find artwork online…" Click="FindArtwork" HorizontalAlignment="Left" Margin="0,8,0,0" AutomationProperties.Name="Search portrait game covers online" />
                 <TextBlock Text="PNG or JPEG. A copy is stored in this game’s profile." TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,6,0,16" />
                 <Label Content="_Save locations (optional, one full path per line)" Target="{Binding ElementName=SaveSources}" />
                 <TextBox x:Name="SaveSources" AcceptsReturn="True" MinHeight="76" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" AutomationProperties.Name="Save location paths" />
