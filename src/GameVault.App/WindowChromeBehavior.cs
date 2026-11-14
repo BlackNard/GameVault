@@ -9,9 +9,23 @@ using System.Windows.Shell;
 namespace GameVault.App;
 
 /// <summary>Integrated chrome with a native maximize hit region for Windows 11 Snap Layouts.</summary>
-internal static class WindowChromeBehavior
+public static class WindowChromeBehavior
 {
     private static readonly ConditionalWeakTable<Window, NativeCaption> Captions = new();
+    private static readonly DependencyPropertyKey IsNativeMouseOverPropertyKey = DependencyProperty.RegisterAttachedReadOnly(
+        "IsNativeMouseOver", typeof(bool), typeof(WindowChromeBehavior), new PropertyMetadata(false));
+    public static readonly DependencyProperty IsNativeMouseOverProperty = IsNativeMouseOverPropertyKey.DependencyProperty;
+    public static bool GetIsNativeMouseOver(DependencyObject element) => (bool)element.GetValue(IsNativeMouseOverProperty);
+
+    // HTMAXBUTTON changes input to WM_NC*. WPF ButtonBase only processes client input.
+    // Consume the native press/release after forwarding; passing it to DefWindowProc as well
+    // would execute a second maximize/restore via WM_SYSCOMMAND.
+    internal static uint ClientButtonMessage(uint message, nuint hitTest) => hitTest != 9 ? 0u : message switch
+    {
+        0x00A1 or 0x00A3 => 0x0201u, // WM_NCLBUTTONDOWN/DBLCLK -> WM_LBUTTONDOWN
+        0x00A2 => 0x0202u,           // WM_NCLBUTTONUP -> WM_LBUTTONUP
+        _ => 0u
+    };
 
     public static void Apply(Window window) => Apply(window, null);
 
@@ -48,6 +62,17 @@ internal static class WindowChromeBehavior
         unchecked((short)(packed.ToInt64() & 0xffff)),
         unchecked((short)((packed.ToInt64() >> 16) & 0xffff)));
 
+    internal static int ResizeHitTest(Point point, Rect bounds, Thickness border, bool maximized)
+    {
+        if (maximized || bounds.IsEmpty || point.X < bounds.Left || point.X >= bounds.Right
+            || point.Y < bounds.Top || point.Y >= bounds.Bottom) return 0;
+        var left = point.X < bounds.Left + border.Left;
+        var right = point.X >= bounds.Right - border.Right;
+        if (point.Y < bounds.Top + border.Top) return left ? 14 : right ? 15 : 13;
+        if (point.Y >= bounds.Bottom - border.Bottom) return left ? 17 : right ? 18 : 16;
+        return left ? 10 : right ? 11 : 0;
+    }
+
     internal static bool IsMaximizeRegion(Point screenPoint, Rect buttonBounds, Rect windowBounds,
         Thickness resizeBorder, bool maximized, bool enabled)
     {
@@ -65,6 +90,8 @@ internal static class WindowChromeBehavior
     {
         private const uint WmNcHitTest = 0x0084;
         private const uint WmNcDestroy = 0x0082;
+        private const uint WmNcMouseMove = 0x00A0;
+        private const uint WmNcMouseLeave = 0x02A2;
         private const nuint SubclassId = 0x47564d58; // GameVault maximize caption.
         private nint handle;
 
@@ -99,6 +126,7 @@ internal static class WindowChromeBehavior
         {
             window.SourceInitialized -= SourceInitialized;
             window.Closed -= Closed;
+            maximizeButton.SetValue(IsNativeMouseOverPropertyKey, false);
             if (handle != 0 && registeredCallback is not null)
             {
                 RemoveWindowSubclass(handle, registeredCallback, SubclassId);
@@ -113,20 +141,72 @@ internal static class WindowChromeBehavior
 
         private nint WndProc(nint hwnd, uint message, nuint wParam, nint lParam, nuint id, nuint reference)
         {
+            var forwardingButtonInput = false;
             try
             {
-                if (message == WmNcHitTest && IsOverMaximize(ScreenPoint(lParam))) return 9; // HTMAXBUTTON
+                if (message is 0x0200 or 0x02A3 or 0x0215 or 0x001F) // Client move/leave, capture changed, cancel.
+                    maximizeButton.SetValue(IsNativeMouseOverPropertyKey, false);
+                if (message == WmNcHitTest)
+                {
+                    var screen = ScreenPoint(lParam);
+                    if (window.ResizeMode is ResizeMode.CanResize or ResizeMode.CanResizeWithGrip
+                        && TryWindowGeometry(out var bounds, out var border))
+                    {
+                        // WindowChrome's client opt-out precedes its resize logic. Restore
+                        // the physical border before either client controls or HTMAXBUTTON.
+                        var resize = ResizeHitTest(screen, bounds, border, window.WindowState == WindowState.Maximized);
+                        if (resize != 0) return resize;
+                    }
+                    if (IsOverMaximize(screen)) return 9; // HTMAXBUTTON
+                }
+                if (message == WmNcMouseMove)
+                {
+                    var over = wParam == 9 && IsOverMaximize(ScreenPoint(lParam));
+                    maximizeButton.SetValue(IsNativeMouseOverPropertyKey, over);
+                    if (over)
+                    {
+                        var tracking = new TrackMouseEventOptions
+                        {
+                            Size = (uint)Marshal.SizeOf<TrackMouseEventOptions>(),
+                            Flags = 0x00000002 | 0x00000010, // TME_LEAVE | TME_NONCLIENT
+                            Window = hwnd
+                        };
+                        TrackMouseEvent(ref tracking);
+                    }
+                    // Keep the original nonclient move in the native chain for Snap Layouts.
+                }
+                if (message == WmNcMouseLeave)
+                    maximizeButton.SetValue(IsNativeMouseOverPropertyKey, false);
+                var clientMessage = ClientButtonMessage(message, wParam);
+                if (clientMessage != 0)
+                {
+                    // Win32 coordinates are physical screen pixels; ScreenToClient handles
+                    // negative monitor origins and per-monitor DPI without logical scaling.
+                    var screen = ScreenPoint(lParam);
+                    var point = new NativePoint { X = (int)screen.X, Y = (int)screen.Y };
+                    if (!ScreenToClient(hwnd, ref point)) return 0;
+                    var clientPoint = unchecked((nint)((point.Y & 0xffff) << 16 | (point.X & 0xffff)));
+                    forwardingButtonInput = true;
+                    maximizeButton.SetValue(IsNativeMouseOverPropertyKey, false);
+                    if (clientMessage == 0x0201)
+                        DefSubclassProc(hwnd, 0x0200, 0, clientPoint); // Establish WPF's mouse target first.
+                    // ButtonBase owns capture, pressed visuals, drag-out cancellation and Click.
+                    // Once captured, the real release arrives as WM_LBUTTONUP and stays untouched.
+                    return DefSubclassProc(hwnd, clientMessage, clientMessage == 0x0201 ? (nuint)1 : 0, clientPoint);
+                }
                 if (message == WmNcDestroy) Detach();
             }
             catch (Exception)
             {
                 // This is an unmanaged callback boundary. If visual state is unavailable,
                 // preserve the normal WPF/native chain instead of propagating an exception.
+                // Once client forwarding begins, never retry the native button action.
+                if (forwardingButtonInput) return 0;
             }
             try
             {
-                // Do NOT raise WPF Click for WM_NCLBUTTONDOWN/UP: default caption tracking
-                // sends WM_SYSCOMMAND once. Forward move/leave so Windows owns Snap hover.
+                // Non-button messages, including native hover/Snap, drag, resize and system
+                // commands, keep their normal route. No synthetic Click or system command.
                 return DefSubclassProc(hwnd, message, wParam, lParam);
             }
             catch (Exception)
@@ -136,6 +216,19 @@ internal static class WindowChromeBehavior
                 return 0;
             }
         }
+        private bool TryWindowGeometry(out Rect bounds, out Thickness physicalBorder)
+        {
+            bounds = Rect.Empty;
+            physicalBorder = new Thickness();
+            if (handle == 0 || !GetWindowRect(handle, out var rectangle)) return false;
+            bounds = new Rect(rectangle.Left, rectangle.Top, rectangle.Right - rectangle.Left, rectangle.Bottom - rectangle.Top);
+            var dpi = VisualTreeHelper.GetDpi(window);
+            var border = WindowChrome.GetWindowChrome(window)?.ResizeBorderThickness ?? new Thickness();
+            physicalBorder = new Thickness(border.Left * dpi.DpiScaleX, border.Top * dpi.DpiScaleY,
+                border.Right * dpi.DpiScaleX, border.Bottom * dpi.DpiScaleY);
+            return true;
+        }
+
         private bool IsOverMaximize(Point screenPoint)
         {
             if (!maximizeButton.IsLoaded || !maximizeButton.IsVisible || !maximizeButton.IsEnabled
@@ -145,12 +238,7 @@ internal static class WindowChromeBehavior
             {
                 var buttonBounds = new Rect(maximizeButton.PointToScreen(new Point()),
                     maximizeButton.PointToScreen(new Point(maximizeButton.ActualWidth, maximizeButton.ActualHeight)));
-                var windowBounds = new Rect(window.PointToScreen(new Point()),
-                    window.PointToScreen(new Point(window.ActualWidth, window.ActualHeight)));
-                var dpi = VisualTreeHelper.GetDpi(window);
-                var border = WindowChrome.GetWindowChrome(window)?.ResizeBorderThickness ?? new Thickness();
-                var physicalBorder = new Thickness(border.Left * dpi.DpiScaleX, border.Top * dpi.DpiScaleY,
-                    border.Right * dpi.DpiScaleX, border.Bottom * dpi.DpiScaleY);
+                if (!TryWindowGeometry(out var windowBounds, out var physicalBorder)) return false;
                 return IsMaximizeRegion(screenPoint, buttonBounds, windowBounds, physicalBorder,
                     window.WindowState == WindowState.Maximized, true);
             }
@@ -161,6 +249,28 @@ internal static class WindowChromeBehavior
             }
         }
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect { public int Left; public int Top; public int Right; public int Bottom; }
+    [DllImport("user32.dll", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(nint hwnd, out NativeRect rectangle);
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint { public int X; public int Y; }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct TrackMouseEventOptions
+    {
+        public uint Size;
+        public uint Flags;
+        public nint Window;
+        public uint HoverTime;
+    }
+    [DllImport("user32.dll", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool TrackMouseEvent(ref TrackMouseEventOptions options);
+    [DllImport("user32.dll", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ScreenToClient(nint hwnd, ref NativePoint point);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     private delegate nint SubclassProc(nint hwnd, uint message, nuint wParam, nint lParam, nuint subclassId, nuint reference);
