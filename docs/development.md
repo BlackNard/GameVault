@@ -30,20 +30,21 @@ $build = Get-Content -Raw artifacts/verification.json | ConvertFrom-Json
 & $build.executable
 ```
 
-The entire publish folder is required. Copying only GameVault.exe is insufficient. A zip of the complete folder is a possible future portable distribution; the installer comes later in issue #15. Updating bundled runtimes requires rebuilding and distributing GameVault.
+The entire publish folder is required. Copying only GameVault.exe is insufficient. Clean ZIP and Inno Setup packages are created by the verification/release scripts. Updating bundled runtimes requires rebuilding and distributing GameVault.
 
 ## Dependencies and CI
 
 Package references use exact versions and committed `packages.lock.json` files, including the win-x64 restore graph. Update references and run `dotnet restore GameVault.slnx --force-evaluate` deliberately when changing dependencies or framework settings. Review and commit resulting lock changes. Ordinary verification must not rewrite them.
 
-The Windows foundation GitHub Actions workflow runs the same script on feature-branch pushes and pull requests targeting main. Action revisions are pinned. Its token can read source only; the workflow does not publish releases, merge changes, or build an installer.
+The Windows foundation GitHub Actions workflow runs the same script on feature-branch pushes and pull requests targeting main. Action revisions are pinned. The verification job reads source, builds the installer and verifies its lifecycle on a disposable runner. It prepares private assets without publishing or merging. The optional exact-draft smoke job has narrowly scoped write access required by GitHub to read private drafts.
 
 ## Boundaries and data
 
 - `GameVault.App`: WPF presentation/startup; receives its root from AppContext.BaseDirectory.
 - `GameVault.Core`: layout model and future domain logic without WPF dependencies.
 - `GameVault.Infrastructure`: exclusive application-folder lease and writeability checks; later filesystem/Windows services.
-- `GameVault.Tests`: path safety and real filesystem concurrency tests.
+- `GameVault.Capture`: lazy Windows x64 native capture adapter; missing capture prerequisites do not block library startup.
+- `GameVault.Tests`: domain, path safety and real filesystem concurrency tests.
 
 The development window opens the executable's folder asynchronously, holds the exclusive `.gamevault.lock` handle until exit, initializes versioned settings/profile storage, and restores the saved theme. Closing during a settings save waits for that operation. The empty coordination file remains after exit and does not indicate an active instance; only the OS-held handle does. Different portable directories can run independently. Missing/busy/unwritable folders produce a startup message rather than redirecting user data elsewhere.
 
@@ -53,4 +54,4 @@ Data and Profiles are initialized below the app root. See [persistence.md](persi
 
 The owner approved the [foundation design](superpowers/specs/2026-11-10-foundation-design.md) on 2026-11-10. It documents storage safety, versioning, timing, backup/restore boundaries, and performance targets for later tickets. These architectural rules do not imply those features are already implemented.
 
-No repository license has been selected. Installer tooling, signing identity/costs, public distribution, and minimum hardware requirements remain open. Do not infer public-release authorization from the private development repository.
+No repository license has been selected. Inno Setup is pinned by the build scripts. Signing identity/costs, public distribution, and minimum hardware requirements remain open. Do not infer public-release authorization from the private development repository.

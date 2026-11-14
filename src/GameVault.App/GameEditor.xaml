@@ -10,7 +10,7 @@
             <TextBlock x:Name="Heading" Text="Add game" FontSize="26" FontWeight="SemiBold" />
             <TextBlock Text="Choose a local executable. No store account needed." Foreground="{DynamicResource AppMuted}" TextWrapping="Wrap" Margin="0,6,0,0" />
         </StackPanel>
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer x:Name="EditorScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel x:Name="Fields" Margin="0,0,12,0">
                 <Label Content="_Name" Target="{Binding ElementName=GameName}" /><TextBox x:Name="GameName" MaxLength="240" AutomationProperties.Name="Game name" Margin="0,0,0,16" />
                 <Label Content="_Executable (.exe)" Target="{Binding ElementName=Executable}" />
@@ -24,6 +24,7 @@
                 </ComboBox>
                 <Label Content="_Cover image (optional)" Target="{Binding ElementName=CoverPath}" />
                 <DockPanel><Button DockPanel.Dock="Right" Content="Browse…" Click="BrowseCover" Margin="8,0,0,0" AutomationProperties.Name="Browse cover image" /><TextBox x:Name="CoverPath" IsReadOnly="True" TextWrapping="Wrap" AutomationProperties.Name="Cover image path" /></DockPanel>
+                <Button Content="Find artwork online…" Click="FindArtwork" HorizontalAlignment="Left" Margin="0,8,0,0" AutomationProperties.Name="Search SteamGridDB for cover artwork" />
                 <TextBlock Text="PNG or JPEG. A copy is stored in this game’s profile." TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,6,0,16" />
                 <Label Content="_Save locations (optional, one full path per line)" Target="{Binding ElementName=SaveSources}" />
                 <TextBox x:Name="SaveSources" AcceptsReturn="True" MinHeight="76" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" AutomationProperties.Name="Save location paths" />
@@ -31,7 +32,8 @@
                 <TextBlock Text="Optional manual overrides. Leave these empty for automatic discovery, including folders created during the first session. Choose narrow local save files/folders; linked or overlapping sources are not supported." Foreground="{DynamicResource AppMuted}" TextWrapping="Wrap" Margin="0,0,0,12" />
             </StackPanel>
         </ScrollViewer>
-        <StackPanel Grid.Row="2" Margin="0,16,0,0">
+        <ContentControl x:Name="ArtworkHost" Grid.Row="1" Visibility="Collapsed" />
+        <StackPanel x:Name="EditorFooter" Grid.Row="2" Margin="0,16,0,0">
             <TextBlock x:Name="ErrorNotice" Foreground="{DynamicResource AppWarning}" TextWrapping="Wrap" Margin="0,0,0,12" AutomationProperties.LiveSetting="Assertive" />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button x:Name="CancelButton" Content="Cancel" IsCancel="True" Margin="0,0,8,0" /><Button x:Name="SaveButton" Content="Add game" Style="{StaticResource PrimaryButton}" Click="SaveGame" IsDefault="True" /></StackPanel>
         </StackPanel>

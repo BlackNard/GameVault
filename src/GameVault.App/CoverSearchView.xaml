@@ -1,0 +1,22 @@
+<UserControl x:Class="GameVault.App.CoverSearchView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Foreground="{DynamicResource AppText}">
+ <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+ <StackPanel>
+  <TextBlock Text="Find cover artwork" FontSize="22" FontWeight="SemiBold"/>
+  <TextBlock Text="Optional online search uses SteamGridDB and requires your personal provider account/API key. No account is needed for GameVault or Browse. Only the title you submit is sent; never enter a path." TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,8"/>
+  <TextBlock Text="Get a personal key at steamgriddb.com/profile/preferences. Artwork remains credited to its creators; use it for your personal library." TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}"/>
+  <Label Content="_Personal SteamGridDB API key" Target="{Binding ElementName=ApiKey}"/>
+  <DockPanel><Button Content="Save key" Click="SaveKey" DockPanel.Dock="Right" Margin="8,0,0,0"/><Button Content="Forget key" Click="ForgetKey" DockPanel.Dock="Right" Margin="8,0,0,0"/><PasswordBox x:Name="ApiKey" MaxLength="256" AutomationProperties.Name="Personal SteamGridDB API key"/></DockPanel>
+  <TextBlock Text="Saved only in this Windows user's Credential Manager. Leave blank to keep the saved key." TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,6"/>
+  <Label Content="_Search title" Target="{Binding ElementName=Query}"/>
+  <DockPanel><Button Content="Search" Click="Search" DockPanel.Dock="Right" Margin="8,0,0,0"/><TextBox x:Name="Query" MaxLength="120" AutomationProperties.Name="Artwork search title" TextChanged="QueryChanged" KeyDown="QueryKeyDown"/></DockPanel>
+ </StackPanel>
+ <TextBlock x:Name="Notice" Grid.Row="1" TextWrapping="Wrap" Margin="0,12" Foreground="{DynamicResource AppWarning}" AutomationProperties.LiveSetting="Polite"/>
+ <Grid Grid.Row="2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+  <ListBox x:Name="Games" DisplayMemberPath="Display" SelectionChanged="ChooseGame" AutomationProperties.Name="Matching games" Margin="0,0,12,0" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+  <ListBox x:Name="Covers" Grid.Column="1" AutomationProperties.Name="Cover artwork choices" ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
+   <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="6"><Image Height="150" Width="110" Stretch="Uniform" Loaded="ThumbnailLoaded" Unloaded="ThumbnailUnloaded" AutomationProperties.Name="Cover artwork preview"/><TextBlock Text="{Binding Credit}" TextWrapping="Wrap" MaxWidth="210"/><TextBlock Text="{Binding Page}" FontSize="11" TextWrapping="Wrap" MaxWidth="210"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
+  </ListBox>
+ </Grid>
+ <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0"><Button Content="Back / use local Browse" Click="Back" Margin="0,0,8,0"/><Button x:Name="UseButton" Content="Use selected cover" Click="UseCover"/></StackPanel>
+ </Grid>
+</UserControl>

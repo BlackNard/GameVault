@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/GameVault.App/GameVault.App.csproj" />
     <Project Path="src/GameVault.Core/GameVault.Core.csproj" />
+    <Project Path="src/GameVault.Capture/GameVault.Capture.csproj" />
     <Project Path="src/GameVault.Infrastructure/GameVault.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">

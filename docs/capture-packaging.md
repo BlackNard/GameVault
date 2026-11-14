@@ -1,0 +1,9 @@
+# Capture prerequisites in development packages
+
+Clean Windows x64 packages include ScreenRecorderLib 7.0.1, its exact NuGet LICENSE at `licenses/screenrecorderlib/LICENSE.txt`, and Microsoft's Visual C++ x64 redistributable at `Prerequisites/VC_redist.x64.exe`. The runtime pin, Microsoft download URL and SHA-256 are tracked in `scripts/capture-runtime.json`. Packaging verifies that hash and a valid Microsoft Corporation Authenticode signature on every cache use; it never executes the runtime. `scripts/copy-capture-prerequisites.ps1` obtains the license only from the exact restored package listed in the app assets file.
+
+The per-user installer remains unelevated. Its final page offers an unchecked option to install the Microsoft runtime. Only that explicit action requests administrator approval, passes `/install /passive /norestart`, and waits for the Microsoft installer. Silent GameVault installation skips it. Portable users may explicitly run the bundled prerequisite themselves if needed. Installing the Microsoft runtime changes the machine and may require a restart; setup does not force one.
+
+Windows Media Foundation is also required for native capture. Windows N/KN users may need the Windows Media Feature Pack from Windows optional features. Missing capture prerequisites must leave the launcher usable and report capture as unavailable. Screenshots, encoding, audio and device/window compatibility remain pending the owner's final manual pass. No runtime installation or installer lifecycle execution was performed on the owner's PC as part of this packaging work.
+
+The bundled VC++ executable is governed by Microsoft's runtime license terms, linked in `THIRD-PARTY-NOTICES.txt`; ScreenRecorderLib is MIT licensed. Public release publication remains a separate owner decision.

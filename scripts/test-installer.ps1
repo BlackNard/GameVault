@@ -17,7 +17,7 @@ function Assert-Rejected([scriptblock]$Action, [string]$Pattern) {
 function New-Payload([string]$Name) {
     $dir = Join-Path $root $Name
     New-Item -ItemType Directory $dir | Out-Null
-    foreach ($name in @('GameVault.exe','GameVault.dll','GameVault.deps.json','coreclr.dll','hostfxr.dll','PresentationFramework.dll','THIRD-PARTY-NOTICES.txt','licenses/dotnet/LICENSE.txt','licenses/dotnet/THIRD-PARTY-NOTICES.txt','licenses/windowsdesktop/LICENSE.txt')) {
+    foreach ($name in @('GameVault.exe','GameVault.dll','GameVault.Capture.dll','ScreenRecorderLib.dll','Prerequisites/VC_redist.x64.exe','licenses/screenrecorderlib/LICENSE.txt','GameVault.deps.json','coreclr.dll','hostfxr.dll','PresentationFramework.dll','THIRD-PARTY-NOTICES.txt','licenses/dotnet/LICENSE.txt','licenses/dotnet/THIRD-PARTY-NOTICES.txt','licenses/windowsdesktop/LICENSE.txt')) {
         $file=Join-Path $dir $name
         New-Item -ItemType Directory -Path (Split-Path $file -Parent) -Force | Out-Null
         [IO.File]::WriteAllText($file, 'synthetic payload')
@@ -28,7 +28,7 @@ function New-Payload([string]$Name) {
 try {
     $good = New-Payload 'clean'
     $files = @(Get-InstallerPayload $good)
-    if ($files.Count -ne 11) { throw 'Incomplete explicit file manifest' }; $count++
+    if ($files.Count -ne 15) { throw 'Incomplete explicit file manifest' }; $count++
     New-Item -ItemType Directory (Join-Path $good 'fr') | Out-Null
     [IO.File]::WriteAllText((Join-Path $good 'fr/messages.dll'),'satellite')
     $entries = @(Get-InstallerFileEntries $good)
@@ -36,6 +36,11 @@ try {
     $missing = New-Payload 'missing-runtime'
     Remove-Item -LiteralPath (Join-Path $missing 'coreclr.dll')
     Assert-Rejected { Get-InstallerPayload $missing } 'missing.*coreclr'
+    foreach ($required in @('GameVault.Capture.dll','ScreenRecorderLib.dll','Prerequisites/VC_redist.x64.exe','licenses/screenrecorderlib/LICENSE.txt')) {
+        $missingCapture = New-Payload ('missing-capture-'+[guid]::NewGuid().ToString('N'))
+        Remove-Item -LiteralPath (Join-Path $missingCapture $required)
+        Assert-Rejected { Get-InstallerPayload $missingCapture } ('missing '+[regex]::Escape($required))
+    }
     $framework = New-Payload 'framework-dependent'
     [IO.File]::WriteAllText((Join-Path $framework 'GameVault.runtimeconfig.json'),'{"runtimeOptions":{}}')
     Assert-Rejected { Get-InstallerPayload $framework } 'self-contained'

@@ -5,6 +5,15 @@ namespace GameVault.App;
 
 internal static class CoverImages
 {
+    private static readonly GameVault.Infrastructure.Library.BoundedAsyncCache<BitmapImage> Thumbnails =
+        new(32L * 1024 * 1024, 2, image => checked((long)image.PixelWidth * image.PixelHeight * 4));
+    internal static long CachedThumbnailBytes => Thumbnails.RetainedBytes;
+    internal static Task<BitmapImage> LoadThumbnailAsync(string path, CancellationToken cancellationToken = default) =>
+        Thumbnails.GetAsync(Path.GetFullPath(path), () => Task.FromResult(Load(path, 240)), cancellationToken);
+    internal static void InvalidateThumbnail(string? path)
+    {
+        if (path is not null) Thumbnails.Invalidate(Path.GetFullPath(path));
+    }
     public static byte[] Normalize(string path)
     {
         var image = Load(path, 480);

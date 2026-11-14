@@ -75,6 +75,8 @@ public partial class MainWindow : Window
         Closing += BeforeClosing;
         Loaded += InitializeTray;
         Loaded += LoadLibrary;
+        InitializePerformanceFeatures();
+        InitializeCaptureFeatures();
     }
 
     private async void LoadLibrary(object sender, RoutedEventArgs e)
@@ -84,8 +86,7 @@ public partial class MainWindow : Window
         try
         {
             recoveryNotices = await launches.RecoverAsync(); await RefreshLibrary();
-            foreach (var item in items.Where(i=>!i.Game.IsReadOnly&&i.Game.Profile?.IsArchived==false))
-                await discovery.ScanAsync(item.Game.Id);
+            // Automatic discovery follows session signals; never block startup by scanning every game.
         }
         catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = "Could not load the library. " + error.Message; }
         finally { EndOperation(); }
@@ -95,16 +96,25 @@ public partial class MainWindow : Window
     {
         var previous = select ?? (GameList.SelectedItem as LibraryItemView)?.Game.Id;
         var snapshot = await library.ListAsync();
-        items = snapshot.Games.Select(g => new LibraryItemView(g)).ToArray();
+        var previousRows=libraryRows;
+        items=snapshot.Games.Select(game=>
+        {
+            if(previousRows.TryGetValue(game.Id,out var row)){row.RefreshGame(game);return row;}
+            return new LibraryItemView(game);
+        }).ToArray();
+        libraryRows=items.ToDictionary(item=>item.Game.Id);
         foreach (var item in items)
         { item.SetLaunchState(launches.GetState(item.Game.Id)); item.SetStoredProgress(launches.GetSessionProgress(item.Game.Id)); }
         StorageNotice.Text = string.Join("\n", snapshot.Warnings.Concat(recoveryNotices).Distinct());
         ApplyFilters(previous);
+        ReloadVisibleCovers();
     }
 
     private void FilterChanged(object sender, RoutedEventArgs e)
     {
-        if (!initializing) ApplyFilters((GameList.SelectedItem as LibraryItemView)?.Game.Id);
+        if(initializing)return;
+        if(sender is TextBox){LibrarySummary.Text="Searching…";filterTimer.Stop();filterTimer.Start();}
+        else{filterTimer.Stop();ApplyFilters((GameList.SelectedItem as LibraryItemView)?.Game.Id);}
     }
 
     private void ApplyFilters(Guid? selected)
@@ -115,7 +125,7 @@ public partial class MainWindow : Window
         var visible = items.Where(i => (i.Game.Profile?.IsArchived ?? false) == removed &&
             (search.Length == 0 || i.Name.Contains(search, StringComparison.OrdinalIgnoreCase)) &&
             (filter == "All" || i.Game.Profile?.Status.ToString() == filter)).ToArray();
-        GameList.ItemsSource = visible;
+        if(GameList.ItemsSource is not LibraryItemView[] current || !current.SequenceEqual(visible))GameList.ItemsSource=visible;
         GameList.SelectedItem = visible.FirstOrDefault(i => i.Game.Id == selected) ?? visible.FirstOrDefault();
         LibrarySummary.Text = $"{visible.Length} {(removed ? "removed profiles" : "games")} · stored on your device";
         EmptyState.Visibility = visible.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -133,6 +143,7 @@ public partial class MainWindow : Window
         DetailState.Text = item is null ? "Select a game to see its details or choose Add game to get started." :
             string.Join("\n", new[] { item.Status, item.Availability, item.Game.Warning }.Where(s => !string.IsNullOrWhiteSpace(s)));
         DetailFields.Visibility = item?.Game.Profile is not null ? Visibility.Visible : Visibility.Collapsed;
+        if(item is null)summarizedGame=null;
         if (item?.Game.Profile is GameProfile profile)
         {
             DetailTime.Text = item.Played;
@@ -140,27 +151,29 @@ public partial class MainWindow : Window
             SessionWarning.Text = item.SessionWarning ?? "";
             DetailExecutable.Text = profile.ExecutablePath;
             DetailWorking.Text = profile.WorkingDirectory;
-            DetailSaves.Text = "Checking save sources…";
-            _ = RefreshSourceSummary(profile.Id);
-            BackupNotice.Text="Checking backup history…";
-            LastBackup.Text="";
-            _ = RefreshBackupSummary(profile.Id);
+            if(!ReferenceEquals(summarizedGame,item.Game))
+            {
+                summarizedGame=item.Game;
+                DetailSaves.Text="Checking save sources…";_=RefreshSourceSummary(profile.Id);
+                BackupNotice.Text="Checking backup history…";LastBackup.Text="";_=RefreshBackupSummary(profile.Id);
+            }
             ArchiveButton.Content = profile.IsArchived ? "Restore to library" : "Remove from library";
             var launch = launches.GetState(profile.Id);
             LaunchNotice.Text = launch.Message;
             PlayButton.Content = launch.Phase switch { LaunchPhase.Starting => "Starting…", LaunchPhase.Running => "Running", _ => "Play" };
         }
         UpdateButtons();
+        _=RefreshCaptureMediaAsync();
     }
 
     private async void CoverRowLoaded(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: LibraryItemView item }) await item.LoadCoverAsync();
+        if(sender is FrameworkElement row)await BindCoverRowAsync(row);
     }
 
     private async void CoverRowChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        if (e.NewValue is LibraryItemView item) await item.LoadCoverAsync();
+        if(sender is FrameworkElement row)await BindCoverRowAsync(row);
     }
 
     private async void ShowLibrary(object sender, RoutedEventArgs e) { if (await LeaveNotes()) SetNavigation(true); }
@@ -203,7 +216,7 @@ public partial class MainWindow : Window
         _ = Dispatcher.InvokeAsync(() =>
         {
             if (stoppingObservation) return;
-            var item = items.FirstOrDefault(i => i.Game.Id == progress.GameId);
+            libraryRows.TryGetValue(progress.GameId,out var item);
             item?.SetSessionProgress(progress);
             notesView?.UpdateLiveProgress(progress);
             if (GameList.SelectedItem is LibraryItemView selected && selected.Game.Id == progress.GameId)
@@ -319,6 +332,7 @@ public partial class MainWindow : Window
             await store.SaveSettingsAsync(updated);
             settings = updated;
             ThemePalette.Apply(this, theme);
+            if(captureOverlay is not null)ThemePalette.Apply(captureOverlay,theme);
             OperationNotice.Text = "Theme saved. It will be restored next time you open GameVault.";
         }
         catch (Exception error) when (IsExpected(error))
@@ -458,6 +472,7 @@ public partial class MainWindow : Window
         QuitButton.IsEnabled=!stoppingObservation&&!quitPreparing;
         LibraryNav.IsEnabled=SettingsNav.IsEnabled=!quitPreparing&&!stoppingObservation;
         UpdateTray();
+        UpdateCaptureControls();
         restoreView?.UpdateAvailability();
         backupsView?.UpdateAvailability();
         BackupHistoryButton.IsEnabled=!busy&&!editorOpen&&!stoppingObservation&&!quitPreparing&&GameList.SelectedItem is LibraryItemView;

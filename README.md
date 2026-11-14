@@ -4,7 +4,7 @@ A Windows desktop game launcher for manually added games, tracking playing time,
 
 ## Project status
 
-The Windows app supports a local game library, native executable browsing, cover artwork, reversible removal, launching/exit detection, live playtime, and checkpoint-based interrupted-session recovery. Sleep/hibernate and unobserved downtime are excluded from recorded durations. Versioned local storage includes safe previous copies, diagnostics, and a remembered Midnight/Crimson theme. Session history now includes date/time, longest-session navigation, date-grouped activity and audited manual corrections. Bounded automatic save-source discovery is available, including first-session retries and confirmation for ambiguous candidates. Changed saves now receive verified dated backups after confirmed exit, and Back up now is available while the game is closed. Backup history supports pins and per-game retention: keep the latest 20 unpinned copies by default, plus every pinned copy, or keep everything. Restore now supports reviewed destinations, verified pre-restore recovery, rollback and undo. GameVault can stay in the system tray while tracking and backups continue, with configurable close behavior and quiet backup alerts. The installer remains in development. The repository remains private. Session notes and game reviews now support Read/Edit modes and offline Markdown/PDF exports; see the [notes test checklist](docs/design/notes-manual-tests.md).
+The Windows app supports a local game library, native executable browsing, cover artwork, reversible removal, launching/exit detection, live playtime, and checkpoint-based interrupted-session recovery. Sleep/hibernate and unobserved downtime are excluded from recorded durations. Versioned local storage includes safe previous copies, diagnostics, and a remembered Midnight/Crimson theme. Session history now includes date/time, longest-session navigation, date-grouped activity and audited manual corrections. Bounded automatic save-source discovery is available, including first-session retries and confirmation for ambiguous candidates. Changed saves now receive verified dated backups after confirmed exit, and Back up now is available while the game is closed. Backup history supports pins and per-game retention: keep the latest 20 unpinned copies by default, plus every pinned copy, or keep everything. Restore now supports reviewed destinations, verified pre-restore recovery, rollback and undo. GameVault can stay in the system tray while tracking and backups continue, with configurable close behavior and quiet backup alerts. A development setup wizard and clean portable package are available through the private review workflow. The repository remains private. Session notes and game reviews now support Read/Edit modes and offline Markdown/PDF exports; see the [notes test checklist](docs/design/notes-manual-tests.md).
 
 Play automatically requests Windows administrator approval when a game requires elevation. GameVault's main window stays at normal permissions; a one-shot helper starts the game and transfers observation handles. Cancelling approval leaves the game unstarted and allows retry.
 
@@ -45,6 +45,7 @@ GameVault/
       Corrections/<correction-id>.json
       Notes/Sessions/<session-id>.json
       Notes/review.json
+      Media/<session-id>/<dated-capture>.png or .mp4 (with metadata)
       cover.png
       Backups/
         <dated-backup>/
@@ -64,7 +65,7 @@ Actual game saves, local profiles, play histories, credentials, game executables
 
 ## Decisions still open
 
-- Installer tooling (the approved app foundation uses C#/WPF on .NET 10, targeting supported Windows 11 x64).
+- Public release approval and final owner functionality/UI acceptance.
 - Licensing and signing of release installers.
 
 No open-source license has been selected.
@@ -82,3 +83,5 @@ See [safe restore and undo](docs/design/restore-manual-tests.md) for file owners
 See [system tray behavior](docs/design/system-tray-manual-tests.md) for close versus quit, checkpoint warnings and the deferred final checks.
 
 The [app validation record](docs/validation/app-acceptance.md) separates automated fixture evidence from pending owner gameplay/UI acceptance. Run scripts/verify.ps1 to regenerate the per-run workflow reports; a green automated run does not close #14 or approve first-version acceptance.
+
+The first-phase candidate adds explicit SteamGridDB cover search, PNG screenshots, H.264 MP4 recording, configurable capture shortcuts and a floating control panel. Online cover search uses an optional personal provider key stored in Windows Credential Manager; local covers and launching work offline. Captures belong to the actual tracked session in its profile. Recording is silent unless game-only audio is explicitly enabled. The panel works with windowed/borderless games; exclusive fullscreen, elevated or protected content can limit capture. Entire-monitor capture requires explicit selection. See [the final manual checklist](docs/phase-one-manual-testing.md), [provider decisions](docs/artwork-provider.md) and [performance measurements](docs/performance-results.md). These features await owner manual acceptance.

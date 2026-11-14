@@ -58,3 +58,17 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+ScreenRecorderLib 7.0.1
+https://www.nuget.org/packages/ScreenRecorderLib/7.0.1
+Copyright (c) 2017 Sverre Skodje. MIT License.
+The complete, unmodified LICENSE from the exact restored 7.0.1 NuGet package
+is bundled at licenses/screenrecorderlib/LICENSE.txt.
+
+Microsoft Visual C++ 2015-2022 Redistributable x64, 14.44.35211.0
+Copyright Microsoft Corporation. Distributed under Microsoft's redistributable
+license terms, not the GameVault or ScreenRecorderLib license.
+The Microsoft-signed installer is bundled at Prerequisites/VC_redist.x64.exe.
+Its installation is optional and requires explicit administrator approval.
+Microsoft licensing information:
+https://visualstudio.microsoft.com/license-terms/vs2022-cruntime/
