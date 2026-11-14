@@ -69,7 +69,7 @@ public sealed class SteamPortraitCoverTests
         var paths=new List<string>(); var images=Respond(r=> { Assert.Null(r.Headers.Authorization); Assert.False(r.Headers.Contains("Cookie")); paths.Add(r.RequestUri!.AbsoluteUri); return paths.Count==2?new(HttpStatusCode.NotFound):Image(); });
         using var provider=Provider(Respond(_=>throw new Exception()),images);
         await provider.DownloadAsync(Candidate(),true,default); await provider.DownloadAsync(Candidate(),false,default);
-        Assert.Equal(new[]{"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/42/library_600x900.jpg","https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/42/library_600x900_2x.jpg","https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/42/library_600x900.jpg"},paths);
+        Assert.Equal(new[]{"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/42/library_600x900_2x.jpg","https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/42/library_600x900_2x.jpg","https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/42/library_600x900.jpg"},paths);
     }
     [Theory] [InlineData(302,ArtworkFailure.InvalidResponse)] [InlineData(429,ArtworkFailure.RateLimit)] [InlineData(500,ArtworkFailure.Offline)]
     public async Task FailuresAreSanitizedAndNeverFallback(int status,ArtworkFailure failure)

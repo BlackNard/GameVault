@@ -11,11 +11,11 @@ namespace GameVault.App;
 
 public partial class CoverSearchView : UserControl, IDisposable
 {
-    public sealed record CoverResult(PortraitCoverCandidate Candidate, BitmapSource Thumbnail, int Width, int Height)
+    public sealed record CoverResult(PortraitCoverCandidate Candidate, BitmapSource Thumbnail, int Width, int Height, bool IsCropped = false)
     {
         public string Title => Candidate.Title;
         public string Context => Candidate.Context;
-        public string Dimensions => $"{Width} × {Height}";
+        public string Dimensions => $"{Width} × {Height} original" + (IsCropped ? " · center crop" : "");
         public string SourcePage => Candidate.SourcePage.AbsoluteUri;
     }
     private readonly IPortraitCoverCatalogue catalogue;
@@ -28,7 +28,9 @@ public partial class CoverSearchView : UserControl, IDisposable
     private long revision;
     private readonly InlineDraftGuard navigation = new("");
     public ObservableCollection<CoverResult> Results { get; } = [];
-    public bool IsBusy { get; private set; }
+    private WebCoverSearchView? webSearch;
+    private bool busy;
+    public bool IsBusy { get => busy || webSearch?.IsBusy == true; private set => busy=value; }
     public event Action<byte[],string>? CoverChosen;
     public event Action? Cancelled;
     public CoverSearchView(string title) : this(title,new SteamPortraitCoverCatalogue(),true) { }
@@ -37,6 +39,38 @@ public partial class CoverSearchView : UserControl, IDisposable
     {
         this.catalogue=catalogue ?? throw new ArgumentNullException(nameof(catalogue)); this.ownsCatalogue=ownsCatalogue;
         InitializeComponent(); Query.Text=title; Loaded+=(_,_)=>Query.Focus();
+    }
+    private void SearchWeb(object sender,RoutedEventArgs e)
+    {
+        if(disposed || webSearch is not null) return;
+        CancelPending(); webSearch=new WebCoverSearchView(Query.Text);
+        webSearch.ImageChosen+=WebImageChosen; webSearch.Cancelled+=CloseWebSearch;
+        NativeContent.Visibility=Visibility.Collapsed; WebHost.Content=webSearch; WebHost.Visibility=Visibility.Visible;
+    }
+    private async void WebImageChosen(byte[] bytes,Uri source)
+    { CloseWebSearch(); await ImportWebImageAsync(bytes,source); }
+    private void CloseWebSearch()
+    {
+        if(webSearch is null) return;
+        webSearch.ImageChosen-=WebImageChosen; webSearch.Cancelled-=CloseWebSearch; webSearch.Dispose(); webSearch=null;
+        WebHost.Content=null; WebHost.Visibility=Visibility.Collapsed; NativeContent.Visibility=Visibility.Visible;
+        if(!disposed) Query.Focus();
+    }
+    internal async Task ImportWebImageAsync(byte[] bytes,Uri source)
+    {
+        if(disposed) return;
+        var (version,token)=Begin(); Notice.Text="Preparing the selected web image…";
+        try
+        {
+            var prepared=await Task.Run(()=>PortraitCoverImages.Prepare(bytes,source),token);
+            if(!Current(version,token)) return;
+            var image=ArtworkImageNormalizer.Preview(prepared.Png);
+            candidate=prepared.Png; candidateName="Web image · "+source.Host; Preview.Source=image;
+            PreviewDetails.Text=$"Web image\n{prepared.Width} × {prepared.Height} original\n{image.PixelWidth} × {image.PixelHeight}{(prepared.IsCropped ? " · center crop" : "")}\n{source.AbsoluteUri}";
+            Notice.Text="Portrait preview ready. Check the crop, then choose Use this cover to confirm.";
+        }
+        catch(Exception error) when(Expected(error)) { if(Current(version)) Notice.Text="Could not prepare this web image. "+error.Message; }
+        finally { End(version); }
     }
     private void QueryKeyDown(object sender,KeyEventArgs e)
     { if(e.Key==Key.Enter) { e.Handled=true; Search(sender,e); } }
@@ -60,7 +94,7 @@ public partial class CoverSearchView : UserControl, IDisposable
                 {
                     var bytes=await catalogue.DownloadAsync(match,true,token);
                     var thumbnail=await Task.Run(()=>PortraitCoverImages.Thumbnail(bytes),token);
-                    return new CoverResult(match,thumbnail.Image,thumbnail.Width,thumbnail.Height);
+                    return new CoverResult(match,thumbnail.Image,thumbnail.Width,thumbnail.Height,thumbnail.IsCropped);
                 }
                 catch(Exception error) when(Expected(error) && error is not OperationCanceledException) { failures.Add(error); return null; }
                 finally { imageSlots.Release(); }
@@ -84,18 +118,18 @@ public partial class CoverSearchView : UserControl, IDisposable
         try
         {
             await imageSlots.WaitAsync(token);
-            byte[] png;
+            PortraitCoverImages.PreparedImage prepared;
             try
             {
                 var bytes=await catalogue.DownloadAsync(result.Candidate,false,token);
-                png=await Task.Run(()=>PortraitCoverImages.Normalize(bytes,result.Candidate.SourcePage),token);
+                prepared=await Task.Run(()=>PortraitCoverImages.Prepare(bytes,result.Candidate.SourcePage),token);
             }
             finally { imageSlots.Release(); }
             if(!Current(version,token)) return;
-            var image=ArtworkImageNormalizer.Preview(png);
+            var png=prepared.Png; var image=ArtworkImageNormalizer.Preview(png);
             candidate=png; candidateName=$"{result.Title} · Steam · {result.SourcePage}"; Preview.Source=image;
-            PreviewDetails.Text=$"{result.Title}\n{result.Context}\n{image.PixelWidth} × {image.PixelHeight}\nSteam · publisher artwork\n{result.SourcePage}";
-            Notice.Text="Preview ready. Use this cover to confirm, or Back to keep your previous cover.";
+            PreviewDetails.Text=$"{result.Title}\n{result.Context}\n{prepared.Width} × {prepared.Height} original\n{image.PixelWidth} × {image.PixelHeight} portrait{(prepared.IsCropped ? " · center cropped" : "")}\nSteam · publisher artwork\n{result.SourcePage}";
+            Notice.Text="Portrait preview ready. Check the center crop, then Use this cover to confirm, or Back to keep your previous cover.";
         }
         catch(OperationCanceledException) { if(Current(version)) Notice.Text="Download cancelled. Your previous preview is unchanged."; }
         catch(Exception error) when(Expected(error)) { if(Current(version)) Notice.Text="Could not load this cover. "+error.Message+" Choose another cover or Browse an image."; }
@@ -140,24 +174,27 @@ public partial class CoverSearchView : UserControl, IDisposable
         var (version,token)=Begin(); Notice.Text="Checking imported image…";
         try
         {
-            var png=await CoverImport.ReadAsync(files);
+            var bytes=await CoverImport.ReadSourceAsync(files);
+            var prepared=await Task.Run(()=>PortraitCoverImages.Prepare(bytes,allowSmallLocal:true),token);
+            var png=prepared.Png;
             if(!Current(version,token)) return;
             var preview=ArtworkImageNormalizer.Preview(png);
             candidate=png; candidateName=Path.GetFileName(files[0]); Preview.Source=preview;
-            PreviewDetails.Text=$"{candidateName}\n{preview.PixelWidth} × {preview.PixelHeight}\nLocal image";
-            Notice.Text=PortraitCoverPolicy.IsSuitable(preview.PixelWidth,preview.PixelHeight)
-                ? "Preview ready. Choose Use this cover to confirm."
-                : "This local image is smaller than 600 × 900 or differs from a 2:3 portrait. It will keep its proportions and may leave space in the cover frame. Use this cover to confirm.";
+            PreviewDetails.Text=$"{candidateName}\n{prepared.Width} × {prepared.Height} original\n{preview.PixelWidth} × {preview.PixelHeight}{(prepared.IsCropped ? " · center cropped" : "")}\nLocal image";
+            Notice.Text=prepared.IsPortrait
+                ? "Portrait preview ready. Check the center crop, then choose Use this cover to confirm."
+                : "This local image cannot provide a 600 × 900 portrait crop without upscaling. The preview keeps its original proportions and may leave space in the cover frame. Choose a larger image for a filled portrait, or Use this cover to confirm.";
         }
         catch(Exception error) when(Expected(error)) { if(Current(version)) Notice.Text="Could not import artwork. "+error.Message; }
         finally { End(version); }
     }
     private void UseCover(object sender,RoutedEventArgs e)
     { if(!disposed && !IsBusy && candidate is not null) CoverChosen?.Invoke(candidate,candidateName); }
-    public Task<bool> CanLeaveAsync()
+    public async Task<bool> CanLeaveAsync()
     {
+        if(webSearch is not null && !await webSearch.CanLeaveAsync()) return false;
         CancelPending();
-        return navigation.CanLeaveAsync(false,candidate is null ? "" : "preview",async()=>
+        return await navigation.CanLeaveAsync(false,candidate is null ? "" : "preview",async()=>
             await InlinePrompts.ShowAsync(this,"Discard this unconfirmed cover preview?","Cover preview",MessageBoxButton.YesNo,MessageBoxResult.No)==MessageBoxResult.Yes);
     }
     private async void Back(object sender,RoutedEventArgs e) { if(await CanLeaveAsync()) Cancelled?.Invoke(); }
@@ -165,7 +202,7 @@ public partial class CoverSearchView : UserControl, IDisposable
     public void Dispose()
     {
         if(disposed) return;
-        disposed=true; CancelPending(); candidate=null; Preview.Source=null; Results.Clear();
+        disposed=true; CloseWebSearch(); CancelPending(); candidate=null; Preview.Source=null; Results.Clear();
         if(ownsCatalogue && catalogue is IDisposable disposable) disposable.Dispose();
         // Slots are released by any in-flight operations; do not dispose the semaphore underneath them.
     }

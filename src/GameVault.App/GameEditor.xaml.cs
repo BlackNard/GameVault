@@ -141,7 +141,7 @@ public partial class GameEditor : UserControl
     private string Snapshot() => string.Join("\n", GameName.Text, Executable.Text, WorkingDirectory.Text, SaveSources.Text, StatusChoice.SelectedIndex.ToString(), coverRevision.ToString());
     public async Task<bool> CanLeaveAsync()
     {
-        if (IsBusy) { ErrorNotice.Text = "Please wait for the current operation to finish."; return false; }
+        if (saving) { ErrorNotice.Text = "Please wait for the current operation to finish."; return false; }
         if (coverSearch is not null && !await coverSearch.CanLeaveAsync()) return false;
         return await navigation.CanLeaveAsync(IsBusy, Snapshot(), async () => await InlinePrompts.ShowAsync(this, "Discard changes to this game?", "Unsaved game", MessageBoxButton.YesNo, MessageBoxResult.No) == MessageBoxResult.Yes);
     }

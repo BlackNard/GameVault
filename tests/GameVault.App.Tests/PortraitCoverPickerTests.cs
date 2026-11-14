@@ -73,11 +73,68 @@ public sealed class PortraitCoverPickerTests
             await System.IO.File.WriteAllBytesAsync(path,PortraitCoverImageTests.Png(100,100));
             using var view=new CoverSearchView("Game",new Catalogue { Download=(_,_,_)=>Task.FromResult(PortraitCoverImageTests.Png(100,100)) });
             await view.ImportAsync(path); var preview=((Image)view.FindName("Preview")).Source;
-            Assert.Contains("differs from a 2:3",((TextBlock)view.FindName("Notice")).Text);
+            Assert.Contains("without upscaling",((TextBlock)view.FindName("Notice")).Text);
             await view.SelectAsync(new CoverSearchView.CoverResult(Match,(System.Windows.Media.Imaging.BitmapSource)preview,100,100));
             Assert.Same(preview,((Image)view.FindName("Preview")).Source); Assert.True(((Button)view.FindName("UseButton")).IsEnabled);
         }
         finally { System.IO.File.Delete(path); }
+    });
+    [Fact] public void LandscapeSelectionShowsOriginalSizeAndRequiresUseBeforePublishing()=>Sta(async()=>
+    {
+        using var view=new CoverSearchView("Game",new Catalogue { Download=(_,_,_)=>Task.FromResult(PortraitCoverImageTests.Png(1600,900)) });
+        byte[]? chosen=null; view.CoverChosen+=(bytes,_)=>chosen=bytes;
+        await view.SearchAsync("Game"); var result=Assert.Single(view.Results);
+        Assert.Equal(1600,result.Width); Assert.Equal(120,result.Thumbnail.PixelWidth); Assert.True(result.IsCropped);
+        await view.SelectAsync(result); Assert.Null(chosen);
+        Assert.Contains("1600 × 900 original",((TextBlock)view.FindName("PreviewDetails")).Text);
+        Assert.Contains("center cropped",((TextBlock)view.FindName("PreviewDetails")).Text);
+        ((Button)view.FindName("UseButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        var image=GameVault.App.Artwork.ArtworkImageNormalizer.Preview(Assert.IsType<byte[]>(chosen));
+        Assert.Equal(600,image.PixelWidth); Assert.Equal(900,image.PixelHeight);
+    });
+    [Fact] public void LocalSquareImportUsesConfirmedCropWithoutSavingPrivatePath()=>Sta(async()=>
+    {
+        var path=System.IO.Path.Combine(System.IO.Path.GetTempPath(),Guid.NewGuid()+".png");
+        try
+        {
+            await System.IO.File.WriteAllBytesAsync(path,PortraitCoverImageTests.Png(900,900));
+            using var view=new CoverSearchView("Game",new Catalogue()); byte[]? chosen=null; string? name=null;
+            view.CoverChosen+=(bytes,text)=>{ chosen=bytes; name=text; };
+            await view.ImportAsync(path); Assert.Null(chosen);
+            var preview=Assert.IsAssignableFrom<System.Windows.Media.Imaging.BitmapSource>(((Image)view.FindName("Preview")).Source);
+            Assert.Equal(600,preview.PixelWidth); Assert.Equal(900,preview.PixelHeight);
+            Assert.Contains("900 × 900 original",((TextBlock)view.FindName("PreviewDetails")).Text);
+            ((Button)view.FindName("UseButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(System.IO.Path.GetFileName(path),name); Assert.NotNull(chosen);
+            Assert.DoesNotContain(System.IO.Path.GetDirectoryName(path)!,System.Text.Encoding.UTF8.GetString(chosen!));
+        }
+        finally { System.IO.File.Delete(path); }
+    });
+    [Fact] public void LateSelectionCannotReplaceNewerCropPreview()=>Sta(async()=>
+    {
+        var late=new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var fake=new Catalogue { Download=(match,_,_)=>match.AppId==10 ? late.Task:Task.FromResult(PortraitCoverImageTests.Png(900,900)) };
+        using var view=new CoverSearchView("Game",fake);
+        var thumb=GameVault.App.Artwork.ArtworkImageNormalizer.Preview(PortraitCoverImageTests.Png(600,900));
+        var old=view.SelectAsync(new(Match,thumb,600,900));
+        await view.SelectAsync(new(Match with { AppId=20,Title="New game" },thumb,900,900));
+        var preview=((Image)view.FindName("Preview")).Source;
+        late.SetResult(PortraitCoverImageTests.Png(1600,900)); await old;
+        Assert.Same(preview,((Image)view.FindName("Preview")).Source);
+        Assert.Contains("New game",((TextBlock)view.FindName("PreviewDetails")).Text);
+    });
+    [Fact] public void WebImageIsCroppedAndCreditedOnlyAfterConfirmation()=>Sta(async()=>
+    {
+        using var view=new CoverSearchView("Game",new Catalogue()); byte[]? chosen=null; view.CoverChosen+=(bytes,_)=>chosen=bytes;
+        var source=new Uri("https://images.example/cover.jpg");
+        await view.ImportWebImageAsync(PortraitCoverImageTests.Png(1600,900),source);
+        Assert.Null(chosen); Assert.Contains("center crop",((TextBlock)view.FindName("PreviewDetails")).Text);
+        ((Button)view.FindName("UseButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Assert.NotNull(chosen);
+        using var stream=new System.IO.MemoryStream(chosen!,false);
+        var decoder=new System.Windows.Media.Imaging.PngBitmapDecoder(stream,System.Windows.Media.Imaging.BitmapCreateOptions.PreservePixelFormat,System.Windows.Media.Imaging.BitmapCacheOption.OnLoad);
+        Assert.Equal(600,decoder.Frames[0].PixelWidth); Assert.Equal(900,decoder.Frames[0].PixelHeight);
+        var metadata=Assert.IsType<System.Windows.Media.Imaging.BitmapMetadata>(decoder.Frames[0].Metadata);
+        var credit=Assert.IsType<string>(metadata.GetQuery("/tEXt/{str=Description}"));Assert.Contains(source.AbsoluteUri,credit);Assert.DoesNotContain("via Steam",credit);
     });
     private sealed class Catalogue : IPortraitCoverCatalogue
     {

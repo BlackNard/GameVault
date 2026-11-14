@@ -10,7 +10,7 @@ public sealed class PortraitCoverImageTests
         var encoder=new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(BitmapSource.Create(width,height,96,96,PixelFormats.Bgra32,null,new byte[width*height*4],width*4)));
         using var stream=new MemoryStream(); encoder.Save(stream); return stream.ToArray();
     }
-    [Theory][InlineData(599,900)][InlineData(900,600)][InlineData(600,1000)][InlineData(1200,900)]
+    [Theory][InlineData(599,900)][InlineData(900,600)][InlineData(600,899)][InlineData(8193,900)]
     public void UnsuitableDecodedImagesAreRejected(int width,int height)=>Assert.Throws<InvalidOperationException>(()=>PortraitCoverImages.Thumbnail(Png(width,height)));
     [Fact] public void GalleryKeepsOnlySmallFrozenImage()
     {

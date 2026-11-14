@@ -15,6 +15,11 @@ internal static class CoverImport
     }
     public static async Task<byte[]> ReadAsync(string[] files)
     {
+        var bytes=await ReadSourceAsync(files);
+        return await Task.Run(() => ArtworkImageNormalizer.Normalize(bytes));
+    }
+    public static async Task<byte[]> ReadSourceAsync(string[] files)
+    {
         if(files.Length != 1) throw new ArgumentException("Choose exactly one PNG or JPEG image.");
         var path = files[0];
         var extension = Path.GetExtension(path);
@@ -24,7 +29,7 @@ internal static class CoverImport
         if(input.Length is < 24 or > MaxBytes) throw new InvalidOperationException("Artwork exceeds the safe size limit.");
         var bytes = new byte[checked((int)input.Length)];
         await input.ReadExactlyAsync(bytes);
-        // The independent normalizer validates magic bytes, dimensions and frame count before accepting artwork.
-        return await Task.Run(() => ArtworkImageNormalizer.Normalize(bytes));
+        // The caller validates actual image pixels before accepting artwork.
+        return bytes;
     }
 }

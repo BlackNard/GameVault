@@ -59,6 +59,15 @@ try {
     $assets=Join-Path $root 'project.assets.json';@{packageFolders=@{($packRoot) = @{}}}|ConvertTo-Json -Depth 3|Set-Content $assets -Encoding utf8
     & (Join-Path $PSScriptRoot 'copy-runtime-notices.ps1') -PublishDirectory $fresh -AssetsFile $assets
     if([IO.File]::ReadAllText((Join-Path $fresh 'licenses/dotnet/LICENSE.txt')) -cne [IO.File]::ReadAllText((Join-Path $packRoot 'microsoft.netcore.app.runtime.win-x64/10.0.15/LICENSE.TXT'))){throw 'Runtime license was not copied exactly'};$count++
+    $webPackage=Join-Path $packRoot 'microsoft.web.webview2/1.0.4314.35'
+    New-Item -ItemType Directory $webPackage -Force|Out-Null
+    foreach($name in @('LICENSE.txt','NOTICE.txt')){[IO.File]::WriteAllText((Join-Path $webPackage $name),'Synthetic SDK notice '+$name)}
+    [IO.File]::WriteAllText((Join-Path $fresh 'Microsoft.Web.WebView2.Core.dll'),'Synthetic SDK binary')
+    @{packageFolders=@{($packRoot)=@{}};libraries=@{'Microsoft.Web.WebView2/1.0.4314.35'=@{type='package'}}}|ConvertTo-Json -Depth 5|Set-Content $assets -Encoding utf8
+    & (Join-Path $PSScriptRoot 'copy-runtime-notices.ps1') -PublishDirectory $fresh -AssetsFile $assets
+    foreach($name in @('LICENSE.txt','NOTICE.txt')){if([IO.File]::ReadAllText((Join-Path $fresh ('licenses/webview2/'+$name))) -cne [IO.File]::ReadAllText((Join-Path $webPackage $name))){throw 'WebView2 exact SDK notice not copied'};$count++}
+    Remove-Item -LiteralPath (Join-Path $webPackage 'NOTICE.txt')
+    Reject {& (Join-Path $PSScriptRoot 'copy-runtime-notices.ps1') -PublishDirectory $fresh -AssetsFile $assets} 'WebView2.*notice'
     $missing=Join-Path $root 'missing-notice-publish';New-Item -ItemType Directory $missing|Out-Null;Copy-Item (Join-Path $publish 'GameVault.runtimeconfig.json') $missing
     Remove-Item -LiteralPath (Join-Path $packRoot 'microsoft.windowsdesktop.app.runtime.win-x64/10.0.15/LICENSE')
     Reject {& (Join-Path $PSScriptRoot 'copy-runtime-notices.ps1') -PublishDirectory $missing -AssetsFile $assets} 'runtime.*notice'

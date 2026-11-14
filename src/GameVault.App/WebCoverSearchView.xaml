@@ -1,0 +1,14 @@
+<UserControl x:Class="GameVault.App.WebCoverSearchView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Foreground="{DynamicResource AppText}">
+ <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <StackPanel>
+   <TextBlock Text="Google Images" FontSize="22" FontWeight="SemiBold"/>
+   <TextBlock Text="Search inside GameVault. Only the entered title is sent to Google; Google and image websites may receive normal browser requests. Choose a result, then right-click its full image and select Preview as cover. Review the crop before confirming. Artwork belongs to its owner." TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,8"/>
+   <Label Content="_Search title" Target="{Binding ElementName=Query}"/>
+   <DockPanel><Button x:Name="SearchButton" Content="Search Google Images" Click="Search" DockPanel.Dock="Right" Margin="8,0,0,0"/><TextBox x:Name="Query" MaxLength="240" KeyDown="QueryKeyDown" AutomationProperties.Name="Google Images search title"/></DockPanel>
+   <TextBlock x:Name="Notice" Text="Enter a game title and choose Search Google Images. PNG and JPEG downloads: up to 12 MB and 16 megapixels. Browse an image in the cover picker if a website prevents downloading." TextWrapping="Wrap" Margin="0,10" Foreground="{DynamicResource AppWarning}" AutomationProperties.LiveSetting="Polite"/>
+   <Button x:Name="RuntimeHelp" Content="Open Microsoft's WebView2 Runtime download page" Click="OpenRuntimeHelp" Visibility="Collapsed" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+  </StackPanel>
+  <Grid x:Name="BrowserHost" Grid.Row="1" MinHeight="160"/>
+  <WrapPanel Grid.Row="2" HorizontalAlignment="Right" Margin="0,12,0,0"><Button Content="Back to covers" Click="Back" Margin="0,0,8,0"/><Button x:Name="BrowserBack" Content="Previous page" Click="PreviousPage" IsEnabled="False" Margin="0,0,8,0"/><Button x:Name="ReloadButton" Content="Refresh" Click="Reload" IsEnabled="False" Margin="0,0,8,0"/><Button x:Name="StopButton" Content="Cancel download" Click="Stop" IsEnabled="False"/></WrapPanel>
+ </Grid>
+</UserControl>

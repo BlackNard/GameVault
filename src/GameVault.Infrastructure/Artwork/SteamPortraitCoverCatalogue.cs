@@ -68,7 +68,8 @@ public sealed class SteamPortraitCoverCatalogue : IPortraitCoverCatalogue, IDisp
         cancellationToken.ThrowIfCancellationRequested();
         if (candidate is null || candidate.AppId <= 0 || candidate.SourcePage != SourcePage(candidate.AppId)) throw Invalid();
         string prefix = $"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{candidate.AppId.ToString(CultureInfo.InvariantCulture)}/library_600x900";
-        var bytes = await SendAsync(images, new Uri(prefix + (preview ? ".jpg" : "_2x.jpg")), 12 * 1024 * 1024, true, !preview, cancellationToken);
+        // Steam may serve 300x450 pixels from the base-named asset; use the larger asset before decoded validation.
+        var bytes = await SendAsync(images, new Uri(prefix + "_2x.jpg"), 12 * 1024 * 1024, true, true, cancellationToken);
         return bytes ?? (await SendAsync(images, new Uri(prefix + ".jpg"), 12 * 1024 * 1024, true, false, cancellationToken))!;
     }
 
