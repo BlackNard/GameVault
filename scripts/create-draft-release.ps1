@@ -20,10 +20,9 @@ $commit=Invoke-RestMethod ($api+'/commits/'+$manifest.sourceCommit) -Headers $he
 if($manifest.sourceCommit -cne $manifest.headCommit -and $manifest.headCommit -cnotin @($commit.parents.sha)){throw 'Release source is not the matching branch commit/PR merge.'}
 if([string]::IsNullOrWhiteSpace($Tag)){$Tag='v'+$manifest.version+'-preview.1'}
 if($Tag -notmatch ('^v'+[regex]::Escape($manifest.version)+'-preview\.[1-9][0-9]*$')){throw 'Only an explicit versioned preview tag is permitted.'}
-$existing=@(Invoke-RestMethod ($api+'/releases?per_page=100') -Headers $headers)
-if(@($existing|Where-Object tag_name -ceq $Tag).Count -gt 0){throw 'Existing release draft/tag will not be replaced. Choose a new preview number.'}
-$refs=@(Invoke-RestMethod ($api+'/git/matching-refs/tags/'+[Uri]::EscapeDataString($Tag)) -Headers $headers)
-if(@($refs|Where-Object ref -ceq ('refs/tags/'+$Tag)).Count -gt 0){throw 'Existing Git tag will not be reused or replaced.'}
+$existing=Invoke-RestMethod ($api+'/releases?per_page=100') -Headers $headers
+$refs=Invoke-RestMethod ($api+'/git/matching-refs/tags/'+[Uri]::EscapeDataString($Tag)) -Headers $headers
+Assert-PreviewTagAvailable -Releases $existing -Refs $refs -Tag $Tag
 $notes=[IO.File]::ReadAllText((Join-Path $BundleDirectory 'RELEASE-NOTES.md'))+"`n`nBuild evidence: https://github.com/$repository/actions/runs/$($manifest.buildRunId)`n"
 $body=@{tag_name=$Tag;target_commitish=$manifest.sourceCommit;name=('GameVault '+$manifest.version+' — Development preview');body=$notes;draft=$true;prerelease=$true;make_latest='false'}|ConvertTo-Json -Depth 4
 $release=Invoke-RestMethod ($api+'/releases') -Headers $headers -Method Post -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body))

@@ -62,6 +62,9 @@ try {
     $missing=Join-Path $root 'missing-notice-publish';New-Item -ItemType Directory $missing|Out-Null;Copy-Item (Join-Path $publish 'GameVault.runtimeconfig.json') $missing
     Remove-Item -LiteralPath (Join-Path $packRoot 'microsoft.windowsdesktop.app.runtime.win-x64/10.0.15/LICENSE')
     Reject {& (Join-Path $PSScriptRoot 'copy-runtime-notices.ps1') -PublishDirectory $missing -AssetsFile $assets} 'runtime.*notice'
+    Assert-PreviewTagAvailable -Releases @() -Refs @() -Tag 'v0.1.0-preview.1';$count++
+    Reject {Assert-PreviewTagAvailable -Releases @([pscustomobject]@{tag_name='v0.1.0-preview.1'}) -Refs @() -Tag 'v0.1.0-preview.1'} 'Existing release'
+    Reject {Assert-PreviewTagAvailable -Releases @() -Refs @([pscustomobject]@{ref='refs/tags/v0.1.0-preview.1'}) -Tag 'v0.1.0-preview.1'} 'Existing Git tag'
     Write-Host "Release packaging checks passed: $count"
 } finally {
     $full=[IO.Path]::GetFullPath($root);$temporary=[IO.Path]::GetFullPath([IO.Path]::GetTempPath())
