@@ -1,6 +1,12 @@
-name: Windows foundation
+name: Windows verification and private draft assets
 
 on:
+  workflow_dispatch:
+    inputs:
+      draft_release_id:
+        description: 'Optional unpublished private draft ID to download and smoke-test'
+        required: false
+        type: string
   push:
     branches: [main, 'feature/**']
   pull_request:
@@ -16,11 +22,13 @@ jobs:
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
       DOTNET_NOLOGO: '1'
+      GAMEVAULT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Install pinned .NET SDK
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
@@ -31,6 +39,12 @@ jobs:
       - name: Test clean installer payload boundaries
         shell: pwsh
         run: ./scripts/test-installer.ps1
+      - name: Test release evidence and asset boundaries
+        shell: pwsh
+        run: ./scripts/test-release.ps1
+      - name: Audit reachable source history
+        shell: pwsh
+        run: ./scripts/audit-release-source.ps1
       - name: Compile development setup wizard (does not install)
         shell: pwsh
         run: |
@@ -39,6 +53,16 @@ jobs:
       - name: Verify silent install, upgrade and preserving uninstall on disposable runner
         shell: pwsh
         run: ./scripts/verify-installer-lifecycle.ps1
+      - name: Prepare verified private draft assets (never publishes)
+        shell: pwsh
+        run: ./scripts/package-release.ps1
+      - name: Keep verified private draft assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: private-draft-assets
+          path: artifacts/release-*/*
+          if-no-files-found: error
+          retention-days: 7
       - name: Keep synthetic installer lifecycle evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -48,5 +72,39 @@ jobs:
             artifacts/installer-lifecycle-*/report.json
             artifacts/installer-lifecycle-*/*.log
             artifacts/installer-lifecycle-*/*.stderr
+          if-no-files-found: ignore
+          retention-days: 7
+
+  draft-asset-smoke:
+    if: github.event_name == 'workflow_dispatch' && inputs.draft_release_id != ''
+    needs: verify
+    runs-on: windows-latest
+    timeout-minutes: 15
+    # GitHub draft visibility requires push access. Script only reads an existing
+    # unpublished draft; it cannot create/publish a release or change visibility.
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
+      - name: Download, verify and smoke-test exact draft asset
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GAMEVAULT_DRAFT_RELEASE_ID: ${{ inputs.draft_release_id }}
+        run: ./scripts/smoke-draft-release.ps1 -ReleaseId $env:GAMEVAULT_DRAFT_RELEASE_ID
+      - name: Keep exact draft smoke evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: exact-draft-asset-smoke-evidence
+          path: artifacts/draft-asset-smoke/*
           if-no-files-found: ignore
           retention-days: 7

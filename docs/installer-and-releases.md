@@ -43,7 +43,7 @@ Each compile creates a fresh `artifacts/installer-<id>` directory with:
 
 The current installer is an **unsigned development artifact**. Signing and a certificate are a separate release decision. Do not bypass Windows security controls. No setup executable, personal library, private vault, or local handoff manifest belongs in Git.
 
-Once all release acceptance is complete, GitHub Releases can distribute the versioned installer, SHA-256, release notes, and supported Windows matrix. The repository is private, so downloads require repository access; public distribution will require a visibility/distribution decision. Release publishing/automation belongs to #17. Clean downloadable ZIPs and installers must be produced before a separate local development directory is seeded from the private test-data vault.
+Once all release acceptance is complete, GitHub Releases can distribute the versioned installer, SHA-256, release notes, and supported Windows matrix. The repository is private, so downloads require repository access; public distribution will require a visibility/distribution decision. [Private draft packaging and exact downloaded-asset smoke](release-process.md) are implemented for #17; publication remains an explicit owner decision. Clean downloadable ZIPs and installers must be produced before a separate local development directory is seeded from the private test-data vault.
 
 ## Installation lifecycle acceptance (#16)
 
