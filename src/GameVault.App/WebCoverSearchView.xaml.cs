@@ -43,6 +43,8 @@ public partial class WebCoverSearchView : UserControl, IDisposable
         {
             if (browser is null)
             {
+                // Verify managed composition dependencies before the control schedules layout work.
+                BrowserDependencies.Verify();
                 // Never use the owner's Edge profile or the portable library's Data/Profiles.
                 browser = new WebView2CompositionControl
                 {
@@ -63,13 +65,16 @@ public partial class WebCoverSearchView : UserControl, IDisposable
             RuntimeHelp.Visibility = Visibility.Collapsed;
             Notice.Text = "Choose a result, then right-click the full image and select Preview as cover. Sign-in, external pages and browser downloads are unavailable here.";
         }
-        catch (Exception error) when (error is WebView2RuntimeNotFoundException or System.Runtime.InteropServices.COMException or InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception error) when (error is WebView2RuntimeNotFoundException or System.Runtime.InteropServices.COMException or InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException or TypeLoadException or BadImageFormatException)
         {
             if (!disposed)
             {
                 browser?.Dispose(); browser = null; BrowserHost.Children.Clear();
-                Notice.Text = "Google Images could not start. Microsoft Edge WebView2 Runtime may be missing or unavailable. Use Browse image in the cover picker, or open Microsoft's runtime download page. GameVault will not install it automatically.";
-                RuntimeHelp.Visibility = Visibility.Visible;
+                var runtimeMissing=error is WebView2RuntimeNotFoundException;
+                Notice.Text = runtimeMissing
+                    ? "Microsoft Edge WebView2 Runtime is unavailable. Use Browse image, or open Microsoft's runtime download page. GameVault will not install it automatically."
+                    : "Google Images could not start because a browser component is unavailable. Use the latest clean GameVault build, or Browse an image. Other app features remain available.";
+                RuntimeHelp.Visibility = runtimeMissing ? Visibility.Visible : Visibility.Collapsed;
             }
         }
         finally { initializing = false; if (!disposed) SearchButton.IsEnabled = true; }

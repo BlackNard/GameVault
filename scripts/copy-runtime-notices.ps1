@@ -41,5 +41,10 @@ if(Test-Path -LiteralPath (Join-Path $root 'Microsoft.Web.WebView2.Core.dll')){
         $copies+=@{source=$source.FullName;destination=$destination}
     }
 }
+if(Test-Path -LiteralPath (Join-Path $root 'Microsoft.Windows.SDK.NET.dll')){
+    $source=Join-Path (Split-Path $PSScriptRoot -Parent) 'licenses/windows-sdk/LICENSE.rtf'
+    if((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ne 'DD07EB178E00C6BBA4148457FC00FF77CD4887EB521D504186FE59C9EC8BBE62'){throw 'Windows SDK publisher license hash mismatch.'}
+    $copies+=@{source=$source;destination=(Join-Path $root 'licenses/windows-sdk/LICENSE.rtf')}
+}
 foreach($copy in $copies){New-Item -ItemType Directory -Path (Split-Path $copy.destination -Parent) -Force|Out-Null;Copy-Item -LiteralPath $copy.source -Destination $copy.destination -Force}
 Write-Host 'Exact restored runtime licenses/notices included.'

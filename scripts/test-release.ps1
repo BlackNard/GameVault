@@ -66,6 +66,9 @@ try {
     @{packageFolders=@{($packRoot)=@{}};libraries=@{'Microsoft.Web.WebView2/1.0.4314.35'=@{type='package'}}}|ConvertTo-Json -Depth 5|Set-Content $assets -Encoding utf8
     & (Join-Path $PSScriptRoot 'copy-runtime-notices.ps1') -PublishDirectory $fresh -AssetsFile $assets
     foreach($name in @('LICENSE.txt','NOTICE.txt')){if([IO.File]::ReadAllText((Join-Path $fresh ('licenses/webview2/'+$name))) -cne [IO.File]::ReadAllText((Join-Path $webPackage $name))){throw 'WebView2 exact SDK notice not copied'};$count++}
+    [IO.File]::WriteAllText((Join-Path $fresh 'Microsoft.Windows.SDK.NET.dll'),'Synthetic Windows projection')
+    & (Join-Path $PSScriptRoot 'copy-runtime-notices.ps1') -PublishDirectory $fresh -AssetsFile $assets
+    if((Get-FileHash -LiteralPath (Join-Path $fresh 'licenses/windows-sdk/LICENSE.rtf')).Hash -ne (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot '../licenses/windows-sdk/LICENSE.rtf')).Hash){throw 'Windows SDK license not copied exactly'};$count++
     Remove-Item -LiteralPath (Join-Path $webPackage 'NOTICE.txt')
     Reject {& (Join-Path $PSScriptRoot 'copy-runtime-notices.ps1') -PublishDirectory $fresh -AssetsFile $assets} 'WebView2.*notice'
     $missing=Join-Path $root 'missing-notice-publish';New-Item -ItemType Directory $missing|Out-Null;Copy-Item (Join-Path $publish 'GameVault.runtimeconfig.json') $missing

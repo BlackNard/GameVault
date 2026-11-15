@@ -78,3 +78,11 @@ https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.4314.35
 Copyright Microsoft Corporation. Exact restored SDK LICENSE.txt and NOTICE.txt
 are bundled at licenses/webview2/. These terms cover the redistributed SDK;
 the separately installed Evergreen WebView2 Runtime has its own Microsoft terms.
+
+Windows SDK .NET projection and WinRT.Runtime
+Microsoft.Windows.SDK.NET.Ref 10.0.17763.57 (selected by the pinned .NET SDK).
+Copyright Microsoft Corporation. Distributed under the Windows SDK terms:
+https://aka.ms/WinSDKLicenseURL
+The unmodified publisher license is bundled at licenses/windows-sdk/LICENSE.rtf.
+Publisher source: https://download.microsoft.com/download/0/F/F/0FF2B061-47DD-4F55-89B6-FD1D8C44F14D/sdk_license.rtf
+SHA-256: dd07eb178e00c6bba4148457fc00ff77cd4887eb521d504186fe59c9ec8bbe62

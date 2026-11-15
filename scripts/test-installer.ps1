@@ -41,7 +41,7 @@ try {
         Remove-Item -LiteralPath (Join-Path $missingCapture $required)
         Assert-Rejected { Get-InstallerPayload $missingCapture } ('missing '+[regex]::Escape($required))
     }
-    $webRequired=@('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.Wpf.dll','WebView2Loader.dll','licenses/webview2/LICENSE.txt','licenses/webview2/NOTICE.txt')
+    $webRequired=@('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.Wpf.dll','WebView2Loader.dll','licenses/webview2/LICENSE.txt','licenses/webview2/NOTICE.txt','Microsoft.Windows.SDK.NET.dll','WinRT.Runtime.dll','licenses/windows-sdk/LICENSE.rtf')
     $missingCore=New-Payload 'webview-missing-core'
     [IO.File]::WriteAllText((Join-Path $missingCore 'GameVault.deps.json'),'{"libraries":{"Microsoft.Web.WebView2/1.0.4314.35":{}}}')
     Assert-Rejected {Get-InstallerPayload $missingCore} 'missing Microsoft[.]Web[.]WebView2[.]Core[.]dll'

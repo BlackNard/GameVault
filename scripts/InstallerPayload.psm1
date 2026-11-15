@@ -30,7 +30,7 @@ function Get-InstallerPayload {
         if (-not (Test-Path -LiteralPath (Join-Path $root $name) -PathType Leaf)) { throw "Payload is missing $name." }
     }
     if((Test-Path -LiteralPath (Join-Path $root 'Microsoft.Web.WebView2.Core.dll')) -or [IO.File]::ReadAllText((Join-Path $root 'GameVault.deps.json')).Contains('"Microsoft.Web.WebView2/')){
-        foreach($name in @('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.Wpf.dll','WebView2Loader.dll','licenses/webview2/LICENSE.txt','licenses/webview2/NOTICE.txt')){
+        foreach($name in @('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.Wpf.dll','WebView2Loader.dll','licenses/webview2/LICENSE.txt','licenses/webview2/NOTICE.txt','Microsoft.Windows.SDK.NET.dll','WinRT.Runtime.dll','licenses/windows-sdk/LICENSE.rtf')){
             if(-not(Test-Path -LiteralPath (Join-Path $root $name) -PathType Leaf)){throw "Payload is missing $name."}
         }
     }
