@@ -2,10 +2,11 @@
  <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
   <StackPanel>
    <TextBlock Text="Google Images" FontSize="22" FontWeight="SemiBold"/>
-   <TextBlock Text="Search inside GameVault. Only the entered title is sent to Google; Google and image websites may receive normal browser requests. Choose a result, then right-click its full image and select Preview as cover. Review the crop before confirming. Artwork belongs to its owner." TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,8"/>
+   <TextBlock Text="Search inside GameVault. Only the entered title is sent to Google; Google and image websites may receive normal browser requests. Click an image to select it, then choose Preview selected image. If a thumbnail is too small, open its full preview and click that image. Review the crop before confirming. Artwork belongs to its owner." TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,8"/>
    <Label Content="_Search title" Target="{Binding ElementName=Query}"/>
    <DockPanel><Button x:Name="SearchButton" Content="Search Google Images" Click="Search" DockPanel.Dock="Right" Margin="8,0,0,0"/><TextBox x:Name="Query" MaxLength="240" KeyDown="QueryKeyDown" AutomationProperties.Name="Google Images search title"/></DockPanel>
    <TextBlock x:Name="Notice" Text="Enter a game title and choose Search Google Images. PNG and JPEG downloads: up to 12 MB and 16 megapixels. Browse an image in the cover picker if a website prevents downloading." TextWrapping="Wrap" Margin="0,10" Foreground="{DynamicResource AppWarning}" AutomationProperties.LiveSetting="Polite"/>
+   <Border BorderBrush="{DynamicResource AppMuted}" BorderThickness="1" Padding="10" Margin="0,0,0,8"><DockPanel><Button x:Name="PreviewButton" Content="Preview selected image" Click="PreviewSelected" IsEnabled="False" DockPanel.Dock="Right" Margin="12,0,0,0"/><TextBlock x:Name="SelectionNotice" Text="No image selected. Click an image in the search below." TextWrapping="Wrap" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite"/></DockPanel></Border>
    <Button x:Name="RuntimeHelp" Content="Open Microsoft's WebView2 Runtime download page" Click="OpenRuntimeHelp" Visibility="Collapsed" HorizontalAlignment="Left" Margin="0,0,0,8"/>
   </StackPanel>
   <Grid x:Name="BrowserHost" Grid.Row="1" MinHeight="160"/>

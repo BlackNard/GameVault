@@ -1,7 +1,9 @@
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Sockets;
+using System.Text.RegularExpressions;
 
 namespace GameVault.App.Artwork;
 
@@ -12,7 +14,12 @@ internal static class WebCoverPolicy
         if (string.IsNullOrWhiteSpace(title) || title.Length > 240 || title.Any(char.IsControl) ||
             title.Contains('/') || title.Contains('\\') || title.Contains("://", StringComparison.Ordinal))
             throw new ArgumentException("Enter a game title, without a file path or web address.");
-        return new Uri("https://www.google.com/search?tbm=isch&q=" + Uri.EscapeDataString(title.Trim()));
+        var query = title.Trim();
+        if (!Regex.IsMatch(query, @"\b(?:covers?|box[\s-]?art)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+            query += " game cover";
+        // Google's public advanced-search filters are hints; decoded pixel validation remains mandatory.
+        return new Uri("https://www.google.com/search?tbm=isch&q=" + Uri.EscapeDataString(query) +
+                       "&imgsz=l&imgar=t%7Cxt&as_filetype=jpg");
     }
 
     internal static bool AllowsNavigation(Uri uri) => uri.IsAbsoluteUri && uri.Scheme == "https" &&
@@ -52,6 +59,32 @@ internal static class WebCoverPolicy
                !(b[0] == 0x20 && b[1] == 0x01 && b[2] == 0x0d && b[3] == 0xb8) &&
                !(b[0] == 0x20 && b[1] == 0x02);
     }
+}
+
+internal enum WebCoverDownloadFailureKind
+{
+    Blocked,
+    NotFound,
+    UnsupportedFormat,
+    TooLarge,
+    Redirect,
+    RateLimit,
+    Unavailable
+}
+
+internal sealed class WebCoverDownloadException(WebCoverDownloadFailureKind kind) : InvalidOperationException(kind switch
+{
+    WebCoverDownloadFailureKind.Blocked => "This website blocked the image download. Choose another image or Browse a local image.",
+    WebCoverDownloadFailureKind.NotFound => "This image is no longer available. Choose another image or Browse a local image.",
+    WebCoverDownloadFailureKind.UnsupportedFormat => "Choose a direct PNG or JPEG image. SVG, animated and web page downloads are unsupported.",
+    WebCoverDownloadFailureKind.TooLarge => "The image exceeds the 12 MB download limit. Choose another image.",
+    WebCoverDownloadFailureKind.Redirect => "This image has an unavailable or excessive redirect. Choose another image.",
+    WebCoverDownloadFailureKind.RateLimit => "This website is limiting image downloads. Wait before retrying or choose another image.",
+    WebCoverDownloadFailureKind.Unavailable => "This image server is temporarily unavailable. Retry later or choose another image.",
+    _ => "The image could not be downloaded. Choose another image or Browse a local image."
+})
+{
+    internal WebCoverDownloadFailureKind Kind { get; } = kind;
 }
 
 internal sealed class WebCoverImageDownload : IDisposable
@@ -97,28 +130,40 @@ internal sealed class WebCoverImageDownload : IDisposable
         for (var redirects = 0; ; redirects++)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, current);
+            // Identify this app honestly. Rebuild headers for every manually validated redirect.
+            request.Headers.UserAgent.ParseAdd("GameVault/0.1 (+https://github.com/Zaid-Alhmouz/GameVault)");
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("image/png"));
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("image/jpeg"));
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
             if (response.StatusCode is HttpStatusCode.MovedPermanently or HttpStatusCode.Redirect or HttpStatusCode.SeeOther or HttpStatusCode.TemporaryRedirect or HttpStatusCode.PermanentRedirect)
             {
                 if (redirects >= 3 || response.Headers.Location is not { } location)
-                    throw new InvalidOperationException("This image redirects too many times. Choose another image.");
-                current = WebCoverPolicy.ImageUri(new Uri(current, location));
+                    throw new WebCoverDownloadException(WebCoverDownloadFailureKind.Redirect);
+                try { current = WebCoverPolicy.ImageUri(new Uri(current, location)); }
+                catch (Exception error) when (error is ArgumentException or InvalidOperationException or UriFormatException)
+                { throw new WebCoverDownloadException(WebCoverDownloadFailureKind.Redirect); }
                 continue;
             }
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                throw new WebCoverDownloadException(WebCoverDownloadFailureKind.Blocked);
+            if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Gone)
+                throw new WebCoverDownloadException(WebCoverDownloadFailureKind.NotFound);
+            if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                throw new WebCoverDownloadException(WebCoverDownloadFailureKind.RateLimit);
             if (!response.IsSuccessStatusCode)
-                throw new InvalidOperationException("The website did not allow this image download. Choose another image or Browse a local image.");
+                throw new WebCoverDownloadException(WebCoverDownloadFailureKind.Unavailable);
             var type = response.Content.Headers.ContentType?.MediaType;
             if (type is not ("image/png" or "image/jpeg"))
-                throw new InvalidOperationException("Choose a direct PNG or JPEG image. SVG, animated and web page downloads are unsupported.");
+                throw new WebCoverDownloadException(WebCoverDownloadFailureKind.UnsupportedFormat);
             if (response.Content.Headers.ContentLength > MaximumBytes)
-                throw new InvalidOperationException("The image exceeds the 12 MB download limit.");
+                throw new WebCoverDownloadException(WebCoverDownloadFailureKind.TooLarge);
             using var input = await response.Content.ReadAsStreamAsync(token);
             using var output = new MemoryStream();
             var buffer = new byte[32 * 1024];
             int count;
             while ((count = await input.ReadAsync(buffer, token)) > 0)
             {
-                if (output.Length + count > MaximumBytes) throw new InvalidOperationException("The image exceeds the 12 MB download limit.");
+                if (output.Length + count > MaximumBytes) throw new WebCoverDownloadException(WebCoverDownloadFailureKind.TooLarge);
                 await output.WriteAsync(buffer.AsMemory(0, count), token);
             }
             token.ThrowIfCancellationRequested();

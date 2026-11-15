@@ -17,9 +17,61 @@ public sealed class WebCoverSearchTests
     public void SearchSendsOnlyEscapedTitle()
     {
         var uri = WebCoverPolicy.SearchUri(" Game & Edition #2 ");
-        Assert.Equal("https://www.google.com/search?tbm=isch&q=Game%20%26%20Edition%20%232", uri.AbsoluteUri);
+        Assert.Equal("https://www.google.com/search?tbm=isch&q=Game%20%26%20Edition%20%232%20game%20cover&imgsz=l&imgar=t%7Cxt&as_filetype=jpg", uri.AbsoluteUri);
         Assert.True(WebCoverPolicy.AllowsNavigation(uri));
         Assert.Throws<ArgumentException>(() => WebCoverPolicy.SearchUri(new string('x', 241)));
+    }
+
+    [Theory]
+    [InlineData("Resident Evil 2", "Resident Evil 2 game cover")]
+    [InlineData(" Game COVER ", "Game COVER")]
+    [InlineData("Game covers", "Game covers")]
+    [InlineData("Game boxart", "Game boxart")]
+    [InlineData("Game box art", "Game box art")]
+    [InlineData("Game box-art", "Game box-art")]
+    [InlineData("Discover", "Discover game cover")]
+    public void SearchFocusesOnCoversWithoutDuplicatingExistingKeywords(string title, string expected)
+    {
+        var uri = WebCoverPolicy.SearchUri(title);
+        Assert.Contains("q=" + Uri.EscapeDataString(expected) + "&", uri.AbsoluteUri);
+        Assert.Contains("imgsz=l&imgar=t%7Cxt&as_filetype=jpg", uri.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task EveryRedirectRequestIdentifiesGameVaultAndAcceptsSupportedImages()
+    {
+        var requests = 0;
+        using var service = new WebCoverImageDownload(new Handler((request, _) =>
+        {
+            requests++;
+            Assert.Equal("GameVault/0.1 (+https://github.com/Zaid-Alhmouz/GameVault)", request.Headers.UserAgent.ToString());
+            Assert.Equal(["image/png", "image/jpeg"], request.Headers.Accept.Select(value => value.MediaType));
+            Assert.Null(request.Headers.Authorization);
+            Assert.Null(request.Headers.Referrer);
+            Assert.False(request.Headers.Contains("Cookie"));
+            return Task.FromResult(requests < 3
+                ? new HttpResponseMessage(HttpStatusCode.Redirect) { Headers = { Location = new Uri("https://images.example.org/next") } }
+                : ImageResponse([1, 2, 3], "image/png"));
+        }));
+        Assert.Equal(new byte[] { 1, 2, 3 }, await service.DownloadAsync(new Uri("https://example.com/a"), default));
+        Assert.Equal(3, requests);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized, "Blocked")]
+    [InlineData(HttpStatusCode.Forbidden, "Blocked")]
+    [InlineData(HttpStatusCode.NotFound, "NotFound")]
+    [InlineData(HttpStatusCode.Gone, "NotFound")]
+    [InlineData(HttpStatusCode.TooManyRequests, "RateLimit")]
+    [InlineData(HttpStatusCode.ServiceUnavailable, "Unavailable")]
+    public async Task HttpFailuresAreTypedAndDoNotExposeSourceOrResponseSecrets(HttpStatusCode status, string kind)
+    {
+        using var service = new WebCoverImageDownload(new Handler((_, _) => Task.FromResult(
+            new HttpResponseMessage(status) { ReasonPhrase = "SecretReason", Content = new StringContent("SecretBody") })));
+        var error = await Assert.ThrowsAsync<WebCoverDownloadException>(() => service.DownloadAsync(new Uri("https://example.com/a?key=SecretQuery"), default));
+        Assert.Equal(kind, error.Kind.ToString());
+        Assert.DoesNotContain("Secret", error.Message);
+        Assert.DoesNotContain("example.com", error.Message);
     }
 
     [Theory]
@@ -62,7 +114,8 @@ public sealed class WebCoverSearchTests
             Assert.Null(request.Headers.Authorization); Assert.False(request.Headers.Contains("Cookie"));
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Redirect) { Headers = { Location = new Uri("https://127.0.0.1/image.png") } });
         }));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.DownloadAsync(new Uri("https://example.com/a.png"), default));
+        var error = await Assert.ThrowsAsync<WebCoverDownloadException>(() => service.DownloadAsync(new Uri("https://example.com/a.png"), default));
+        Assert.Equal(WebCoverDownloadFailureKind.Redirect, error.Kind);
         Assert.Equal(1, requests);
     }
 
@@ -72,7 +125,8 @@ public sealed class WebCoverSearchTests
         var requests = 0;
         using var service = new WebCoverImageDownload(new Handler((_, _) =>
         { requests++; return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Redirect) { Headers = { Location = new Uri("/next", UriKind.Relative) } }); }));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.DownloadAsync(new Uri("https://example.com/a.png"), default));
+        var error = await Assert.ThrowsAsync<WebCoverDownloadException>(() => service.DownloadAsync(new Uri("https://example.com/a.png"), default));
+        Assert.Equal(WebCoverDownloadFailureKind.Redirect, error.Kind);
         Assert.Equal(4, requests);
     }
 
@@ -80,7 +134,8 @@ public sealed class WebCoverSearchTests
     public async Task UnsupportedContentIsRejected(string type)
     {
         using var service = new WebCoverImageDownload(new Handler((_, _) => Task.FromResult(ImageResponse([1, 2, 3], type))));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.DownloadAsync(new Uri("https://example.com/a"), default));
+        var error = await Assert.ThrowsAsync<WebCoverDownloadException>(() => service.DownloadAsync(new Uri("https://example.com/a"), default));
+        Assert.Equal(WebCoverDownloadFailureKind.UnsupportedFormat, error.Kind);
     }
 
     [Fact]
@@ -91,14 +146,16 @@ public sealed class WebCoverSearchTests
             var response = ImageResponse([1], "image/png"); response.Content.Headers.ContentLength = WebCoverImageDownload.MaximumBytes + 1;
             return Task.FromResult(response);
         }));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => declared.DownloadAsync(new Uri("https://example.com/a"), default));
+        var declaredError = await Assert.ThrowsAsync<WebCoverDownloadException>(() => declared.DownloadAsync(new Uri("https://example.com/a"), default));
+        Assert.Equal(WebCoverDownloadFailureKind.TooLarge, declaredError.Kind);
         using var streamed = new WebCoverImageDownload(new Handler((_, _) =>
         {
             var content = new StreamContent(new UnseekableStream(new byte[WebCoverImageDownload.MaximumBytes + 1]));
             content.Headers.ContentType = new MediaTypeHeaderValue("image/png");
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = content });
         }));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => streamed.DownloadAsync(new Uri("https://example.com/a"), default));
+        var streamedError = await Assert.ThrowsAsync<WebCoverDownloadException>(() => streamed.DownloadAsync(new Uri("https://example.com/a"), default));
+        Assert.Equal(WebCoverDownloadFailureKind.TooLarge, streamedError.Kind);
     }
 
     [Fact]
