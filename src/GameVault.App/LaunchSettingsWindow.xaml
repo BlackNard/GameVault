@@ -9,8 +9,8 @@
                 <TextBlock Text="Launch settings" FontSize="26" FontWeight="SemiBold" />
                 <TextBlock x:Name="GameTitle" FontSize="18" Margin="0,8,0,20" TextWrapping="Wrap" />
                 <StackPanel x:Name="Fields">
-                    <CheckBox x:Name="UseLaunchExecutable" Content="Track the executable selected in Edit game" IsChecked="True" Checked="TrackingChoiceChanged" Unchecked="TrackingChoiceChanged" Margin="0,0,0,12" />
-                    <TextBlock Text="If that executable starts a separate launcher, uncheck this option and choose the actual game executable below. GameVault will wait up to 30 seconds for it to start as a child of the launcher." TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,0,0,16" />
+                    <CheckBox x:Name="UseLaunchExecutable" Content="Choose the game process automatically" IsChecked="True" Checked="TrackingChoiceChanged" Unchecked="TrackingChoiceChanged" Margin="0,0,0,12" />
+                    <TextBlock Text="GameVault detects Steam and Epic installations and starts them through their client. Playtime starts when the game itself is detected. If tracking stops while your game is still running, turn this off and choose the actual game executable below. Store clients may show sign-in or update prompts." TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,0,0,16" />
                     <Label Content="_Actual game executable (.exe)" Target="{Binding ElementName=TargetPath}" />
                     <DockPanel x:Name="TargetFields" IsEnabled="False"><Button DockPanel.Dock="Right" Content="Browse…" Click="BrowseTarget" Margin="8,0,0,0" AutomationProperties.Name="Browse actual game executable" /><TextBox x:Name="TargetPath" TextWrapping="Wrap" AutomationProperties.Name="Actual game executable path" /></DockPanel>
                 </StackPanel>

@@ -285,6 +285,11 @@ public partial class MainWindow : Window
                 busy = true;
                 try { return await library.SaveAsync(draft, cover); }
                 finally { busy = false; }
+            }, async id =>
+            {
+                busy = true;
+                try { return await library.RestoreAsync(id); }
+                finally { busy = false; }
             });
             if (await ShowInlineEditorAsync(editor,h=>editor.Completed+=h,h=>editor.Completed-=h) && editor.Result is GameSaveResult result)
             {
@@ -296,10 +301,10 @@ public partial class MainWindow : Window
                     Search.Text = ""; StatusFilter.SelectedIndex = 0; RemovedFilter.IsChecked = false;
                     initializing = false;
                 }
-                await discovery.ScanAsync(result.Profile.Id);
+                if (!editor.WasRestored) await discovery.ScanAsync(result.Profile.Id);
                 await RefreshLibrary(result.Profile.Id);
                 if(profile is null){ShowGamePage();ShowGameSection("Overview");}
-                OperationNotice.Text = result.Warning ?? $"{result.Profile.Name} saved.";
+                OperationNotice.Text = result.Warning ?? (editor.WasRestored ? $"{result.Profile.Name} restored with its saved configuration and history." : $"{result.Profile.Name} saved.");
             }
         }
         catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = "Could not refresh the library. " + error.Message; }
