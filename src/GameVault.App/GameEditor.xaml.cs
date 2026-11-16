@@ -9,15 +9,18 @@ public partial class GameEditor : UserControl
 {
     private readonly Guid? id;
     private readonly Func<GameDraft, byte[]?, Task<GameSaveResult>> save;
+    private readonly Func<Guid, Task<GameSaveResult>>? restore;
     private int coverRevision;
     private byte[]? newCoverBytes;
     private CoverSearchView? coverSearch;
     private bool saving;
     public GameSaveResult? Result { get; private set; }
+    public bool WasRestored { get; private set; }
 
-    public GameEditor(string theme, GameProfile? profile, Func<GameDraft, byte[]?, Task<GameSaveResult>> save)
+    public GameEditor(string theme, GameProfile? profile, Func<GameDraft, byte[]?, Task<GameSaveResult>> save, Func<Guid, Task<GameSaveResult>>? restore = null)
     {
         this.save = save;
+        this.restore = restore;
         id = profile?.Id;
         InitializeComponent();
         ThemePalette.Apply(this, theme);
@@ -121,7 +124,13 @@ public partial class GameEditor : UserControl
         try
         {
             byte[]? png = newCoverBytes;
-            Result = await save(draft, png);
+            var result = await GameEditorSaveFlow.SaveAsync(draft, png, save, restore,
+                async () => await InlinePrompts.ShowAsync(this,
+                    "This executable already has a removed profile. Restore its saved name, configuration, cover, history, notes and backups?\n\nThe entries and artwork in this Add game form will not replace the saved profile. Choose No to keep this form and leave the profile removed.",
+                    "Restore saved profile?", MessageBoxButton.YesNo, MessageBoxResult.No) == MessageBoxResult.Yes);
+            if (result is null) { ErrorNotice.Text = "Restore cancelled. Your entries are kept; the saved profile is still removed."; return; }
+            Result = result.Saved;
+            WasRestored = result.WasRestored;
             navigation.AcceptSaved(Snapshot());
             saving = false;
             Completed?.Invoke(this, true);
@@ -147,4 +156,21 @@ public partial class GameEditor : UserControl
     }
     private async void CancelEditing(object sender, RoutedEventArgs e)
     { if (await CanLeaveAsync()) Completed?.Invoke(this, false); }
+}
+
+internal sealed record GameEditorSaveOutcome(GameSaveResult Saved, bool WasRestored);
+
+internal static class GameEditorSaveFlow
+{
+    internal static async Task<GameEditorSaveOutcome?> SaveAsync(GameDraft draft, byte[]? cover,
+        Func<GameDraft, byte[]?, Task<GameSaveResult>> save,
+        Func<Guid, Task<GameSaveResult>>? restore, Func<Task<bool>> confirmRestore)
+    {
+        try { return new(await save(draft, cover), false); }
+        catch (DuplicateGameException error) when (draft.Id is null && error.IsArchived && restore is not null)
+        {
+            if (!await confirmRestore()) return null;
+            return new(await restore(error.ExistingId), true);
+        }
+    }
 }

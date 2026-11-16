@@ -6,7 +6,7 @@
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <StackPanel Margin="0,0,0,16">
             <TextBlock x:Name="Heading" Text="Add game" FontSize="26" FontWeight="SemiBold" />
-            <TextBlock Text="Choose a local executable. No store account needed." Foreground="{DynamicResource AppMuted}" TextWrapping="Wrap" Margin="0,6,0,0" />
+            <TextBlock Text="Choose your installed game executable." Foreground="{DynamicResource AppMuted}" TextWrapping="Wrap" Margin="0,6,0,0" />
         </StackPanel>
         <ScrollViewer x:Name="EditorScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel x:Name="Fields" Margin="0,0,12,0">

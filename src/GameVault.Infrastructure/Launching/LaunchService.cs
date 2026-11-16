@@ -15,6 +15,8 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
     private readonly LibraryService library;
     private readonly IGameProcessSystem processes;
     private readonly TimeSpan startupTimeout;
+    private readonly TimeSpan storeStartupTimeout;
+    private readonly IStoreGameLauncher storeLauncher;
     private readonly TimeSpan pollInterval;
     private readonly object gate = new();
     private readonly CancellationTokenSource shutdown = new();
@@ -27,11 +29,13 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
     private bool recoveryCompleted;
 
     public LaunchService(ApplicationPaths paths, AppDataStore store, IGameProcessSystem processes,
-        TimeSpan? startupTimeout = null, TimeSpan? pollInterval = null, IPlaytimeClock? clock = null)
+        TimeSpan? startupTimeout = null, TimeSpan? pollInterval = null, IPlaytimeClock? clock = null, TimeSpan? storeStartupTimeout = null, IStoreGameLauncher? storeLauncher = null)
     {
         this.store = store; this.processes = processes;
         settings = new(paths, store); library = new(paths, store);
         this.startupTimeout = startupTimeout ?? TimeSpan.FromSeconds(30);
+        this.storeStartupTimeout = storeStartupTimeout ?? TimeSpan.FromMinutes(2);
+        this.storeLauncher = storeLauncher ?? new StoreGameLauncher();
         this.pollInterval = pollInterval ?? TimeSpan.FromMilliseconds(250);
         recorder = new(store, clock ?? new PlaytimeClock());
     }
@@ -69,7 +73,8 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
         if(game.Profile.State!=DocumentState.Ready||game.Profile.Value is not GameProfile profile)throw new IOException("Cannot check a protected game profile for running processes.");
         var config=await settings.LoadAsync(id).ConfigureAwait(false);
         if(config.IsReadOnly)throw new IOException(config.Message);
-        return new[]{profile.ExecutablePath,config.Value?.TargetExecutablePath??profile.ExecutablePath}.Distinct(StringComparer.OrdinalIgnoreCase).Any(path=>processes.Find(path).Length>0);
+        var plan = storeLauncher.Resolve(profile.ExecutablePath, config.Value?.TargetExecutablePath);
+        return new[]{profile.ExecutablePath, plan?.TargetExecutablePath ?? config.Value?.TargetExecutablePath ?? profile.ExecutablePath}.Distinct(StringComparer.OrdinalIgnoreCase).Any(path=>processes.Find(path).Length>0);
     }
     public Task RunAsync(Guid id)
     {
@@ -99,17 +104,32 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
             if (!Directory.Exists(profile.WorkingDirectory)) throw new IOException("The working directory is missing. Repair it through Edit game.");
             var configuration = await settings.LoadAsync(id).ConfigureAwait(false);
             if (configuration.IsReadOnly) throw new IOException(configuration.Message);
-            var targetPath = configuration.Value?.TargetExecutablePath ?? profile.ExecutablePath;
+            var storePlan = storeLauncher.Resolve(profile.ExecutablePath, configuration.Value?.TargetExecutablePath);
+            var targetPath = storePlan?.TargetExecutablePath ?? configuration.Value?.TargetExecutablePath ?? profile.ExecutablePath;
             ValidateExecutable(targetPath);
             var paths = new[] { Path.GetFullPath(profile.ExecutablePath), Path.GetFullPath(targetPath) }.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            var reservations = storePlan is null ? paths : paths.Append("store:" + storePlan.StoreKey).ToArray();
             lock (gate)
             {
-                if (paths.Any(path => reservedPaths.ContainsKey(path))) throw new InvalidOperationException("This executable is already starting or running for another game.");
-                foreach (var path in paths) reservedPaths.Add(path, id);
+                if (reservations.Any(path => reservedPaths.ContainsKey(path))) throw new InvalidOperationException("This executable is already starting or running for another game.");
+                foreach (var path in reservations) reservedPaths.Add(path, id);
             }
             foreach (var path in paths)
                 if (processes.Find(path).Length > 0) throw new InvalidOperationException("This game or its launcher is already running. Close it before starting another session.");
             token.ThrowIfCancellationRequested();
+            if (storePlan is not null)
+            {
+                // A running store client can own an unrelated, detached process tree.
+                // Exact executable path plus a fresh OS creation identity is the boundary.
+                var before = processes.Find(targetPath).Select(candidate => candidate.Identity).ToHashSet();
+                if (before.Count != 0) throw new InvalidOperationException("This game is already running. Close it before starting another session.");
+                var requestedUtcTicks = DateTime.UtcNow.Ticks;
+                storeLauncher.RequestLaunch(storePlan);
+                using var actual = await FindStoreTarget(targetPath, before, requestedUtcTicks, token).ConfigureAwait(false);
+                await ObserveAsync(id, targetPath, actual, actual, null, token).ConfigureAwait(false);
+                SetState(new(id, LaunchPhase.Stopped, StopMessage(id)));
+                return;
+            }
             using var starter = processes.Start(profile.ExecutablePath, profile.WorkingDirectory);
             IGameProcess observed = starter;
             if (!string.Equals(profile.ExecutablePath, targetPath, StringComparison.OrdinalIgnoreCase))
@@ -137,6 +157,29 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
             operation.Dispose();
             completion.TrySetResult();
         }
+    }
+
+    private async Task<IGameProcess> FindStoreTarget(string path, HashSet<ProcessIdentity> before, long requestedUtcTicks, CancellationToken token)
+    {
+        var deadline = Stopwatch.StartNew();
+        do
+        {
+            token.ThrowIfCancellationRequested();
+            var candidates = processes.Find(path).Where(candidate => !before.Contains(candidate.Identity) && candidate.Identity.CreatedUtcTicks >= requestedUtcTicks).ToArray();
+            if (candidates.Length > 1) throw new IOException("Multiple new game processes were found. Tracking was not started; games were left open. Choose a more specific target in Launch settings.");
+            if (candidates.Length == 1)
+            {
+                var process = processes.Open(candidates[0].Identity);
+                if (process is not null)
+                {
+                    // Open must preserve the sampled creation identity, including across PID reuse.
+                    if (process.Identity == candidates[0].Identity && !process.HasExited) return process;
+                    process.Dispose();
+                }
+            }
+            await Task.Delay(pollInterval, token).ConfigureAwait(false);
+        } while (deadline.Elapsed < storeStartupTimeout);
+        throw new IOException("The actual game process was not found after the store launch request. Check that its store client is installed and signed in, then check Launch settings. Any client or game was left open.");
     }
 
     private async Task<IGameProcess> FindTarget(IGameProcess root, string path, CancellationToken token)
@@ -243,7 +286,7 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
                         var process = processes.Recover(journal.ExecutablePath, new(journal.ProcessId, journal.ProcessCreatedUtcTicks), journal.ProcessGroupName);
                         if (process is null)
                         { warnings.Add($"{game.Profile.Value.Name}: interrupted session recovered through its last saved checkpoint; unobserved time was excluded."); continue; }
-                        StartRecovered(journal, process);
+                        if (!StartRecovered(journal, process, game.Profile.Value)) continue;
                         warnings.Add($"{game.Profile.Value.Name}: resumed a verified running game; time while GameVault was absent was excluded.");
                     }
                     catch (Exception error) when (error is IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException)
@@ -256,18 +299,28 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
         finally { recoveryGate.Release(); }
     }
 
-    private void StartRecovered(SessionJournal journal, IGameProcess process)
+    private bool StartRecovered(SessionJournal journal, IGameProcess process, GameProfile profile)
     {
+        var reservations = new[] { journal.ExecutablePath, profile.ExecutablePath }.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        try
+        {
+            // The journal supplies the already verified game target. Store metadata is
+            // optional during recovery: an unavailable client must not lose a session.
+            var plan = storeLauncher.Resolve(profile.ExecutablePath, journal.ExecutablePath);
+            if (plan is not null) reservations = reservations.Append("store:" + plan.StoreKey).ToArray();
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException)
+        { /* Preserve exact-process recovery when installation metadata is unavailable. */ }
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         IDisposable operation;
         lock (gate)
         {
-            if (disposed || !active.TryAdd(journal.GameId, completion)) { process.Dispose(); return; }
-            if (reservedPaths.ContainsKey(journal.ExecutablePath)) { active.Remove(journal.GameId); process.Dispose(); return; }
+            if (disposed || !active.TryAdd(journal.GameId, completion)) { process.Dispose(); return false; }
+            if (reservations.Any(reservedPaths.ContainsKey)) { active.Remove(journal.GameId); process.Dispose(); return false; }
             var acquired=operations.TryAcquire(journal.GameId);
-            if(acquired is null){active.Remove(journal.GameId);process.Dispose();return;}
+            if(acquired is null){active.Remove(journal.GameId);process.Dispose();return false;}
             operation=acquired;
-            reservedPaths.Add(journal.ExecutablePath, journal.GameId);
+            foreach (var path in reservations) reservedPaths.Add(path, journal.GameId);
         }
         SetState(new(journal.GameId, LaunchPhase.Starting, "Recovering running session…"));
         _ = Task.Run(async () =>
@@ -286,12 +339,17 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
                 catch (Exception error) { completion.TrySetException(error); }
                 finally
                 {
-                    lock (gate) { active.Remove(journal.GameId); reservedPaths.Remove(journal.ExecutablePath); }
+                    lock (gate)
+                    {
+                        active.Remove(journal.GameId);
+                        foreach (var path in reservedPaths.Where(pair => pair.Value == journal.GameId).Select(pair => pair.Key).ToArray()) reservedPaths.Remove(path);
+                    }
                     operation.Dispose();
                     completion.TrySetResult();
                 }
             }
         });
+        return true;
     }
 
     private IGameProcess? FindRelated(IGameProcess root, string path)

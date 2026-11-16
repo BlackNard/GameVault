@@ -9,8 +9,9 @@ public sealed record GameSaveResult(GameProfile Profile, string? Warning);
 
 public sealed class DuplicateGameException(Guid existingId, bool archived)
     : InvalidOperationException(archived
-        ? "This executable already has a removed profile. Cancel and restore it from Removed profiles to retain its history."
+        ? "This executable has a removed profile. Restore its saved configuration and history to use it again."
         : "This executable is already in your library. Edit the existing game instead.")
 {
     public Guid ExistingId { get; } = existingId;
+    public bool IsArchived { get; } = archived;
 }

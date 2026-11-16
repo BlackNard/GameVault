@@ -91,6 +91,23 @@ public sealed class LibraryService
         finally { gate.Release(); }
     }
 
+    public async Task<GameSaveResult> RestoreAsync(Guid id)
+    {
+        await gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var snapshot = await store.InitializeAsync().ConfigureAwait(false);
+            var game = snapshot.Games.SingleOrDefault(g => g.Id == id);
+            if (game?.Profile.Value is not GameProfile profile || game.Profile.IsReadOnly)
+                throw new IOException("This profile is missing or read-only; it was left unchanged.");
+            CheckDuplicate(snapshot, profile.ExecutablePath, id);
+            var restored = profile with { IsArchived = false };
+            if (profile.IsArchived) await store.SaveProfileAsync(restored).ConfigureAwait(false);
+            return new(restored, null);
+        }
+        finally { gate.Release(); }
+    }
+
     public async Task SetArchivedAsync(Guid id, bool archived)
     {
         await gate.WaitAsync().ConfigureAwait(false);
