@@ -9,6 +9,7 @@ namespace GameVault.App;
 
 public partial class MainWindow
 {
+ private InlineEditorSession? activeInlineEditor;
  private string gameSection="Overview";
  private BackupDestinationService Destinations=>new(paths);
  private bool libraryVisible=true;
@@ -91,12 +92,19 @@ public partial class MainWindow
  {
   var returnToLibrary=LibraryPanel.Visibility==Visibility.Visible;
   var returnToSettings=SettingsPanel.Visibility==Visibility.Visible;
-  var result=new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-  void Completed(object? sender,bool saved)=>result.TrySetResult(saved);
+  var session=new InlineEditorSession(view switch
+  {
+   GameEditor editor=>editor.CanLeaveAsync,
+   LaunchSettingsWindow editor=>editor.CanLeaveAsync,
+   NoteExportWindow editor=>editor.CanLeaveAsync,
+   _=>throw new ArgumentException("The inline editor must provide a navigation guard.",nameof(view))
+  });
+  activeInlineEditor=session;
+  void Completed(object? sender,bool saved)=>session.Complete(saved);
   subscribe(Completed);
   LibraryPanel.Visibility=GamePage.Visibility=SettingsPanel.Visibility=Visibility.Collapsed;
   EditorHost.Content=view;EditorHost.Visibility=Visibility.Visible;
-  try{return await result.Task;}
+  try{return await session.Completion;}
   finally
   {
    unsubscribe(Completed);EditorHost.Content=null;EditorHost.Visibility=Visibility.Collapsed;
@@ -104,6 +112,10 @@ public partial class MainWindow
    else if(returnToSettings)SetNavigation(false);
    else if(GameList.SelectedItem is LibraryItemView){ShowGamePage();ShowGameSection(gameSection);}else SetNavigation(true);
   }
+ }
+ private void CompleteInlineEditor()
+ {
+  var session=activeInlineEditor;activeInlineEditor=null;session?.EditorFinished();
  }
  private async Task RefreshBackupDestinationsAsync()
  {

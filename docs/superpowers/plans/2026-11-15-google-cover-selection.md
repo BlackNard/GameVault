@@ -1,0 +1,11 @@
+# Cover-focused Google queries and explicit image selection — issue58
+
+Owner request is clear: cover-oriented queries, suitable-size search filters, and selecting a clicked image for the existing crop preview. Retain same-window behavior and final Use/Save confirmation.
+
+Confirmed causes: query builder sent only the title; browser supported only right-click selection; unidentified HTTP requests to the pictured Wikimedia JPEG returned403, while descriptive GameVault identity returned200. The actual image is273×365, below the600×900 effective-crop requirement. Query now appends cover wording idempotently and requests Google's current public Large/Tall/JPG parameters. Actual decoding, not indexed metadata, decides acceptance.
+
+Click selection uses one bounded user-action-only DOM hit-test, associated Google imgurl where available, visible selection and Preview selected image. No bulk scraping, automatic page operation, web-message bridge or external window. Selection generations/cancellation reject stale click/download responses; actual decoded dimensions and sanitized typed request failures guide the user. Existing right-click alternative remains.
+
+Tests: query/identity/error baseline reproduced12 failures then combined focused checks passed. Fresh review found HTTP429/410/503 mislabeled as decoding; added3 failing regressions and typed status mappings, then81 combined cases passed. Public-source windowless production-downloader probe fetched the pictured273×365 JPEG successfully. Full local/CI/package gates and owner native/browser checks remain handoff requirements. No owner UI/native/browser/game testing.
+
+Final local evidence:325Core+216App tests passed (541total), one native encoder test reserved for the disposable runner, zero warnings. Isolated clean published-browser dependency probe also passed. The bounded hit-test preserves a short original Google imgurl when an inline thumbnail is too large to include; without a valid original link it yields no selection. Strict parser payload/address limits remain intact. Fresh review confirmed the typed HTTP correction and found no further blockers. Exact-head CI and clean/local-seeded delivery remain final handoff gates.

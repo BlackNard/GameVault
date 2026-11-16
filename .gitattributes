@@ -1,0 +1,3 @@
+
+# Preserve the unmodified publisher RTF license, including its original line endings/spacing.
+licenses/windows-sdk/LICENSE.rtf -text -diff -whitespace

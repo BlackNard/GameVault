@@ -55,6 +55,8 @@ try {
         }
     }
 
+    Invoke-Dotnet -Arguments @('run', '--project', 'tests/BrowserDependencyProbe/BrowserDependencyProbe.csproj', '-c', 'Release', '--no-build', '--no-restore', '--', $publishDirectory)
+
     $userData = @(Get-ChildItem -LiteralPath $publishDirectory -Directory -Recurse |
         Where-Object { $_.Name -in @('Data', 'Profiles') })
     if ($userData.Count -gt 0) {

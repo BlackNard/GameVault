@@ -48,11 +48,12 @@ public partial class MainWindow
     private async Task<bool> PrepareToQuitAsync()
     {
         RestoreWindow();if(stoppingObservation)return false;
-        if(!await LeaveNotes(detach:false))return false;
-        if(busy||editorOpen||captureUiBusy){closeAfterSave=true;OperationNotice.Text=editorOpen?"Finish or cancel the editor; GameVault will then continue quitting.":"Finishing the current operation before quitting…";return false;}
+        if(((busy||editorOpen)&&activeInlineEditor is null)||captureUiBusy){closeAfterSave=true;OperationNotice.Text="Finishing the current operation before quitting…";return false;}
         quitPreparing=true;UpdateButtons();var proceed=false;
         try
         {
+            if(!await LeaveNotes(detach:false))return false;
+            if(activeInlineEditor is InlineEditorSession editor&&!await editor.TryLeaveAsync())return false;
             var count=launches.GetActiveStates().Length;
             if(count>0&&await InlinePrompts.ShowAsync(this,$"{count} game session(s) are still active or starting.\n\nQuitting finalizes recordings, then stops tracking and automatic backups. GameVault will save a checkpoint and leave the games open. Reopen it to recover supported running sessions.\n\nQuit GameVault?","Quit GameVault?",MessageBoxButton.YesNo,MessageBoxResult.No)!=MessageBoxResult.Yes)return false;
             var warnings=await launches.CheckpointActiveAsync();

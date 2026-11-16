@@ -10,3 +10,5 @@ Automated checks cover template geometry/layout, image aspect ratio and caption 
 - #49: Advanced privacy and its legacy artwork-key button are absent. Local profile storage and key-free cover import remain available.
 
 Use the newly delivered local test build with the latest imported library. Earlier builds and private snapshots remain untouched. Report additional failures as new tickets; do not upload personal notes/saves/captures.
+
+- #53–#56: check Resident Evil2 cover results; large landscape/square crop preview; Google Images same-window full-image right-click Preview as cover; cancel/quit from each editor/page with unsaved work. Native browser/tray checks remain owner pending.

@@ -23,12 +23,14 @@ public sealed class ManualUiBatchTests
  {
   var xml=XDocument.Parse(Source("MainWindow.xaml"));XNamespace ns="http://schemas.microsoft.com/winfx/2006/xaml/presentation",x="http://schemas.microsoft.com/winfx/2006/xaml";
   var images=xml.Descendants(ns+"Image").Where(e=>e.Attribute("Source")?.Value=="{Binding Cover}"||e.Attribute(x+"Name")?.Value=="GameHeroCover").ToArray();Assert.Equal(2,images.Length);Assert.All(images,e=>Assert.Equal("Uniform",e.Attribute("Stretch")?.Value));
+  var library=images.Single(e=>e.Attribute("Source")?.Value=="{Binding Cover}").Ancestors(ns+"Border").First();Assert.Equal("276",library.Attribute("Height")?.Value);
+  var hero=images.Single(e=>e.Attribute(x+"Name")?.Value=="GameHeroCover").Ancestors(ns+"Border").First();Assert.Equal("96",hero.Attribute("Width")?.Value);Assert.Equal("144",hero.Attribute("Height")?.Value);
   var add=xml.Descendants(ns+"Button").Single(e=>e.Attribute(x+"Name")?.Value=="AddButton");Assert.Equal("40",add.Attribute("Height")?.Value);Assert.Equal("Center",add.Attribute("VerticalAlignment")?.Value);
   Assert.DoesNotContain("Advanced privacy",Source("MainWindow.xaml"));Assert.DoesNotContain("ClearLegacyArtworkKey",Source("MainWindow.Navigation.cs"));Assert.Contains("Local profile storage",Source("MainWindow.xaml"));
  }
  [Theory][InlineData(200,300)][InlineData(300,200)][InlineData(200,200)] public void Full_cover_fits_without_changing_aspect_ratio(int w,int h)
  {
-  OnSta(()=>{var image=new Image{Stretch=Stretch.Uniform,Source=BitmapSource.Create(w,h,96,96,PixelFormats.Bgra32,null,new byte[w*h*4],w*4)};image.Measure(new(184,246));image.Arrange(new Rect(0,0,184,246));Assert.InRange(image.RenderSize.Width,0,184);Assert.InRange(image.RenderSize.Height,0,246);Assert.Equal(w/(double)h,image.RenderSize.Width/image.RenderSize.Height,6);});
+  OnSta(()=>{var image=new Image{Stretch=Stretch.Uniform,Source=BitmapSource.Create(w,h,96,96,PixelFormats.Bgra32,null,new byte[w*h*4],w*4)};image.Measure(new(184,276));image.Arrange(new Rect(0,0,184,276));Assert.InRange(image.RenderSize.Width,0,184);Assert.InRange(image.RenderSize.Height,0,276);Assert.Equal(w/(double)h,image.RenderSize.Width/image.RenderSize.Height,6);});
  }
  private static void OnSta(Action work){Exception? failure=null;var t=new Thread(()=>{try{work();}catch(Exception e){failure=e;}});t.SetApartmentState(ApartmentState.STA);t.Start();Assert.True(t.Join(TimeSpan.FromSeconds(20)));if(failure is not null)System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();}
 }

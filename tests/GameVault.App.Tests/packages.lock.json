@@ -1,7 +1,7 @@
 {
   "version": 1,
   "dependencies": {
-    "net10.0-windows7.0": {
+    "net10.0-windows10.0.17763": {
       "Microsoft.NET.Test.Sdk": {
         "type": "Direct",
         "requested": "[17.14.1, )",
@@ -93,6 +93,11 @@
           "Newtonsoft.Json": "13.0.3"
         }
       },
+      "Microsoft.Web.WebView2": {
+        "type": "Transitive",
+        "resolved": "1.0.4314.35",
+        "contentHash": "x5MFf2W03xueU1mMNvivXfHSsQ+ODo7vJ36qw/dLtU5Gs+8d7+7N7zzmNNDoT3ffosmcvZNBtUnlzyiDUuBkSQ=="
+      },
       "Newtonsoft.Json": {
         "type": "Transitive",
         "resolved": "13.0.3",
@@ -157,6 +162,7 @@
           "GameVault.Capture": "[1.0.0, )",
           "GameVault.Core": "[1.0.0, )",
           "GameVault.Infrastructure": "[1.0.0, )",
+          "Microsoft.Web.WebView2": "[1.0.4314.35, )",
           "PDFsharp": "[6.2.3, )"
         }
       },
@@ -177,6 +183,12 @@
         }
       }
     },
-    "net10.0-windows7.0/win-x64": {}
+    "net10.0-windows10.0.17763/win-x64": {
+      "Microsoft.Web.WebView2": {
+        "type": "Transitive",
+        "resolved": "1.0.4314.35",
+        "contentHash": "x5MFf2W03xueU1mMNvivXfHSsQ+ODo7vJ36qw/dLtU5Gs+8d7+7N7zzmNNDoT3ffosmcvZNBtUnlzyiDUuBkSQ=="
+      }
+    }
   }
 }

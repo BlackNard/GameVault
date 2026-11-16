@@ -41,6 +41,15 @@ try {
         Remove-Item -LiteralPath (Join-Path $missingCapture $required)
         Assert-Rejected { Get-InstallerPayload $missingCapture } ('missing '+[regex]::Escape($required))
     }
+    $webRequired=@('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.Wpf.dll','WebView2Loader.dll','licenses/webview2/LICENSE.txt','licenses/webview2/NOTICE.txt','Microsoft.Windows.SDK.NET.dll','WinRT.Runtime.dll','licenses/windows-sdk/LICENSE.rtf')
+    $missingCore=New-Payload 'webview-missing-core'
+    [IO.File]::WriteAllText((Join-Path $missingCore 'GameVault.deps.json'),'{"libraries":{"Microsoft.Web.WebView2/1.0.4314.35":{}}}')
+    Assert-Rejected {Get-InstallerPayload $missingCore} 'missing Microsoft[.]Web[.]WebView2[.]Core[.]dll'
+    foreach($missingWeb in $webRequired|Select-Object -Skip 1){
+        $web=New-Payload ('webview-'+[guid]::NewGuid().ToString('N'))
+        foreach($name in $webRequired|Where-Object{$_ -ne $missingWeb}){$path=Join-Path $web $name;New-Item -ItemType Directory (Split-Path $path -Parent) -Force|Out-Null;[IO.File]::WriteAllText($path,'Synthetic SDK payload')}
+        Assert-Rejected {Get-InstallerPayload $web} ('missing '+[regex]::Escape($missingWeb))
+    }
     $framework = New-Payload 'framework-dependent'
     [IO.File]::WriteAllText((Join-Path $framework 'GameVault.runtimeconfig.json'),'{"runtimeOptions":{}}')
     Assert-Rejected { Get-InstallerPayload $framework } 'self-contained'

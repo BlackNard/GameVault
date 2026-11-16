@@ -269,7 +269,7 @@ public partial class MainWindow : Window
             if (await ShowInlineEditorAsync(dialog,h=>dialog.Completed+=h,h=>dialog.Completed-=h)) OperationNotice.Text = "Launch settings saved.";
         }
         catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = error.Message; }
-        finally { editorOpen = false; EndOperation(); }
+        finally { editorOpen = false; EndOperation(); CompleteInlineEditor(); }
     }
 
     private async void OpenEditor(GameProfile? profile)
@@ -306,9 +306,13 @@ public partial class MainWindow : Window
         finally
         {
             busy = editorOpen = false;
-            if (saveSourcesView is not null) await saveSourcesView.RefreshAsync();
-            UpdateButtons();
-            ContinueDeferredQuit();
+            try
+            {
+                if (saveSourcesView is not null) await saveSourcesView.RefreshAsync();
+                UpdateButtons();
+                ContinueDeferredQuit();
+            }
+            finally { CompleteInlineEditor(); }
         }
     }
 

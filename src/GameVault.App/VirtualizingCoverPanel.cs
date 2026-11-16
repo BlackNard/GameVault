@@ -6,7 +6,7 @@ namespace GameVault.App;
 
 internal sealed record CoverGridLayout(int Columns,int First,int End,double ExtentHeight,double Offset)
 {
- public const double TileWidth=200,TileHeight=340;
+ public const double TileWidth=200,TileHeight=372;
  public static CoverGridLayout Calculate(int count,double width,double height,double offset)
  {
   var columns=Math.Max(1,(int)(Math.Max(1,width)/TileWidth));var extent=Math.Ceiling(count/(double)columns)*TileHeight;
