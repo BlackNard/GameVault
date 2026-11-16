@@ -48,11 +48,6 @@ public partial class MainWindow
   WindowChromeBehavior.Apply(this,MaximizeCaptionButton);
   Loaded+=async(_,_)=>await RefreshBackupDestinationsAsync();
  }
- private void ClearLegacyArtworkKey(object sender,RoutedEventArgs e)
- {
-  try{new GameVault.App.Artwork.WindowsArtworkCredentialStore().Delete();OperationNotice.Text="Previously saved artwork service key removed. Browser image search needs no key.";}
-  catch(Exception){OperationNotice.Text="Windows could not remove the old artwork key. You can remove GameVault/SteamGridDB/v2 in Windows Credential Manager.";}
- }
  private void ToggleGameOptions(object sender,RoutedEventArgs e)=>GameOptionsPopup.IsOpen=!GameOptionsPopup.IsOpen;
  private void MinimizeWindow(object sender,RoutedEventArgs e)=>SystemCommands.MinimizeWindow(this);
  private void MaximizeWindow(object sender,RoutedEventArgs e){if(WindowState==WindowState.Maximized)SystemCommands.RestoreWindow(this);else SystemCommands.MaximizeWindow(this);}
