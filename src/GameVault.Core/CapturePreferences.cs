@@ -13,7 +13,19 @@ public sealed record CaptureShortcut(uint Modifiers,int VirtualKey)
 public sealed record CapturePreferences(int SchemaVersion,int Height,int FramesPerSecond,bool GameAudio,
     CaptureShortcut Screenshot,CaptureShortcut Recording,CaptureShortcut Overlay)
 {
-    public static CapturePreferences Default=>new(1,1080,30,false,new(3,0x78),new(3,0x79),new(1,0x5A));
+    // Ctrl+Shift+F9/F10/F11: avoids the NVIDIA overlay (Alt+Z, Alt+F-keys), Steam (F12, Shift+Tab) and Xbox Game Bar (Win+Alt+...) defaults.
+    public static CapturePreferences Default=>new(1,1080,30,false,new(6,0x78),new(6,0x79),new(6,0x7A));
+    // Earlier defaults (Ctrl+Alt+F9/F10 or Alt+F9/F10, and Alt+Z) overlap NVIDIA's overlay controls.
+    private static readonly CaptureShortcut[] LegacyScreenshot=[new(3,0x78),new(1,0x78)];
+    private static readonly CaptureShortcut[] LegacyRecording=[new(3,0x79),new(1,0x79)];
+    private static readonly CaptureShortcut LegacyOverlay=new(1,0x5A);
+    /// <summary>Moves bindings that are still the old overlapping defaults to the current defaults; any customised binding set is returned unchanged.</summary>
+    public CapturePreferences WithLegacyDefaultsUpgraded()
+    {
+        if(!LegacyScreenshot.Contains(Screenshot) || !LegacyRecording.Contains(Recording) || Overlay!=LegacyOverlay)return this;
+        var current=Default;
+        return this with{Screenshot=current.Screenshot,Recording=current.Recording,Overlay=current.Overlay};
+    }
     public void Validate()
     {
         if(SchemaVersion!=1 || Height is not(720 or 1080) || FramesPerSecond is not(30 or 60) || Screenshot is null || Recording is null || Overlay is null)
