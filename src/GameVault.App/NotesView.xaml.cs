@@ -56,7 +56,7 @@ public partial class NotesView : UserControl
     private void LoadEntry(bool preserveDraft=false)
     {
         changing=true;if(!preserveDraft)editor=new(Document?.Value);
-        SessionsRow.Height=new GridLength(review?0:160);SessionList.Visibility=TableToolbar.Visibility=review?Visibility.Collapsed:Visibility.Visible;
+        ListColumn.MinWidth=review?0:380;ListColumn.Width=review?new GridLength(0):new GridLength(2,GridUnitType.Star);SessionsPane.Visibility=review?Visibility.Collapsed:Visibility.Visible;
         EntryHeading.Text=review?"Your game review":selected?.Date??"No recorded sessions yet";
         EntryContext.Text=review?catalog?.CanReview==true?"Your review stays when you replay or change status.":Document?.Value is null?
             "Mark this game Completed to write your first review.":"This review is protected; see the warning.":selected is null?

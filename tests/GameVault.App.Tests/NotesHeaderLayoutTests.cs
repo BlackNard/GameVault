@@ -37,7 +37,7 @@ public sealed class NotesHeaderLayoutTests
         foreach (var name in new[] { "SessionsTab", "ActivityTab", "ReviewTab", "RefreshButton" })
             Assert.Equal(40, ((Button)header.FindName(name)).ActualHeight);
         var last = (TextBlock)header.FindName("LastPlayed");
-        Assert.InRange(last.TranslatePoint(new Point(), header).X + last.ActualWidth, 1, 700);
+        Assert.InRange(last.TranslatePoint(new Point(), header).X + last.ActualWidth, 1, width); // never clipped at the right edge
     });
 
     [Fact]
@@ -64,6 +64,28 @@ public sealed class NotesHeaderLayoutTests
         Assert.Equal(40, ((ComboBox)toolbar.FindName("SortChoice")).ActualHeight);
     });
 
+    [Fact]
+    public void Sessions_page_has_one_control_row_a_roomy_session_list_and_a_side_note_pane()
+    {
+        var document = Source();
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        XElement Named(string name) => document.Descendants().Single(e => (string?)e.Attribute(x + "Name") == name);
+        // One tab level: the three views and the page actions share the first row.
+        var tabs = new[] { "SessionsTab", "ActivityTab", "ReviewTab" }.Select(n => Named(n).Parent).Distinct().ToArray();
+        Assert.Single(tabs);
+        Assert.Same(Named("StatusChoice").Parent, Named("RefreshButton").Parent);
+        Assert.Same(Named("StatusChoice").Parent, Named("ExportButton").Parent);
+        // The list is a full-height pane beside the note, not a fixed 160px strip.
+        Assert.DoesNotContain(document.Descendants(), e => (string?)e.Attribute(x + "Name") == "SessionsRow");
+        Assert.Equal(2, Named("Fields").Elements().Single(e => e.Name.LocalName == "Grid.ColumnDefinitions").Elements().Count());
+        Assert.Same(Named("SessionsPane"), Named("SessionList").Parent);
+        Assert.DoesNotContain(document.Descendants(), e => (string?)e.Attribute("Height") == "160");
+        // Compact list columns; per-session detail (offsets, measured time) lives with the selected note.
+        var headers = Named("SessionList").Descendants().Where(e => e.Name.LocalName == "DataGridTextColumn").Select(e => (string?)e.Attribute("Header")).ToArray();
+        Assert.Equal(new[] { "Date", "Time", "Played", "Note" }, headers);
+        Assert.Equal("SortChoice", Named("TableToolbar").Descendants().First(e => e.Name.LocalName == "ComboBox").Attribute(x + "Name")!.Value);
+    }
+
     private static FrameworkElement LoadHeader(string theme)
     {
         XNamespace ns = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
@@ -71,8 +93,8 @@ public sealed class NotesHeaderLayoutTests
         var document = Source();
         var grid = document.Descendants(ns + "Grid").Single(e => e.Parent?.Name == ns + "ScrollViewer" && e.Attribute("MinHeight") is not null);
         var fragment = new XElement(ns + "Grid", new XAttribute(XNamespace.Xmlns + "x", x),
-            new XElement(ns + "Grid.RowDefinitions", Enumerable.Range(0, 3).Select(_ => new XElement(ns + "RowDefinition", new XAttribute("Height", "Auto")))),
-            grid.Elements().Where(e => e.Name != ns + "Grid.RowDefinitions").Take(3).Select(e => new XElement(e)));
+            new XElement(ns + "Grid.RowDefinitions", Enumerable.Range(0, 2).Select(_ => new XElement(ns + "RowDefinition", new XAttribute("Height", "Auto")))),
+            grid.Elements().Where(e => e.Name != ns + "Grid.RowDefinitions").Take(2).Select(e => new XElement(e)));
         return LoadFragment(fragment, theme);
     }
 
