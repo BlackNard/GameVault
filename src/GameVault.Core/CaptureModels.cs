@@ -16,5 +16,30 @@ public sealed record CaptureOptions(CaptureAudioMode Audio = CaptureAudioMode.No
    throw new ArgumentException("Choose an even capture size up to 1920×1080, 30/60 fps and 1–20 Mbps.");
  }
 }
+// SourceFingerprint is set only for clips copied in from another recorder (NVIDIA App); it identifies the original file so it is never imported twice.
 public sealed record CaptureMedia(Guid Id, Guid ProfileId, Guid SessionId, DateTimeOffset CapturedUtc,
- CaptureMediaKind Kind, CaptureMediaStatus Status, string FilePath, string? Error = null);
+ CaptureMediaKind Kind, CaptureMediaStatus Status, string FilePath, string? Error = null, string? SourceFingerprint = null);
+
+/// <summary>Which recorder a game uses. Auto means NVIDIA App when it is installed, otherwise GameVault's own recorder.</summary>
+public enum CaptureSource { Auto, GameVault, NvidiaApp }
+public sealed record CaptureSourceSettings(int SchemaVersion, Guid GameId, CaptureSource Source);
+public sealed record NvidiaAppInfo(bool Installed, bool Running, string? CaptureFolder)
+{
+ public static readonly NvidiaAppInfo NotFound = new(false, false, null);
+ public string Describe() => !Installed ? "NVIDIA App was not found." : Running ? "NVIDIA App detected and running." : "NVIDIA App detected (not running).";
+}
+/// <summary>Outcome of copying NVIDIA App captures into a game's profile.</summary>
+public sealed record NvidiaImportResult(int Imported, int AlreadyImported, int Waiting, int Unsupported, int Failed, string? FirstError = null)
+{
+ public static readonly NvidiaImportResult None = new(0, 0, 0, 0, 0);
+ public string Describe(string folder)
+ {
+  var parts = new List<string>();
+  if (Imported > 0) parts.Add($"{Imported} new capture(s) copied");
+  if (AlreadyImported > 0) parts.Add($"{AlreadyImported} already in the profile");
+  if (Waiting > 0) parts.Add($"{Waiting} still being written (try again shortly)");
+  if (Unsupported > 0) parts.Add($"{Unsupported} in an unsupported format were skipped");
+  if (Failed > 0) parts.Add($"{Failed} could not be copied" + (FirstError is null ? "" : ": " + FirstError));
+  return parts.Count == 0 ? "No NVIDIA captures from your play sessions were found in " + folder + "." : string.Join(" · ", parts) + ".";
+ }
+}

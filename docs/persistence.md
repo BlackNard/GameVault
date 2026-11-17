@@ -9,6 +9,7 @@ GameVault/
   Profiles/<game name>/
     profile.json
     statistics.json
+    capture-source.json   (optional: which recorder the game uses, see nvidia-app-capture.md)
     .gamevault-id
     Backups/
 ```

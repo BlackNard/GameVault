@@ -24,7 +24,38 @@ public partial class MainWindow
     private long mediaRevision;
     private string? captureFeedback;
     private bool? shortcutsSessionActive;
-    private bool HasCaptureSession()=>launches.GetActiveStates().Any(state=>state.Phase==LaunchPhase.Running);
+    private readonly INvidiaEnvironment nvidiaEnvironment=new WindowsNvidiaEnvironment();
+    private NvidiaAppInfo nvidia=NvidiaAppInfo.NotFound;
+    private NvidiaCaptureImporter? nvidiaImporter;
+    private readonly Dictionary<Guid,CaptureSource> captureSources=[];
+    private readonly HashSet<Guid> captureSourcesLoading=[];
+    private readonly SemaphoreSlim nvidiaImportGate=new(1,1);
+    private int nvidiaTick;
+    // GameVault's own shortcuts are only active for a running game that records with GameVault. NVIDIA App's games keep NVIDIA's keys to themselves.
+    private bool HasCaptureSession()=>launches.GetActiveStates().Any(state=>state.Phase==LaunchPhase.Running && captureSources.ContainsKey(state.GameId) && !UsesNvidia(state.GameId));
+    private CaptureSource SourceOf(Guid id)=>captureSources.TryGetValue(id,out var source)?source:CaptureSource.Auto;
+    private bool UsesNvidia(Guid id)=>NvidiaApp.UsesNvidia(SourceOf(id),nvidia);
+    private async Task LoadCaptureSourceAsync(Guid id)
+    {
+        if(captureDisposed || captureSources.ContainsKey(id) || !captureSourcesLoading.Add(id))return;
+        try
+        {
+            var saved=await store.LoadCaptureSourceAsync(id);
+            if(!captureDisposed)captureSources[id]=saved.Value?.Source??CaptureSource.Auto;
+        }
+        catch(Exception error) when(IsExpected(error)){if(!captureDisposed)captureSources[id]=CaptureSource.Auto;}
+        finally{captureSourcesLoading.Remove(id);if(!captureDisposed){shortcutsSessionActive=null;UpdateCaptureControls();}}
+    }
+    private async Task RefreshNvidiaAsync()
+    {
+        try
+        {
+            var found=await Task.Run(()=>NvidiaApp.Detect(nvidiaEnvironment));
+            if(captureDisposed || found==nvidia)return;
+            nvidia=found;shortcutsSessionActive=null;UpdateCaptureControls();
+        }
+        catch(Exception error) when(IsExpected(error)){}
+    }
     private void UpdateCaptureSessionShortcuts()
     {
         if(captureHotkeys is null || captureDisposed)return;
@@ -37,6 +68,9 @@ public partial class MainWindow
         capture=new(paths,()=>new WindowsCaptureBackend());capture.Changed+=CaptureChanged;
         launches.SessionEnded+=CaptureSessionEnded;
         GameCaptureControls.Command+=CaptureCommandRequested;
+        GameCaptureControls.SourceChanged+=CaptureSourceChosen;
+        GameCaptureControls.ImportRequested+=NvidiaImportRequested;
+        nvidiaImporter=new(paths,new CaptureMediaStore(paths));
         CaptureSettings.ApplyRequested+=ApplyCapturePreferences;
         CaptureSettings.InstallRuntimeRequested+=(_,_)=>
         {
@@ -94,6 +128,7 @@ public partial class MainWindow
     private async Task<(Guid Profile,CaptureTarget Target)> RequireCaptureTargetAsync()
     {
         var id=CaptureGameId()??throw new InvalidOperationException("Select a running game before capturing. If several games are running, select the game you want.");
+        if(UsesNvidia(id))throw new InvalidOperationException("This game records with NVIDIA App. Use NVIDIA's overlay or shortcuts; GameVault copies the clips into this game's profile afterwards.");
         var state=launches.GetState(id);var progress=launches.GetSessionProgress(id);
         if(state.Phase!=LaunchPhase.Running || progress is not{IsActive:true})throw new InvalidOperationException("Wait until the game session is running.");
         var journals=await store.LoadSessionJournalsAsync(id);
@@ -160,11 +195,60 @@ public partial class MainWindow
                 try{await FinishCaptureAsync();}finally{captureUiBusy=false;ContinueDeferredQuit();}
             }
             UpdateCaptureControls();
+            // NVIDIA finishes writing its clip a moment after the game closes, so copy now and once more later.
+            if(UsesNvidia(session.GameId))_=ImportNvidiaAfterSessionAsync(session.GameId);
         });
+    }
+    private async Task ImportNvidiaAfterSessionAsync(Guid id)
+    {
+        foreach(var delay in new[]{TimeSpan.FromSeconds(8),TimeSpan.FromSeconds(90)})
+        {
+            try{await Task.Delay(delay);}catch(TaskCanceledException){return;}
+            if(captureDisposed || Dispatcher.HasShutdownStarted)return;
+            await ImportNvidiaAsync(id,false);
+        }
+    }
+    private async void CaptureSourceChosen(object? sender,CaptureSource source)
+    {
+        if(GameList.SelectedItem is not LibraryItemView item)return;
+        if(captureUiBusy || capture?.ActiveProfileId is not null){OperationNotice.Text="Stop recording before changing the recorder.";UpdateCaptureControls();return;}
+        try
+        {
+            await store.SaveCaptureSourceAsync(new(1,item.Game.Id,source));
+            captureSources[item.Game.Id]=source;shortcutsSessionActive=null;
+            OperationNotice.Text=NvidiaApp.UsesNvidia(source,nvidia)?item.Name+" will record with NVIDIA App. GameVault's own recorder and shortcuts are off for it.":item.Name+" will record with GameVault's recorder.";
+        }
+        catch(Exception error) when(IsExpected(error)){OperationNotice.Text="The recorder choice could not be saved. "+error.Message;}
+        UpdateCaptureControls();
+    }
+    private async void NvidiaImportRequested(object? sender,EventArgs e)
+    {
+        if(GameList.SelectedItem is LibraryItemView item)await ImportNvidiaAsync(item.Game.Id,true);
+    }
+    /// <summary>Copies NVIDIA App's clips from this game's play sessions into its profile. Originals are never changed. Manual runs always report; automatic runs only report news.</summary>
+    private async Task ImportNvidiaAsync(Guid id,bool manual)
+    {
+        if(captureDisposed || nvidiaImporter is null)return;
+        await RefreshNvidiaAsync();
+        if(nvidia.CaptureFolder is not{} folder || !nvidia.Installed){if(manual)OperationNotice.Text="NVIDIA App was not found on this PC.";return;}
+        await nvidiaImportGate.WaitAsync();
+        try
+        {
+            if(manual)OperationNotice.Text="Copying NVIDIA captures for "+CaptureName(id)+"…";
+            var importer=nvidiaImporter;
+            var result=await Task.Run(()=>importer.ImportAsync(id,folder));
+            if(captureDisposed)return;
+            if(manual || result.Imported>0 || result.Failed>0)OperationNotice.Text=CaptureName(id)+": "+result.Describe(folder);
+            if(result.Imported>0)await RefreshCaptureMediaAsync();
+        }
+        catch(Exception error) when(IsExpected(error)){if(!captureDisposed)OperationNotice.Text="NVIDIA captures could not be copied. "+error.Message;}
+        finally{nvidiaImportGate.Release();}
     }
     private async void CaptureTick(object? sender,EventArgs e)
     {
         if(captureDisposed || capture is null)return;
+        if(nvidiaTick++%20==0)_=RefreshNvidiaAsync();
+        foreach(var state in launches.GetActiveStates())if(state.Phase==LaunchPhase.Running)_=LoadCaptureSourceAsync(state.GameId);
         UpdateCaptureSessionShortcuts();
         if(!captureUiBusy && capture.ActiveProfileId is Guid id && !launches.GetState(id).IsActive)
         {
@@ -197,6 +281,16 @@ public partial class MainWindow
         };
         if(active)target="Recording: "+target;
         var blocked=captureUiBusy||stoppingObservation||quitPreparing;
+        // The page shows the selected game's recorder choice; a game that records with NVIDIA App leaves its capture buttons off.
+        var shown=(GameList.SelectedItem as LibraryItemView)?.Game.Id??id;
+        if(shown is Guid selectedGame && !captureSources.ContainsKey(selectedGame))_=LoadCaptureSourceAsync(selectedGame);
+        var nvidiaGame=shown is Guid chosen && !active && UsesNvidia(chosen);
+        GameCaptureControls.SetRecorder(shown is Guid known?SourceOf(known):CaptureSource.Auto,nvidia,nvidiaGame,shown is not null && !active && !blocked);
+        if(nvidiaGame)
+        {
+            target=CaptureName(shown!.Value);
+            message="NVIDIA App records this game. GameVault copies its clips into the profile after you finish playing, or use the button above.";
+        }
         GameCaptureControls.Update(target,message,id is not null,active,blocked);
         captureOverlay?.Controls.Update(target,message,id is not null,active,blocked,true);
     }
@@ -269,6 +363,6 @@ public partial class MainWindow
     }
     private sealed record MediaRow(CaptureMedia Media)
     {
-        public override string ToString()=>$"{Media.CapturedUtc.ToLocalTime():g} · {Media.Kind}"+(Media.Status==CaptureMediaStatus.Complete?"":" · Incomplete");
+        public override string ToString()=>$"{Media.CapturedUtc.ToLocalTime():g} · {Media.Kind}"+(Media.SourceFingerprint is null?"":" · from NVIDIA App")+(Media.Status==CaptureMediaStatus.Complete?"":" · Incomplete");
     }
 }

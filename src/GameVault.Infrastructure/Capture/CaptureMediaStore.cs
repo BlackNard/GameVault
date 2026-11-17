@@ -30,6 +30,29 @@ public sealed class CaptureMediaStore(ApplicationPaths paths)
   using(var reservation=new FileStream(media.FilePath,FileMode.CreateNew,FileAccess.Write,FileShare.None)) reservation.Flush(true);
   Write(media); return media;
  }
+ /// <summary>Reserves an entry for a clip copied from another recorder. Unlike a live capture it needs no active session, only a writable profile.</summary>
+ public async Task<CaptureMedia> BeginImportAsync(Guid profileId,Guid sessionId,CaptureMediaKind kind,DateTimeOffset capturedUtc,string sourceFingerprint)
+ {
+  if(profileId==Guid.Empty || sessionId==Guid.Empty || string.IsNullOrWhiteSpace(sourceFingerprint) || sourceFingerprint.Length>128)throw new ArgumentException("Invalid import request.");
+  var profile=await new AppDataStore(paths).LoadProfileAsync(profileId);
+  if(profile.Profile.State!=DocumentState.Ready || profile.Profile.Value!.IsArchived)
+   throw new IOException("A writable library profile is required to import captures.");
+  var folder=Path.Combine(ProfileFolders.Resolve(paths,profileId),"Media",sessionId.ToString("N"));
+  managed.EnsureDirectory(folder);
+  var id=Guid.NewGuid();
+  var name=$"{capturedUtc.ToUniversalTime():yyyyMMddTHHmmssfffffffZ}-{id:N}"+(kind==CaptureMediaKind.Video?".mp4":".png");
+  var media=new CaptureMedia(id,profileId,sessionId,capturedUtc.ToUniversalTime(),kind,CaptureMediaStatus.Incomplete,Path.Combine(folder,name)+".partial",null,sourceFingerprint);
+  managed.Check(media.FilePath);
+  using(var reservation=new FileStream(media.FilePath,FileMode.CreateNew,FileAccess.Write,FileShare.None)) reservation.Flush(true);
+  Write(media); return media;
+ }
+ /// <summary>Removes an unfinished imported copy and its metadata. Only for imports: the original recording is never touched.</summary>
+ public void Discard(CaptureMedia media)
+ {
+  CheckMedia(media);
+  if(media.Status!=CaptureMediaStatus.Incomplete || media.SourceFingerprint is null)throw new ArgumentException("Only unfinished imported captures can be discarded.");
+  File.Delete(media.FilePath);File.Delete(media.FilePath+".json");
+ }
  public Task<CaptureMedia[]> ListAsync(Guid profileId)=>Task.Run(async()=>
  {
   if(profileId==Guid.Empty)throw new ArgumentException("A profile is required.");
