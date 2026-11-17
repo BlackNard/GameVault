@@ -53,13 +53,23 @@ public partial class MainWindow
             var saved=await store.LoadCapturePreferencesAsync();
             if(captureDisposed)return;
             capturePreferences=saved.Value??CapturePreferences.Default;capturePreferencesReadOnly=saved.IsReadOnly;
+            string? upgradeNotice=null;
+            if(saved.Value is not null && !capturePreferencesReadOnly)
+            {
+                var upgraded=capturePreferences.WithLegacyDefaultsUpgraded();
+                if(upgraded!=capturePreferences)
+                {
+                    try{await store.SaveCapturePreferencesAsync(upgraded);capturePreferences=upgraded;upgradeNotice="Capture shortcuts moved off the old defaults that overlap NVIDIA's overlay.";}
+                    catch(Exception){upgradeNotice="Old capture shortcuts overlap NVIDIA's overlay but could not be updated; choose new ones below.";}
+                }
+            }
             CaptureSettings.SetPreferences(capturePreferences);CaptureSettings.SetEditingEnabled(!capturePreferencesReadOnly);
             captureHwnd=HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
             captureHwnd?.AddHook(CaptureMessage);
             captureHotkeys=new(new CaptureHotkeyPlatform(new WindowInteropHelper(this).Handle));
             var result=captureHotkeys.Apply(capturePreferences,HasCaptureSession());
             shortcutsSessionActive=HasCaptureSession();
-            CaptureSettings.SetNotice(saved.Message??result.Message);
+            CaptureSettings.SetNotice(saved.Message??(upgradeNotice is null?result.Message:upgradeNotice+" "+result.Message));
             captureTimer.Start();UpdateCaptureControls();
         }
         catch(Exception error){CaptureSettings.SetNotice("Capture shortcuts could not initialize. Launcher controls remain available. "+error.Message);}
