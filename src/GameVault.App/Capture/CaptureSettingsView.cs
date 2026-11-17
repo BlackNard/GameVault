@@ -18,6 +18,7 @@ public sealed class CaptureSettingsView:UserControl
     {
         inputs.Children.Add(new TextBlock{Text="Capture and shortcuts",FontSize=22,FontWeight=FontWeights.SemiBold,Margin=new(0,0,0,12)});
         inputs.Children.Add(new TextBlock{Text="PNG screenshots · MP4 H.264 video. Microphone capture is never enabled.",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,12)});
+        inputs.Children.Add(new TextBlock{Text="These settings are for GameVault's own recorder. On a PC with NVIDIA App, a game can record with NVIDIA instead (choose it on the game's Media tab); GameVault then copies the clips into that game's profile.",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,12)});
         inputs.Children.Add(new TextBlock{Text="Shortcuts only work while a tracked game is running. If your GPU overlay (NVIDIA, AMD), Steam or Xbox Game Bar uses the same keys, choose different ones here.",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,12)});
         resolution.ItemsSource=new[]{"720p","1080p"};rate.ItemsSource=new[]{"30 fps","60 fps"};
         inputs.Children.Add(new Label{Content="Video size"});inputs.Children.Add(resolution);inputs.Children.Add(new Label{Content="Frame rate"});inputs.Children.Add(rate);inputs.Children.Add(audio);
