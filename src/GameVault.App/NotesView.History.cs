@@ -140,6 +140,23 @@ public partial class NotesView
         public string Duration=>Row.Session is PlaySession s?NotesView.Duration(LiveSeconds??Detail?.AdjustedSeconds??s.DurationSeconds)+
             (Detail is not null&&Detail.AdjustedSeconds!=s.DurationSeconds?"\nMeasured: "+NotesView.Duration(s.DurationSeconds):""):"Unavailable";
         public string Context=>Row.Context+(Detail?.EndKind==SessionEndKind.Interrupted?" · Actual exit time unknown":"");
-        public string NoteLabel=>Row.Note.Value is not null?"Note saved":Row.Note.State==DocumentState.Missing?"Write note below":"Note needs attention";
+        public string NoteLabel=>Row.Note.Value is not null?"Note saved":Row.Note.State==DocumentState.Missing?"No note yet":"Note needs attention";
+        // Compact single-line values for the session list; the full times, offsets and measured duration are shown with the selected session.
+        public string When
+        {
+            get
+            {
+                var start=Row.Session?.StartedAt.ToLocalTime().ToString("HH:mm");
+                if(start is null||Detail is null)return "Unavailable";
+                return Detail.EndKind switch
+                {
+                    SessionEndKind.Active=>start+" → now",SessionEndKind.Unavailable=>start+" · needs attention",
+                    SessionEndKind.Interrupted=>start+" → interrupted",SessionEndKind.Unknown=>start+" → "+Row.Session?.EndedAt?.ToLocalTime().ToString("HH:mm")+" (unverified)",
+                    _=>start+" → "+Row.Session?.EndedAt?.ToLocalTime().ToString("HH:mm")
+                };
+            }
+        }
+        public string ListDuration=>Row.Session is PlaySession s?NotesView.Duration(LiveSeconds??Detail?.AdjustedSeconds??s.DurationSeconds):"Unavailable";
+        public string ListNote=>Row.Note.Value is not null?"Saved":Row.Note.State==DocumentState.Missing?"None":"Needs attention";
     }
 }
