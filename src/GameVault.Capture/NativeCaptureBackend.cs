@@ -3,10 +3,11 @@ using GameVault.Infrastructure.Capture;
 using ScreenRecorderLib;
 namespace GameVault.Capture;
 
-internal sealed class NativeCaptureBackend : ICaptureBackend, ICaptureBackendLifetime
+internal sealed class NativeCaptureBackend : ICaptureBackend, ICaptureBackendLifetime, ICaptureBackendHealth
 {
  NativeOperation? recording;
  NativeOperation? screenshot;
+ public long VideoFrames=>recording?.Frames??-1;
  public Task Completion=>recording?.Completion??screenshot?.Completion??Task.CompletedTask;
  public async Task ScreenshotAsync(CaptureTarget target,string partialPath,CancellationToken cancellationToken)
  {
@@ -61,7 +62,8 @@ internal sealed class NativeCaptureBackend : ICaptureBackend, ICaptureBackendLif
   readonly Recorder recorder; readonly FileStream stream;
   readonly TaskCompletionSource started=new(TaskCreationOptions.RunContinuationsAsynchronously);
   readonly TaskCompletionSource completed=new(TaskCreationOptions.RunContinuationsAsynchronously);
-  readonly Task cleanup; int stopRequested;
+  readonly Task cleanup; int stopRequested; long frames;
+  public long Frames=>Interlocked.Read(ref frames);
   public Task Started=>started.Task;
   public Task Completion=>cleanup;
   public NativeOperation(RecorderOptions options,string path)
@@ -74,6 +76,8 @@ internal sealed class NativeCaptureBackend : ICaptureBackend, ICaptureBackendLif
    }
    catch{recorder.Dispose();throw;}
    recorder.OnStatusChanged+=(_,e)=>{if(e.Status==RecorderStatus.Recording)started.TrySetResult();};
+   // Only a counter: lets GameVault notice when the picture stops while audio continues. No frame data is read.
+   recorder.OnFrameRecorded+=(_,_)=>Interlocked.Increment(ref frames);
    recorder.OnRecordingComplete+=(_,_)=>{started.TrySetResult();completed.TrySetResult();};
    recorder.OnRecordingFailed+=(_,e)=>
    {

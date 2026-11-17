@@ -4,10 +4,11 @@ using GameVault.Infrastructure.Capture;
 namespace GameVault.Capture;
 
 // No ScreenRecorderLib types in this public wrapper. Native prerequisites are touched on demand only.
-public sealed class WindowsCaptureBackend : ICaptureBackend, ICaptureBackendLifetime
+public sealed class WindowsCaptureBackend : ICaptureBackend, ICaptureBackendLifetime, ICaptureBackendHealth
 {
  ICaptureBackend? native;
  Task? request;
+ public long VideoFrames=>(native as ICaptureBackendHealth)?.VideoFrames??-1;
  public Task Completion=>ObserveRequestAsync(request);
  async Task ObserveRequestAsync(Task? pending)
  {

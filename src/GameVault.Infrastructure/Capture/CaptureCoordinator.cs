@@ -24,6 +24,19 @@ public sealed class CaptureCoordinator
  sealed record RecordingClock(DateTimeOffset Value);
  volatile RecordingClock? recordingClock;
  public DateTimeOffset? RecordingStartedUtc=>recordingClock?.Value;
+ RecordingWatchdog? watchdog;
+ volatile VideoHealth videoHealth=VideoHealth.Unknown;
+ /// <summary>Whether the picture of the running recording is still being produced. Call <see cref="PollHealth"/> regularly (about once a second).</summary>
+ public VideoHealth VideoHealth=>videoHealth;
+ public void PollHealth(DateTimeOffset? now=null)
+ {
+  var dog=watchdog;
+  if(State!=CaptureState.Recording || dog is null || backend is not ICaptureBackendHealth health)return;
+  var before=videoHealth;var after=dog.Observe(health.VideoFrames,now??DateTimeOffset.UtcNow);
+  videoHealth=after;
+  if(after.Stalled!=before.Stalled || after.Episodes!=before.Episodes)NotifyChanged();
+ }
+ CaptureMedia WithWarning(CaptureMedia media)=>videoHealth.Warning is string warning?media with{Warning=warning}:media;
  public string? LastError{get;private set;}
  public async Task<CaptureMedia> ScreenshotAsync(Guid profileId,CaptureTarget target,CancellationToken cancellationToken=default)
  {
@@ -60,6 +73,7 @@ public sealed class CaptureCoordinator
    State=CaptureState.Starting;LastError=null;NotifyChanged();
    active=await store.BeginAsync(profileId,target,CaptureMediaKind.Video);
    ActiveTarget=target;
+   watchdog=new();videoHealth=VideoHealth.Unknown;
    backend=factory();
    await backend.StartAsync(target,active.FilePath,options??new(),operationCancellation.Token).WaitAsync(timeout,cancellationToken);
    recordingClock=new(DateTimeOffset.UtcNow);State=CaptureState.Recording;
@@ -99,7 +113,7 @@ public sealed class CaptureCoordinator
    // Cancelling a UI request must not interrupt durable native finalization.
    stopTask??=Task.Run(()=>backend.StopAsync(CancellationToken.None));
    await stopTask.WaitAsync(timeout);
-   var complete=store.Complete(active);ClearActive();State=CaptureState.Idle;
+   var complete=store.Complete(WithWarning(active));ClearActive();State=CaptureState.Idle;
    return complete;
   }
   catch(Exception ex)
@@ -120,7 +134,7 @@ public sealed class CaptureCoordinator
    try
    {
     if(active!=media)return;
-    store.Complete(media);ClearActive();State=CaptureState.Idle;
+    store.Complete(WithWarning(media));ClearActive();State=CaptureState.Idle;
    }
    finally{gate.Release();NotifyChanged();}
   }
@@ -142,7 +156,7 @@ public sealed class CaptureCoordinator
   try{if(active==media)ClearActive();}
   finally{gate.Release();NotifyChanged();}
  }
- void ClearActive(){active=null;backend=null;stopTask=null;ActiveTarget=null;recordingClock=null;}
+ void ClearActive(){active=null;backend=null;stopTask=null;ActiveTarget=null;recordingClock=null;watchdog=null;videoHealth=VideoHealth.Unknown;}
  void NotifyChanged()
  {
   // A UI subscriber must marshal to its dispatcher. It cannot be allowed to corrupt a media transaction.

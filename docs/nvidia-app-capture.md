@@ -20,6 +20,12 @@ When a game uses NVIDIA App, GameVault's own recorder buttons and global shortcu
 
 GameVault copies automatically about 8 seconds and again about 90 seconds after the game session ends, and **Copy NVIDIA captures now** does it on demand for all of the game's recorded sessions.
 
+## GameVault's own recorder: frozen-picture detection
+
+An owner TEKKEN 8 recording showed video frames stopping for 141 s while audio continued, then sporadic gaps and repeated frames (effective 35 fps against 60 requested). While recording, GameVault now counts the frames the recorder produces and, if none arrive for about 4 seconds, says so immediately ("video stalled N s (audio continues)") and records `warning` in the clip's metadata; the Media list marks such a clip `video froze`. A recorder that cannot count frames, or has not produced its first frame, never raises an alarm.
+
+This detects the freeze; it does not remove its cause. Windows Graphics Capture goes through the desktop compositor, which can cost a fullscreen game frame pacing, and 60 fps costs about twice the GPU time of 30 fps. For NVIDIA GPUs the intended fix is recording with NVIDIA App (above); otherwise prefer 30 fps and a borderless/windowed game.
+
 ## Manual checks (owner)
 
 1. With NVIDIA App installed, open a game's Media tab: it should say NVIDIA App is detected and show its capture folder.

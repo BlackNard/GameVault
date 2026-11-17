@@ -31,6 +31,8 @@ public partial class MainWindow
     private readonly HashSet<Guid> captureSourcesLoading=[];
     private readonly SemaphoreSlim nvidiaImportGate=new(1,1);
     private int nvidiaTick;
+    private bool stallAnnounced;
+    private static string StallText(VideoHealth health)=>health.Stalled?$" · video stalled {Math.Max(1,(int)health.CurrentStall.TotalSeconds)} s (audio continues)":health.Episodes>0?$" · video paused {health.Episodes}×":"";
     // GameVault's own shortcuts are only active for a running game that records with GameVault. NVIDIA App's games keep NVIDIA's keys to themselves.
     private bool HasCaptureSession()=>launches.GetActiveStates().Any(state=>state.Phase==LaunchPhase.Running && captureSources.ContainsKey(state.GameId) && !UsesNvidia(state.GameId));
     private CaptureSource SourceOf(Guid id)=>captureSources.TryGetValue(id,out var source)?source:CaptureSource.Auto;
@@ -247,6 +249,14 @@ public partial class MainWindow
     private async void CaptureTick(object? sender,EventArgs e)
     {
         if(captureDisposed || capture is null)return;
+        capture.PollHealth();
+        var health=capture.VideoHealth;
+        if(health.Stalled && !stallAnnounced)
+        {
+            stallAnnounced=true;
+            OperationNotice.Text="Video frames stopped arriving (audio continues). The game window may have changed mode, or the PC is overloaded. Stop and start the recording again if the picture does not return.";
+        }
+        else if(!health.Stalled)stallAnnounced=false;
         if(nvidiaTick++%20==0)_=RefreshNvidiaAsync();
         foreach(var state in launches.GetActiveStates())if(state.Phase==LaunchPhase.Running)_=LoadCaptureSourceAsync(state.GameId);
         UpdateCaptureSessionShortcuts();
@@ -275,7 +285,7 @@ public partial class MainWindow
         var elapsed=capture.RecordingStartedUtc is DateTimeOffset start?DateTimeOffset.UtcNow-start:TimeSpan.Zero;
         var message=capture.State switch
         {
-            CaptureState.Recording=>$"Recording · {Math.Max(0,(long)elapsed.TotalHours):00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}",
+            CaptureState.Recording=>$"Recording · {Math.Max(0,(long)elapsed.TotalHours):00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}"+StallText(capture.VideoHealth),
             CaptureState.Starting=>"Preparing capture…",CaptureState.Stopping=>"Finalizing recording…",
             CaptureState.Failed=>capture.LastError??"Capture needs attention",_=>captureFeedback??capture.LastError??"PNG screenshots · MP4 recordings"
         };
@@ -348,7 +358,11 @@ public partial class MainWindow
         }
         catch(Exception error){OperationNotice.Text="Capture could not open. "+error.Message;}
     }
-    private void CaptureMediaSelected(object sender,SelectionChangedEventArgs e)=>OpenCaptureMediaButton.IsEnabled=CaptureMediaList.SelectedItem is MediaRow{Media.Status:CaptureMediaStatus.Complete};
+    private void CaptureMediaSelected(object sender,SelectionChangedEventArgs e)
+    {
+        OpenCaptureMediaButton.IsEnabled=CaptureMediaList.SelectedItem is MediaRow{Media.Status:CaptureMediaStatus.Complete};
+        if(CaptureMediaList.SelectedItem is MediaRow{Media.Warning:{} warning})CaptureMediaNotice.Text=warning;
+    }
     private async Task PrepareCaptureShutdownAsync()
     {
         captureTimer.Stop();await FinishCaptureAsync();
@@ -363,6 +377,6 @@ public partial class MainWindow
     }
     private sealed record MediaRow(CaptureMedia Media)
     {
-        public override string ToString()=>$"{Media.CapturedUtc.ToLocalTime():g} · {Media.Kind}"+(Media.SourceFingerprint is null?"":" · from NVIDIA App")+(Media.Status==CaptureMediaStatus.Complete?"":" · Incomplete");
+        public override string ToString()=>$"{Media.CapturedUtc.ToLocalTime():g} · {Media.Kind}"+(Media.SourceFingerprint is null?"":" · from NVIDIA App")+(Media.Warning is null?"":" · video froze")+(Media.Status==CaptureMediaStatus.Complete?"":" · Incomplete");
     }
 }
