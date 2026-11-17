@@ -32,7 +32,7 @@ public sealed class ArchivedProfileRestoreTests : IDisposable
     public async Task RestoreKeepsSavedConfigurationStableIdentityAndEveryRetainedSidecar()
     {
         var archived = await Archive();
-        var folder = Path.Combine(paths.Profiles, archived.Id.ToString("N"));
+        var folder = Path.Combine(ProfileFolders.Resolve(paths, archived.Id));
         await store.SaveStatisticsAsync(new(1, archived.Id,
             [new(Guid.NewGuid(), DateTimeOffset.UtcNow.AddMinutes(-2), DateTimeOffset.UtcNow, 120)], []));
         foreach (var relative in new[] { "cover.png", "cover.png.bak", "notes.json", "notes.json.bak", "session.journal", "launch.json", "save-discovery.json", "Backups/retained.sav" })
@@ -66,7 +66,7 @@ public sealed class ArchivedProfileRestoreTests : IDisposable
     public async Task RestoreRefusesReadOnlyOrMissingProfilesWithoutOverwritingFiles()
     {
         var archived = await Archive();
-        var file = Path.Combine(paths.Profiles, archived.Id.ToString("N"), "profile.json");
+        var file = Path.Combine(ProfileFolders.Resolve(paths, archived.Id), "profile.json");
         const string unsupported = "{\"schemaVersion\":99}";
         await File.WriteAllTextAsync(file, unsupported);
         await Assert.ThrowsAsync<IOException>(() => service.RestoreAsync(archived.Id));
@@ -104,7 +104,7 @@ public sealed class ArchivedProfileRestoreTests : IDisposable
     {
         var archived = await Archive();
         var other = new LibraryService(paths, new AppDataStore(paths));
-        var profileFile = Path.Combine(paths.Profiles, archived.Id.ToString("N"), "profile.json");
+        var profileFile = Path.Combine(ProfileFolders.Resolve(paths, archived.Id), "profile.json");
         var archivedBytes = await File.ReadAllBytesAsync(profileFile);
         var results = await Task.WhenAll(service.RestoreAsync(archived.Id), other.RestoreAsync(archived.Id));
         Assert.All(results, result => { Assert.Equal(archived.Id, result.Profile.Id); Assert.False(result.Profile.IsArchived); });

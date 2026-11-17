@@ -19,7 +19,7 @@ public sealed class BackupDestinationTests : IDisposable
     private string Folder(string name){var path=Path.Combine(root,name);Directory.CreateDirectory(path);return path;}
     [Fact] public async Task PortableDefaultAndStableOverridesPersist()
     {
-        await Seed();var portable=Path.Combine(Paths.Profiles,id.ToString("N"),"Backups");Assert.Equal(portable,await Destinations.ResolveCurrentAsync(id));
+        await Seed();var portable=Path.Combine(ProfileFolders.Resolve(Paths, id),"Backups");Assert.Equal(portable,await Destinations.ResolveCurrentAsync(id));
         var external=Folder("external");await Destinations.SetDefaultAsync(external);Assert.Equal(Path.Combine(external,id.ToString("N"),"Backups"),await Destinations.ResolveCurrentAsync(id));
         var perGame=Folder("override");await Destinations.SetGameAsync(id,perGame);Assert.Equal(perGame,(await Destinations.ReadAsync(id)).GameRoot);
         await Destinations.SetGameAsync(id,null);Assert.Equal(external,(await Destinations.ReadAsync(id)).DefaultRoot);
@@ -37,7 +37,7 @@ public sealed class BackupDestinationTests : IDisposable
     [Fact] public async Task MissingDiskFailsWithoutPortableFallback()
     {
         await Seed();var external=Folder("external");await Destinations.SetDefaultAsync(external);Directory.Delete(external);
-        await Assert.ThrowsAnyAsync<IOException>(()=>Destinations.ResolveCurrentAsync(id));Assert.Equal(BackupPhase.Failed,(await Backups.BackUpAsync(id,false)).Phase);Assert.Empty(Directory.GetDirectories(Path.Combine(Paths.Profiles,id.ToString("N"),"Backups")));
+        await Assert.ThrowsAnyAsync<IOException>(()=>Destinations.ResolveCurrentAsync(id));Assert.Equal(BackupPhase.Failed,(await Backups.BackUpAsync(id,false)).Phase);Assert.Empty(Directory.GetDirectories(Path.Combine(ProfileFolders.Resolve(Paths, id),"Backups")));
     }
     [Fact] public async Task RejectsManagedDataInstallSavesAndTraversal()
     {

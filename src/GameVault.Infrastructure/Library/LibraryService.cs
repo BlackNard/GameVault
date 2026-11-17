@@ -28,7 +28,7 @@ public sealed class LibraryService
         var snapshot = await store.InitializeAsync().ConfigureAwait(false);
         var items = snapshot.Games.Select(game =>
         {
-            var cover = Path.Combine(paths.Profiles, game.Id.ToString("N"), "cover.png");
+            var cover = Path.Combine(ProfileFolders.Resolve(paths, game.Id), "cover.png");
             string? warning = game.Profile.Message ?? game.Statistics.Message;
             try { managed.Check(cover); if (!File.Exists(cover)) cover = null; }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException) { cover = null; warning = "The cover file could not be accessed safely."; }
@@ -156,7 +156,7 @@ public sealed class LibraryService
 
     private void WriteCover(Guid id, byte[] png)
     {
-        var file = Path.Combine(paths.Profiles, id.ToString("N"), "cover.png");
+        var file = Path.Combine(ProfileFolders.Resolve(paths, id), "cover.png");
         managed.Check(file); managed.Check(file + ".bak");
         var temporary = file + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try

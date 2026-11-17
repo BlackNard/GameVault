@@ -6,7 +6,7 @@ public sealed class CorrectionTests : IDisposable
     private readonly string root=Path.Combine(Path.GetTempPath(),"GameVault corrections",Guid.NewGuid().ToString("N"));
     private readonly Guid id=Guid.NewGuid(), sessionId=Guid.NewGuid();
     private AppDataStore Store => new(ApplicationPaths.FromRoot(root));
-    private string Folder => Path.Combine(root,"Profiles",id.ToString("N"));
+    private string Folder => Path.Combine(ProfileFolders.Resolve(ApplicationPaths.FromRoot(root), id));
     private async Task Seed()
     {
         Directory.CreateDirectory(root);await Store.InitializeAsync();

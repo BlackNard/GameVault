@@ -153,7 +153,7 @@ public sealed class SessionTests : IAsyncLifetime
         await recorder.BeginAsync(game.Id, game.ExecutablePath, process);
         clock.Advance(10); await recorder.SampleAsync(game.Id, true);
         var id = recorder.GetProgress(game.Id)!.SessionId;
-        var file = Path.Combine(root, "Profiles", game.Id.ToString("N"), "Sessions", id.ToString("N") + ".json");
+        var file = Path.Combine(ProfileFolders.Resolve(ApplicationPaths.FromRoot(root), game.Id), "Sessions", id.ToString("N") + ".json");
         File.Delete(file);
         Assert.Equal(DocumentState.Recovered, Assert.Single(await recorder.ReadAsync(game.Id)).Document.State);
         await File.WriteAllTextAsync(file, "{\"schemaVersion\":99}");

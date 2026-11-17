@@ -126,7 +126,7 @@ public sealed class LaunchTests : IAsyncLifetime
         Assert.Equal(DocumentState.Missing, (await settings.LoadAsync(profile.Id)).State);
         await settings.SaveAsync(new(1, profile.Id, target));
         Assert.Equal(target, (await new LaunchSettingsStore(paths, store).LoadAsync(profile.Id)).Value!.TargetExecutablePath);
-        var file = Path.Combine(paths.Profiles, profile.Id.ToString("N"), "launch.json");
+        var file = Path.Combine(ProfileFolders.Resolve(paths, profile.Id), "launch.json");
         await File.WriteAllTextAsync(file, "{\"schemaVersion\":99}");
         Assert.True((await settings.LoadAsync(profile.Id)).IsReadOnly);
         await Assert.ThrowsAsync<IOException>(() => settings.SaveAsync(new(1, profile.Id, null)));

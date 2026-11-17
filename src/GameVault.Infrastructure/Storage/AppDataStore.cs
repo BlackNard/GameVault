@@ -35,9 +35,9 @@ public sealed partial class AppDataStore
         var games = new List<StoredGame>();
         var warnings = new List<string>();
         if (settings.Message is not null) warnings.Add(settings.Message);
-        foreach (var folder in Directory.GetDirectories(paths.Profiles))
+        foreach (var (folderId, _) in ProfileFolders.Enumerate(paths))
         {
-            if (!Guid.TryParseExact(Path.GetFileName(folder), "N", out var id) || id == Guid.Empty)
+            if (folderId is not Guid id)
             {
                 warnings.Add("An unrecognized profile folder was left unchanged.");
                 continue;
@@ -49,6 +49,9 @@ public sealed partial class AppDataStore
                 warnings.Add("An incomplete profile folder was preserved for recovery.");
                 continue;
             }
+            // Folders are named after the game. Older GUID-named folders are renamed once; a locked folder is retried next start.
+            if (game.Profile.State == DocumentState.Ready && game.Profile.Value is { } profileValue)
+                ProfileFolders.Normalize(paths, id, profileValue.Name);
             games.Add(game);
             if (game.Profile.Message is not null) warnings.Add(game.Profile.Message);
             if (game.Statistics.Message is not null) warnings.Add(game.Statistics.Message);
@@ -70,10 +73,14 @@ public sealed partial class AppDataStore
         if (!StorageValidation.Profile(profile, profile.Id)) throw new ArgumentException("Invalid game profile.", nameof(profile));
         EnsureRoots();
         var folder = Folder(profile.Id);
+        // A game without a folder yet gets one named after it (a duplicate name gets " (2)").
+        if (!Directory.Exists(folder)) folder = ProfileFolders.ForNew(paths, profile.Name);
         var profileFile = Path.Combine(folder, "profile.json");
         var current = documents.Read<GameProfile>(profileFile, p => StorageValidation.Profile(p, profile.Id));
         JsonDocuments.RequireWritable(current);
         managed.EnsureDirectory(folder);
+        ProfileFolders.Register(paths, profile.Id, folder);
+        ProfileFolders.EnsureMarker(folder, profile.Id);
         if (current.State == DocumentState.Missing)
         {
             var statisticsFile = Path.Combine(folder, "statistics.json");
@@ -84,6 +91,8 @@ public sealed partial class AppDataStore
         }
         managed.EnsureDirectory(Path.Combine(folder, "Backups"));
         documents.Write(profileFile, profile, p => StorageValidation.Profile(p, profile.Id));
+        // Renaming a game renames its folder; if the folder is in use it keeps the old name and is renamed on a later save or start.
+        ProfileFolders.Normalize(paths, profile.Id, profile.Name);
     });
 
     public Task<StoredGame> LoadProfileAsync(Guid id) => Run(() => LoadProfile(id));
@@ -173,7 +182,7 @@ public sealed partial class AppDataStore
     private string Folder(Guid id)
     {
         if (id == Guid.Empty) throw new ArgumentException("A non-empty game identifier is required.", nameof(id));
-        return Path.Combine(paths.Profiles, id.ToString("N"));
+        return ProfileFolders.Resolve(paths, id);
     }
 
     private void EnsureRoots()

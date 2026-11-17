@@ -15,19 +15,19 @@ public sealed class NoteTests : IDisposable
         await store.InitializeAsync(); await store.SaveProfileAsync(profile);
         await store.SaveStatisticsAsync(new(1, profile.Id, [session], []));
     }
-    private string NotePath => Path.Combine(root, "Profiles", profile.Id.ToString("N"), "Notes", "Sessions", session.Id.ToString("N") + ".json");
+    private string NotePath => Path.Combine(ProfileFolders.Resolve(ApplicationPaths.FromRoot(root), profile.Id), "Notes", "Sessions", session.Id.ToString("N") + ".json");
     [Fact] public async Task NoteRoundTripPreservesUnicodeIdentityAndStatisticsAcrossRenameArchive()
     {
         await Seed();
-        var statsPath = Path.Combine(root, "Profiles", profile.Id.ToString("N"), "statistics.json");
-        var before = File.ReadAllBytes(statsPath);
+        string StatsPath() => Path.Combine(ProfileFolders.Resolve(ApplicationPaths.FromRoot(root), profile.Id), "statistics.json"); // the folder follows the game's new name
+        var before = File.ReadAllBytes(StatsPath());
         var first = await store.SaveNoteAsync(profile.Id, session.Id, "خطة", "مرحبا بالعالم\n\nCafé 🎮 日本語");
         await store.SaveProfileAsync(profile with { Name = "Renamed", IsArchived = true });
         var edited = await store.SaveNoteAsync(profile.Id, session.Id, "Edited", first.Body + "\nNext");
         var read = await new AppDataStore(ApplicationPaths.FromRoot(root)).LoadNotesAsync(profile.Id);
         Assert.Equal(edited, Assert.Single(read.Sessions).Note.Value);
         Assert.Equal(first.CreatedAt, edited.CreatedAt);
-        Assert.Equal(before, File.ReadAllBytes(statsPath));
+        Assert.Equal(before, File.ReadAllBytes(StatsPath()));
         Assert.Contains("metadata unavailable", read.Sessions[0].Context);
     }
     [Fact] public async Task NewReviewRequiresCompletedButExistingReviewSurvivesReplay()
@@ -47,7 +47,7 @@ public sealed class NoteTests : IDisposable
         await store.SaveStatisticsAsync(new(1, profile.Id, [session with { EndedAt = null }], []));
         await Assert.ThrowsAsync<IOException>(() => store.SaveNoteAsync(profile.Id, session.Id, "", "Active"));
         await store.SaveStatisticsAsync(new(1, profile.Id, [session], []));
-        var journals = Path.Combine(root, "Profiles", profile.Id.ToString("N"), "Sessions");
+        var journals = Path.Combine(ProfileFolders.Resolve(ApplicationPaths.FromRoot(root), profile.Id), "Sessions");
         Directory.CreateDirectory(journals); File.WriteAllText(Path.Combine(journals, session.Id.ToString("N") + ".json"), "broken");
         Assert.False(Assert.Single((await store.LoadNotesAsync(profile.Id)).Sessions).CanEdit);
         await Assert.ThrowsAsync<IOException>(() => store.SaveNoteAsync(profile.Id, session.Id, "", "Uncertain"));

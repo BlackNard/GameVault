@@ -9,7 +9,7 @@ public sealed class BackupTests : IDisposable
     private ApplicationPaths Paths=>ApplicationPaths.FromRoot(Path.Combine(root,"app"));
     private AppDataStore Store=>new(Paths);
     private string Source=>Path.Combine(root,"saves");
-    private string Backups=>Path.Combine(Paths.Profiles,id.ToString("N"),"Backups");
+    private string Backups=>Path.Combine(ProfileFolders.Resolve(Paths, id),"Backups");
     private SaveDiscoveryEnvironment Env=>new(Path.Combine(root,"user"),Path.Combine(root,"docs"),Path.Combine(root,"saved"),Path.Combine(root,"roam"),Path.Combine(root,"local"),Path.Combine(root,"public"),[]);
     private BackupService Service(GameOperationLeases? leases=null,Func<Guid,Task<bool>>? running=null,Action<string>? checkpoint=null)=>new(Paths,Store,new SaveDiscoveryService(Paths,Store,Env),leases??new(),running??(_=>Task.FromResult(false)),checkpoint);
     private async Task Seed()

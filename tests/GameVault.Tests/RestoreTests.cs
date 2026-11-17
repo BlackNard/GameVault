@@ -66,7 +66,7 @@ public sealed class RestoreTests:IDisposable
     [Fact] public async Task RecoveryCopyIsReverifiedBeforeReplacingCurrentSaves()
     {
         var backup=await Seed();File.WriteAllText(Path.Combine(Saves,"slot.sav"),"new");
-        var service=Service(checkpoint:p=>{if(p=="prepared"){var rootRecovery=Path.Combine(Paths.Profiles,id.ToString("N"),"RestoreRecovery");var folder=Assert.Single(Directory.GetDirectories(rootRecovery));var file=Assert.Single(Directory.GetFiles(Path.Combine(folder,"Before"),"*",SearchOption.AllDirectories));File.WriteAllText(file,"damaged");}});
+        var service=Service(checkpoint:p=>{if(p=="prepared"){var rootRecovery=Path.Combine(ProfileFolders.Resolve(Paths, id),"RestoreRecovery");var folder=Assert.Single(Directory.GetDirectories(rootRecovery));var file=Assert.Single(Directory.GetFiles(Path.Combine(folder,"Before"),"*",SearchOption.AllDirectories));File.WriteAllText(file,"damaged");}});
         var request=Request(backup);var preview=await service.PreviewAsync(request);var result=await service.ExecuteAsync(request,preview.Fingerprint);
         Assert.Equal(RestorePhase.Failed,result.Phase);Assert.Equal("new",File.ReadAllText(Path.Combine(Saves,"slot.sav")));
     }
@@ -103,7 +103,7 @@ public sealed class RestoreTests:IDisposable
     }
     [Fact] public async Task ProtectedJournalAndLinkedDestinationStayUntouched()
     {
-        var backup=await Seed();var state=Path.Combine(Paths.Profiles,id.ToString("N"),"restore-state.json");File.WriteAllText(state,"{\"schemaVersion\":99}");await Assert.ThrowsAsync<IOException>(()=>Service().PreviewAsync(Request(backup)));Assert.Equal("{\"schemaVersion\":99}",File.ReadAllText(state));
+        var backup=await Seed();var state=Path.Combine(ProfileFolders.Resolve(Paths, id),"restore-state.json");File.WriteAllText(state,"{\"schemaVersion\":99}");await Assert.ThrowsAsync<IOException>(()=>Service().PreviewAsync(Request(backup)));Assert.Equal("{\"schemaVersion\":99}",File.ReadAllText(state));
     }
     [Fact] public async Task JournalWriteFailureBeforePrepareCannotReplaceSaves()
     {
