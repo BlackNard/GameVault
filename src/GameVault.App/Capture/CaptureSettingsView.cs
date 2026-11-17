@@ -21,7 +21,9 @@ public sealed class CaptureSettingsView:UserControl
         inputs.Children.Add(new TextBlock{Text="These settings are for GameVault's own recorder. On a PC with NVIDIA App, a game can record with NVIDIA instead (choose it on the game's Media tab); GameVault then copies the clips into that game's profile.",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,12)});
         inputs.Children.Add(new TextBlock{Text="Shortcuts only work while a tracked game is running. If your GPU overlay (NVIDIA, AMD), Steam or Xbox Game Bar uses the same keys, choose different ones here.",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,12)});
         resolution.ItemsSource=new[]{"720p","1080p"};rate.ItemsSource=new[]{"30 fps","60 fps"};
-        inputs.Children.Add(new Label{Content="Video size"});inputs.Children.Add(resolution);inputs.Children.Add(new Label{Content="Frame rate"});inputs.Children.Add(rate);inputs.Children.Add(audio);
+        inputs.Children.Add(new Label{Content="Video size"});inputs.Children.Add(resolution);inputs.Children.Add(new Label{Content="Frame rate"});inputs.Children.Add(rate);
+        inputs.Children.Add(new TextBlock{Text="60 fps costs roughly twice the GPU time of 30 fps. If a game stutters while GameVault records, choose 30 fps, or record with NVIDIA App (game's Media tab).",TextWrapping=TextWrapping.Wrap,Margin=new(0,4,0,0),Opacity=0.8});
+        inputs.Children.Add(audio);
         foreach(var command in Enum.GetValues<CaptureCommand>())
         {
             var label=command switch{CaptureCommand.Screenshot=>"Screenshot",CaptureCommand.Recording=>"Recording toggle",_=>"Controls toggle"};

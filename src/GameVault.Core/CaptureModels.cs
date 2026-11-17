@@ -18,7 +18,7 @@ public sealed record CaptureOptions(CaptureAudioMode Audio = CaptureAudioMode.No
 }
 // SourceFingerprint is set only for clips copied in from another recorder (NVIDIA App); it identifies the original file so it is never imported twice.
 public sealed record CaptureMedia(Guid Id, Guid ProfileId, Guid SessionId, DateTimeOffset CapturedUtc,
- CaptureMediaKind Kind, CaptureMediaStatus Status, string FilePath, string? Error = null, string? SourceFingerprint = null);
+ CaptureMediaKind Kind, CaptureMediaStatus Status, string FilePath, string? Error = null, string? SourceFingerprint = null, string? Warning = null);
 
 /// <summary>Which recorder a game uses. Auto means NVIDIA App when it is installed, otherwise GameVault's own recorder.</summary>
 public enum CaptureSource { Auto, GameVault, NvidiaApp }

@@ -9,6 +9,12 @@ public interface ICaptureBackend
  Task StopAsync(CancellationToken cancellationToken);
 }
 
+// Optional: how many video frames the recorder has produced, or -1 when it cannot say. Lets GameVault notice a frozen picture.
+public interface ICaptureBackendHealth
+{
+ long VideoFrames { get; }
+}
+
 // Optional lifetime observation makes asynchronous native failures visible without waiting for a Stop click.
 public interface ICaptureBackendLifetime
 {
