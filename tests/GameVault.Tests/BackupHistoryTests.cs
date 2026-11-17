@@ -10,7 +10,7 @@ public sealed class BackupHistoryTests : IDisposable
     private readonly Guid id=Guid.NewGuid();
     private ApplicationPaths Paths=>ApplicationPaths.FromRoot(Path.Combine(root,"app"));
     private AppDataStore Store=>new(Paths);
-    private string BackupRoot=>Path.Combine(Paths.Profiles,id.ToString("N"),"Backups");
+    private string BackupRoot=>Path.Combine(ProfileFolders.Resolve(Paths, id),"Backups");
     private BackupHistoryService Service(Func<Guid,Task<bool>>? running=null,Action<string>? checkpoint=null)=>new(Paths,Store,new(),running??(_=>Task.FromResult(false)),checkpoint);
     private async Task Seed()
     {

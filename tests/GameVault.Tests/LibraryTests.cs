@@ -72,7 +72,7 @@ public sealed class LibraryTests : IDisposable
         var statistics = new GameStatistics(1, saved.Profile.Id,
             [new(Guid.NewGuid(), DateTimeOffset.UtcNow.AddMinutes(-10), DateTimeOffset.UtcNow, 600)], []);
         await store.SaveStatisticsAsync(statistics);
-        var backup = Path.Combine(paths.Profiles, saved.Profile.Id.ToString("N"), "Backups", "retained.sav");
+        var backup = Path.Combine(ProfileFolders.Resolve(paths, saved.Profile.Id), "Backups", "retained.sav");
         await File.WriteAllTextAsync(backup, "keep me");
         await service.SetArchivedAsync(saved.Profile.Id, true);
         var archived = Assert.Single((await service.ListAsync()).Games);
@@ -147,7 +147,7 @@ public sealed class LibraryTests : IDisposable
     public async Task ReadOnlyProfileCannotBeOverwrittenByAnEdit()
     {
         var saved = await service.SaveAsync(Draft());
-        var file = Path.Combine(paths.Profiles, saved.Profile.Id.ToString("N"), "profile.json");
+        var file = Path.Combine(ProfileFolders.Resolve(paths, saved.Profile.Id), "profile.json");
         await File.WriteAllTextAsync(file, "{\"schemaVersion\":99}");
         Assert.True(Assert.Single((await service.ListAsync()).Games).IsReadOnly);
         await Assert.ThrowsAsync<IOException>(() => service.SaveAsync(Draft(saved.Profile.Id)));
@@ -169,7 +169,7 @@ public sealed class LibraryTests : IDisposable
     public async Task CoverFailureReportsThatProfileChangesWereSaved()
     {
         var saved = await service.SaveAsync(Draft());
-        Directory.CreateDirectory(Path.Combine(paths.Profiles, saved.Profile.Id.ToString("N"), "cover.png"));
+        Directory.CreateDirectory(Path.Combine(ProfileFolders.Resolve(paths, saved.Profile.Id), "cover.png"));
         var result = await service.SaveAsync(Draft(saved.Profile.Id) with { Name = "Saved despite artwork failure" }, Png);
         Assert.NotNull(result.Warning);
         Assert.Equal("Saved despite artwork failure", Assert.Single((await service.ListAsync()).Games).Profile!.Name);
@@ -185,12 +185,13 @@ public sealed class LibraryTests : IDisposable
             [new(Guid.NewGuid(), DateTimeOffset.UtcNow, null, 1234)], []));
         var fresh = Assert.Single((await service.ListAsync()).Games);
         Assert.Equal("New game", fresh.Profile!.Name); Assert.Equal(1234, fresh.PlayedSeconds);
-        var file = Path.Combine(paths.Profiles, saved.Profile.Id.ToString("N"), "profile.json");
+        var file = Path.Combine(ProfileFolders.Resolve(paths, saved.Profile.Id), "profile.json");
         var timestamp = File.GetLastWriteTimeUtc(file);
         var json = await File.ReadAllTextAsync(file);
         await File.WriteAllTextAsync(file, json.Replace("New game", "Alt game"));
         File.SetLastWriteTimeUtc(file, timestamp);
         Assert.Equal("Alt game", Assert.Single((await service.ListAsync()).Games).Profile!.Name);
+        file = Path.Combine(ProfileFolders.Resolve(paths, saved.Profile.Id), "profile.json"); // the folder follows the new name
         await File.WriteAllTextAsync(file, "{\"schemaVersion\":99}");
         File.SetLastWriteTimeUtc(file, timestamp);
         Assert.True(Assert.Single((await service.ListAsync()).Games).IsReadOnly);

@@ -49,7 +49,7 @@ public sealed class SaveDiscoveryTests:IDisposable
         Assert.DoesNotContain(disabled.Document.Value!.Sources,s=>s.Selected);Assert.All(disabled.Document.Value.Sources,s=>Assert.Equal(SaveSourceAccess.NotChecked,s.Access));Assert.Equal(disabled.Document.Value.Revision,(await service.ScanAsync(id)).Document.Value!.Revision);await service.SetAutomaticAsync(id,true);
         await Store.SaveProfileAsync(Profile with{ExecutablePath=Path.Combine(root,"Other","other.exe"),WorkingDirectory=Path.Combine(root,"Other")});
         Assert.Equal(SaveDiscoveryPhase.Error,(await service.ReadAsync(id)).Phase);Assert.DoesNotContain((await service.ScanAsync(id)).Document.Value!.Sources,s=>s.Selected);
-        var file=Path.Combine(Paths.Profiles,id.ToString("N"),"save-discovery.json");File.WriteAllText(file,"{\"schemaVersion\":99}");
+        var file=Path.Combine(ProfileFolders.Resolve(Paths, id),"save-discovery.json");File.WriteAllText(file,"{\"schemaVersion\":99}");
         var result=await service.ScanAsync(id);Assert.Equal(SaveDiscoveryPhase.Error,result.Phase);Assert.Equal(DocumentState.Unsupported,result.Document.State);Assert.Equal("{\"schemaVersion\":99}",File.ReadAllText(file));
     }
     public void Dispose(){if(Directory.Exists(root))Directory.Delete(root,true);}

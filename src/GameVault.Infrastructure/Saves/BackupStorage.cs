@@ -15,7 +15,7 @@ internal sealed class BackupStorage(ApplicationPaths paths)
     public bool OwnsRoot(Guid id,string root)=>destinations.Directories(id).Contains(root,StringComparer.OrdinalIgnoreCase);
     public IDisposable Acquire()=>destinations.Acquire();
     public void ValidateDestinations()=>destinations.ValidateKnownRoots();
-    private string StatusFile(Guid id)=>Path.Combine(paths.Profiles,id.ToString("N"),"backup-status.json");
+    private string StatusFile(Guid id)=>Path.Combine(ProfileFolders.Resolve(paths,id),"backup-status.json");
     public void Check(string path)
     {
         SaveSourcePolicy.CheckLinks(paths.Root);path=Path.GetFullPath(path);SaveSourcePolicy.CheckLinks(path);

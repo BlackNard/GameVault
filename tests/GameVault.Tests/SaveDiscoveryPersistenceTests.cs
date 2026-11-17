@@ -7,7 +7,7 @@ public sealed class SaveDiscoveryPersistenceTests:IDisposable
     private readonly Guid id=Guid.NewGuid();
     private AppDataStore Store=>new(ApplicationPaths.FromRoot(Path.Combine(root,"app")));
     private GameProfile Profile=>new(1,id,"Game",Path.Combine(root,"game","game.exe"),Path.Combine(root,"game"),[],GameStatus.Playing,20,false,false);
-    private string FilePath=>Path.Combine(root,"app","Profiles",id.ToString("N"),"save-discovery.json");
+    private string FilePath=>Path.Combine(ProfileFolders.Resolve(ApplicationPaths.FromRoot(Path.Combine(root,"app")),id),"save-discovery.json");
     private async Task Seed(){Directory.CreateDirectory(Path.Combine(root,"app"));await Store.InitializeAsync();await Store.SaveProfileAsync(Profile);}
     private SaveDiscoveryDocument Document()=>new(1,id,SaveDiscoveryIdentity.For(Profile),true,DateTimeOffset.UtcNow,[new(Guid.NewGuid(),Path.Combine(root,"saves"),SaveSourceKind.Folder,SaveSourceOrigin.KnownRule,true,SaveSourceAccess.Missing,"Known game-specific location",null)],[]);
     [Fact] public async Task IndependentMappingRoundTripPreservesSourceIdAndOtherData()

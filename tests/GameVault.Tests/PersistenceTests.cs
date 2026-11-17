@@ -19,7 +19,7 @@ public sealed class PersistenceTests : IDisposable
 
     private static GameProfile Profile(Guid? id = null) => new(1, id ?? Guid.NewGuid(), "Resident Evil 2",
         @"D:\Games\RE2\re2.exe", @"D:\Games\RE2", [@"C:\Users\Player\Saved Games\RE2"], GameStatus.Playing, 20, false, false);
-    private string Folder(Guid id) => Path.Combine(paths.Profiles, id.ToString("N"));
+    private string Folder(Guid id) => Path.Combine(ProfileFolders.Resolve(paths, id));
     private string SettingsFile => Path.Combine(paths.Data, "settings.json");
 
     [Fact] public async Task LegacySettingsGetTrayDefaultsAndPreferencesPersistWithTheme()
@@ -78,16 +78,20 @@ public sealed class PersistenceTests : IDisposable
             [new PlaySession(Guid.NewGuid(), DateTimeOffset.UtcNow.AddHours(-1), DateTimeOffset.UtcNow, 3600)],
             [new PlaytimeAdjustment(Guid.NewGuid(), -120, "Correction")]);
         await store.SaveStatisticsAsync(stats);
-        var backup = Path.Combine(Folder(profile.Id), "Backups", "fixture.sav");
-        await File.WriteAllTextAsync(backup, "retained");
-        var statBytes = await File.ReadAllBytesAsync(Path.Combine(Folder(profile.Id), "statistics.json"));
+        var oldFolder = Folder(profile.Id);
+        await File.WriteAllTextAsync(Path.Combine(oldFolder, "Backups", "fixture.sav"), "retained");
+        var statBytes = await File.ReadAllBytesAsync(Path.Combine(oldFolder, "statistics.json"));
         await store.SaveProfileAsync(profile with { Name = "Renamed game" });
         var loaded = await store.LoadProfileAsync(profile.Id);
         Assert.Equal("Renamed game", loaded.Profile.Value!.Name);
-        Assert.Equal(statBytes, await File.ReadAllBytesAsync(Path.Combine(Folder(profile.Id), "statistics.json")));
+        // The folder follows the game's name; everything inside moves with it.
+        var renamed = Folder(profile.Id);
+        Assert.Equal("Renamed game", Path.GetFileName(renamed));
+        Assert.False(Directory.Exists(oldFolder));
+        Assert.Equal(statBytes, await File.ReadAllBytesAsync(Path.Combine(renamed, "statistics.json")));
         Assert.Equal(3600, loaded.Statistics.Value!.Sessions[0].DurationSeconds);
         Assert.Equal(-120, loaded.Statistics.Value.Adjustments[0].Seconds);
-        Assert.Equal("retained", await File.ReadAllTextAsync(backup));
+        Assert.Equal("retained", await File.ReadAllTextAsync(Path.Combine(renamed, "Backups", "fixture.sav")));
     }
 
     [Fact]

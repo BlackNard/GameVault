@@ -46,7 +46,7 @@ public static class InstallerLibrary
                     Path.Combine(root, "never-launched.exe"), root, [], GameStatus.Completed, 20, false, false));
                 await store.SaveStatisticsAsync(new(1, id, [new(session, started, started.AddHours(1), 3600)], []));
                 await store.SaveNoteAsync(id, session, "Synthetic session", "# Installation fixture\nPreserve this session note.");
-                var profile = Path.Combine(paths.Profiles, id.ToString("N"));
+                var profile = ProfileFolders.Resolve(paths, id);
                 await File.WriteAllBytesAsync(Path.Combine(profile, "cover.png"), Convert.FromBase64String(
                     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aBTkAAAAASUVORK5CYII="));
                 for (var number = 0; number < 2; number++)

@@ -6,11 +6,14 @@ Issue #4 adds a versioned local JSON repository. The executable remains the anch
 GameVault/
   GameVault.exe
   Data/settings.json
-  Profiles/<stable-guid>/
+  Profiles/<game name>/
     profile.json
     statistics.json
+    .gamevault-id
     Backups/
 ```
+
+Profile folders are named after the game (for example `Profiles/TEKKEN 8/`); a second game with the same name becomes `TEKKEN 8 (2)`. The stable game ID is stored in `profile.json` and repeated in the small `.gamevault-id` marker so a folder is still identified if profile.json is damaged. Folders created by earlier versions were named by the GUID; they are still recognised and each is renamed once at startup. Renaming a game renames its folder. A folder that is in use (for example open in Explorer) keeps its current name and is renamed on a later start or save; it is never deleted or replaced. Folders GameVault cannot identify, or that repeat another folder's ID, are reported and left unchanged. Code never builds a profile path from the name or the GUID directly: use `ProfileFolders.Resolve`. External backup destinations keep `<chosen-root>/<stable-id>/Backups`.
 
 Only the app's own managed files are written. Configuring executable/working/save paths does not create, move, read, or delete the actual game or its saves in this issue.
 
@@ -24,7 +27,7 @@ All serialized documents require `schemaVersion` and all of their constructor fi
 - **profile.json:** `schemaVersion`, stable `id`, `name`, absolute `executablePath` and `workingDirectory`, absolute `saveSources`, `status` (NotStarted/Playing/Completed/OnHold), `backupLimit`, `keepAllBackups`, and `isArchived`.
 - **statistics.json:** `schemaVersion`, matching `gameId`, `sessions` (ID/start/end/duration seconds) and `adjustments` (ID/signed seconds/reason). Timing and correction UI remain future features; this issue preserves their records without inventing playtime.
 
-The library is reconstructed directly from independent GUID profile folders. A central library index is deliberately not needed yet; profile visibility survives through `isArchived`, and a future ordering index can be rebuilt. Renaming changes only profile.json, preserving stable identity, statistics, and existing backups. Removing a game installation therefore does not remove app-owned records.
+The library is reconstructed directly from independent profile folders. A central library index is deliberately not needed yet; profile visibility survives through `isArchived`, and a future ordering index can be rebuilt. Renaming changes profile.json and renames the folder, preserving stable identity, statistics, and existing backups. Removing a game installation therefore does not remove app-owned records.
 
 ## Write safety and recovery
 

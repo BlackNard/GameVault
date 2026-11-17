@@ -27,7 +27,8 @@ public sealed class BackupDestinationService(ApplicationPaths paths)
     }
     internal string[] Directories(Guid id)=>Read(id).HistoricalDirectories.Append(Read(id).EffectiveDirectory).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     internal string[] ExternalRoots()=>Load().HistoricalRoots;
-    private string DirectoryFor(string? root,Guid id)=>Path.Combine(root??paths.Profiles,id.ToString("N"),"Backups");
+    // External destinations keep stable-ID folders. The portable default lives inside the game's profile folder.
+    private string DirectoryFor(string? root,Guid id)=>root is null?Path.Combine(ProfileFolders.Resolve(paths,id),"Backups"):Path.Combine(root,id.ToString("N"),"Backups");
     private static void RequireId(Guid id){if(id==Guid.Empty)throw new ArgumentException("A stable game ID is required.");}
     private BackupDestinationDocument Load()
     {
@@ -52,9 +53,9 @@ public sealed class BackupDestinationService(ApplicationPaths paths)
         if(SaveSourcePolicy.Overlaps(root,paths.Root))throw new IOException("Backup destinations must be outside the GameVault application folder.");
         if(!Directory.Exists(root))throw new DirectoryNotFoundException("The selected backup disk or folder is unavailable; reconnect it or explicitly choose a new destination.");
         var store=new AppDataStore(paths);
-        if(Directory.Exists(paths.Profiles))foreach(var folder in Directory.EnumerateDirectories(paths.Profiles))
+        foreach(var (folderId,_) in ProfileFolders.Enumerate(paths))
         {
-            if(!Guid.TryParseExact(Path.GetFileName(folder),"N",out var id))continue;
+            if(folderId is not Guid id)continue;
             var game=store.LoadProfileAsync(id).GetAwaiter().GetResult();
             if(game.Profile.State!=DocumentState.Ready||game.Profile.Value is not GameProfile profile)throw new IOException("A game profile needs recovery before a backup destination can be validated.");
             var sources=store.LoadSaveDiscoveryAsync(id).GetAwaiter().GetResult();JsonDocuments.RequireWritable(sources);

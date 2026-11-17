@@ -21,7 +21,7 @@ public sealed class CaptureMediaStore(ApplicationPaths paths)
   if(journal?.State!=DocumentState.Ready || journal.Value is not {State:SessionState.Active} session ||
    session.ProcessId!=target.ProcessId || session.ProcessCreatedUtcTicks!=target.ProcessCreatedUtcTicks)
    throw new IOException("Capture target does not match this profile's active saved game session.");
-  var folder=Path.Combine(paths.Profiles,profileId.ToString("N"),"Media",target.SessionId.ToString("N"));
+  var folder=Path.Combine(ProfileFolders.Resolve(paths,profileId),"Media",target.SessionId.ToString("N"));
   managed.EnsureDirectory(folder);
   var now=DateTimeOffset.UtcNow; var id=Guid.NewGuid();
   var name=$"{now:yyyyMMddTHHmmssfffffffZ}-{id:N}"+(kind==CaptureMediaKind.Video?".mp4":".png");
@@ -35,7 +35,7 @@ public sealed class CaptureMediaStore(ApplicationPaths paths)
   if(profileId==Guid.Empty)throw new ArgumentException("A profile is required.");
   var profile=await new AppDataStore(paths).LoadProfileAsync(profileId);
   if(profile.Profile.State!=DocumentState.Ready)throw new IOException("This profile needs attention before its media can be read.");
-  var folder=Path.Combine(paths.Profiles,profileId.ToString("N"),"Media"); managed.Check(folder);
+  var folder=Path.Combine(ProfileFolders.Resolve(paths,profileId),"Media"); managed.Check(folder);
   if(!Directory.Exists(folder))return Array.Empty<CaptureMedia>();
   var result=new List<CaptureMedia>();
   foreach(var session in Directory.EnumerateDirectories(folder))
@@ -123,7 +123,7 @@ public sealed class CaptureMediaStore(ApplicationPaths paths)
    throw new ArgumentException("Invalid capture metadata.");
   var extension=media.Kind==CaptureMediaKind.Video?".mp4":".png";
   if(media.Status==CaptureMediaStatus.Incomplete)extension+=".partial";
-  var expected=Path.Combine(paths.Profiles,media.ProfileId.ToString("N"),"Media",media.SessionId.ToString("N"),
+  var expected=Path.Combine(ProfileFolders.Resolve(paths,media.ProfileId),"Media",media.SessionId.ToString("N"),
    $"{media.CapturedUtc:yyyyMMddTHHmmssfffffffZ}-{media.Id:N}"+extension);
   if(!string.Equals(expected,media.FilePath,StringComparison.OrdinalIgnoreCase))throw new IOException("Capture media must remain in its owning profile and session folder.");
   managed.Check(media.FilePath);

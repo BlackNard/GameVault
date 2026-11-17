@@ -97,7 +97,7 @@ internal sealed class WorkflowFixture:IAsyncDisposable
         var notices=await Launch.RecoverAsync();if(notices.Length==0)throw new IOException("Fixture session was not recovered.");
         await WaitUntil(()=>Task.FromResult(Launch.GetState(Profile.Id).Phase==LaunchPhase.Running));
     }
-    public Dictionary<string,string> ProfileHashes()=>Directory.GetFiles(Path.Combine(Paths.Profiles,Profile.Id.ToString("N")),"*",SearchOption.AllDirectories)
+    public Dictionary<string,string> ProfileHashes()=>Directory.GetFiles(Path.Combine(ProfileFolders.Resolve(Paths, Profile.Id)),"*",SearchOption.AllDirectories)
         .ToDictionary(p=>Path.GetRelativePath(Paths.Profiles,p),p=>Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(p))),StringComparer.OrdinalIgnoreCase);
     public void RemoveCopiedInstallation()
     {

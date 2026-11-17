@@ -7,7 +7,7 @@ internal sealed class RestoreStorage(ApplicationPaths paths)
 {
     private readonly BackupStorage managed=new(paths);
     private readonly JsonDocuments documents=new(new ManagedPaths(paths));
-    public string Root(Guid gameId)=>Path.Combine(paths.Profiles,gameId.ToString("N"),"RestoreRecovery");
+    public string Root(Guid gameId)=>Path.Combine(ProfileFolders.Resolve(paths,gameId),"RestoreRecovery");
     public string Folder(Guid gameId,Guid id)=>Path.Combine(Root(gameId),id.ToString("N"));
     public void Check(string path)=>managed.Check(path);
     public void Ensure(string path)=>managed.Ensure(path);
