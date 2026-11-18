@@ -1,5 +1,5 @@
 <Window x:Class="GameVault.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:GameVault.App" xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
- Title="GameVault" Width="1280" Height="850" MinWidth="900" MinHeight="620" Icon="Assets/GameVault.ico" WindowStartupLocation="CenterScreen" Background="{DynamicResource AppBackground}" Foreground="{DynamicResource AppText}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14">
+ Title="GameVault" Width="1280" Height="850" MinWidth="900" MinHeight="620" WindowState="Maximized" Icon="Assets/GameVault.ico" WindowStartupLocation="CenterScreen" Background="{DynamicResource AppBackground}" Foreground="{DynamicResource AppText}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14">
  <Window.Resources>
  <Style x:Key="CaptionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
   <Setter Property="Background" Value="{DynamicResource AppChrome}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="Height" Value="44"/><Setter Property="MinHeight" Value="44"/><Setter Property="shell:WindowChrome.IsHitTestVisibleInChrome" Value="True"/>

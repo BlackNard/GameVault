@@ -26,7 +26,14 @@ public partial class MainWindow
     private void RestoreWindow()
     {
         if(observationStopped||stoppingObservation)return;
-        Show();if(WindowState==WindowState.Minimized)WindowState=WindowState.Normal;Activate();
+        Show();if(WindowState==WindowState.Minimized)WindowState=restoreState;Activate();
+    }
+    // Restoring from minimized returns to the state the window had (it starts maximized), not to the small default size.
+    private WindowState restoreState=WindowState.Maximized;
+    protected override void OnStateChanged(EventArgs e)
+    {
+        base.OnStateChanged(e);
+        if(WindowState!=WindowState.Minimized)restoreState=WindowState;
     }
     private async void BeforeClosing(object? sender,CancelEventArgs e)
     {
