@@ -68,3 +68,8 @@ xUnit throughout. `tests/GameVault.Tests` (real filesystem, process fixtures), `
 - Keep the same-window UI direction and Midnight/Crimson themes; resolve routine implementation choices yourself and ask only when a decision is load-bearing.
 - For a reported bug: record exact build/steps/expected/actual, find the failing boundary, add a meaningful regression, fix narrowly, run focused tests, then one full `verify.ps1` for the proposed revision.
 - Start from `README.md`, `docs/development.md`, `docs/persistence.md`, `docs/store-game-launching.md`, `docs/portrait-cover-search.md`, `docs/nvidia-app-capture.md`; read other `docs/*` only as needed (some describe superseded milestones).
+
+## Collaboration rules (two people, two Claudes)
+
+- This file is shared: the owner's Claude and the collaborator's Claude both read it and both update it (through a PR, like any change). Keep it free of tokens, personal data and machine-specific paths; keep personal quirks in a git-ignored local file instead.
+- Ownership: each person works on their own issues and PRs. Any issue a Claude creates is assigned to the person it is working for. A Claude may read the other person's issues and PRs but must not edit, comment on, retarget, close or merge them. If the other person's item needs action, tell your own person instead.
