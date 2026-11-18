@@ -32,7 +32,6 @@ public partial class MainWindow
     private readonly SemaphoreSlim nvidiaImportGate=new(1,1);
     private int nvidiaTick;
     private bool stallAnnounced;
-    private static string StallText(VideoHealth health)=>health.Stalled?$" · video stalled {Math.Max(1,(int)health.CurrentStall.TotalSeconds)} s (audio continues)":health.Episodes>0?$" · video paused {health.Episodes}×":"";
     // GameVault's own shortcuts are only active for a running game that records with GameVault. NVIDIA App's games keep NVIDIA's keys to themselves.
     private bool HasCaptureSession()=>launches.GetActiveStates().Any(state=>state.Phase==LaunchPhase.Running && captureSources.ContainsKey(state.GameId) && !UsesNvidia(state.GameId));
     private CaptureSource SourceOf(Guid id)=>captureSources.TryGetValue(id,out var source)?source:CaptureSource.Auto;
@@ -285,9 +284,9 @@ public partial class MainWindow
         var elapsed=capture.RecordingStartedUtc is DateTimeOffset start?DateTimeOffset.UtcNow-start:TimeSpan.Zero;
         var message=capture.State switch
         {
-            CaptureState.Recording=>$"Recording · {Math.Max(0,(long)elapsed.TotalHours):00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}"+StallText(capture.VideoHealth),
+            CaptureState.Recording=>CaptureStatusText.Recording(elapsed,capture.VideoHealth,capturePreferences.GameAudio),
             CaptureState.Starting=>"Preparing capture…",CaptureState.Stopping=>"Finalizing recording…",
-            CaptureState.Failed=>capture.LastError??"Capture needs attention",_=>captureFeedback??capture.LastError??"PNG screenshots · MP4 recordings"
+            CaptureState.Failed=>capture.LastError??"Capture needs attention",_=>captureFeedback??capture.LastError??CaptureStatusText.Idle(capturePreferences.GameAudio)
         };
         if(active)target="Recording: "+target;
         var blocked=captureUiBusy||stoppingObservation||quitPreparing;

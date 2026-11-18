@@ -7,7 +7,8 @@ public sealed class CaptureSettingsView:UserControl
 {
     private readonly ComboBox resolution=new(){Width=130,HorizontalAlignment=HorizontalAlignment.Left};
     private readonly ComboBox rate=new(){Width=100,HorizontalAlignment=HorizontalAlignment.Left};
-    private readonly CheckBox audio=new(){Content="Record only this game's audio (Windows 11)",Margin=new(0,8,0,8)};
+    private readonly CheckBox audio=new(){Content="Record game audio (Windows 11)",Margin=new(0,8,0,2)};
+    private readonly TextBlock audioNote=new(){Text="Unchecked means the video is silent. Only the game's own sound is recorded: never other apps, never the microphone.",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,8),Opacity=0.8};
     private readonly Dictionary<CaptureCommand,(ComboBox Modifier,ComboBox Key)> shortcuts=[];
     private readonly StackPanel inputs=new();
     private readonly TextBlock notice=new(){TextWrapping=TextWrapping.Wrap,Margin=new(0,8,0,8)};
@@ -23,7 +24,7 @@ public sealed class CaptureSettingsView:UserControl
         resolution.ItemsSource=new[]{"720p","1080p"};rate.ItemsSource=new[]{"30 fps","60 fps"};
         inputs.Children.Add(new Label{Content="Video size"});inputs.Children.Add(resolution);inputs.Children.Add(new Label{Content="Frame rate"});inputs.Children.Add(rate);
         inputs.Children.Add(new TextBlock{Text="60 fps costs roughly twice the GPU time of 30 fps. If a game stutters while GameVault records, choose 30 fps, or record with NVIDIA App (game's Media tab).",TextWrapping=TextWrapping.Wrap,Margin=new(0,4,0,0),Opacity=0.8});
-        inputs.Children.Add(audio);
+        inputs.Children.Add(audio);inputs.Children.Add(audioNote);
         foreach(var command in Enum.GetValues<CaptureCommand>())
         {
             var label=command switch{CaptureCommand.Screenshot=>"Screenshot",CaptureCommand.Recording=>"Recording toggle",_=>"Controls toggle"};
