@@ -109,7 +109,7 @@ public partial class MainWindow
   finally
   {
    unsubscribe(Completed);EditorHost.Content=null;EditorHost.Visibility=Visibility.Collapsed;
-   DrawerLayer.Visibility=Visibility.Collapsed;ContentRoot.IsEnabled=true;
+   DrawerLayer.Visibility=Visibility.Collapsed;SetDrawerFullWidth(false);ContentRoot.IsEnabled=true;
    if(returnToLibrary&&IsLoaded)RestoreLibraryFocus();
   }
  }

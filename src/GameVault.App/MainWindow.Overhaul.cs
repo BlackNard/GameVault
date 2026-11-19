@@ -148,6 +148,14 @@ public partial class MainWindow
         if (ItemOf(sender) is { } item) await NavigateToAsync(NavRoute.Game(item.Game.Id, "Overview"));
     }
 
+    // ---------- drawer ----------
+    /// <summary>The cover search needs room: while it is open the drawer fills the whole window, otherwise it is a 700 px side panel.</summary>
+    private void SetDrawerFullWidth(bool full)
+    {
+        DrawerPanel.HorizontalAlignment = full ? HorizontalAlignment.Stretch : HorizontalAlignment.Right;
+        DrawerPanel.Width = full ? double.NaN : 700;
+    }
+
     // ---------- settings ----------
     private void SettingsSectionClicked(object sender, RoutedEventArgs e)
     {

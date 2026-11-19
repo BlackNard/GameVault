@@ -98,4 +98,19 @@ public sealed class MainWindowStartupTests
         Assert.NotNull(window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "ContentRoot"));
         foreach (var name in new[] { "RecentList", "LibraryNav", "SettingsNav", "QuitButton", "HeroBackupButton", "OpenFolderButton" }) Assert.Contains(name, names);
     }
+
+    [Fact]
+    public void The_drawer_is_700_wide_and_the_cover_search_can_take_the_whole_window()
+    {
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var panel = Root().Descendants().Single(e => (string?)e.Attribute(x + "Name") == "DrawerPanel");
+        Assert.Equal("700", (string?)panel.Attribute("Width"));
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !Directory.Exists(Path.Combine(root.FullName, "src", "GameVault.App"))) root = root.Parent;
+        var editor = File.ReadAllText(Path.Combine(root!.FullName, "src", "GameVault.App", "GameEditor.xaml.cs"));
+        Assert.Contains("FullWidthChanged?.Invoke(this, true)", editor);   // artwork search opened
+        Assert.Contains("FullWidthChanged?.Invoke(this, false)", editor);  // and closed
+        var window = File.ReadAllText(Path.Combine(root.FullName, "src", "GameVault.App", "MainWindow.Overhaul.cs"));
+        Assert.Contains("double.NaN", window);                              // full width = no fixed width
+    }
 }
