@@ -16,6 +16,8 @@ public partial class GameEditor : UserControl
     private bool saving;
     public GameSaveResult? Result { get; private set; }
     public bool WasRestored { get; private set; }
+    /// <summary>Raised with true while the artwork search is open, so the host can give it the whole window, and false when it closes.</summary>
+    public event EventHandler<bool>? FullWidthChanged;
 
     public GameEditor(string theme, GameProfile? profile, Func<GameDraft, byte[]?, Task<GameSaveResult>> save, Func<Guid, Task<GameSaveResult>>? restore = null)
     {
@@ -85,6 +87,7 @@ public partial class GameEditor : UserControl
         ArtworkHost.Content = coverSearch;
         EditorScroll.Visibility = EditorFooter.Visibility = Visibility.Collapsed;
         ArtworkHost.Visibility = Visibility.Visible;
+        FullWidthChanged?.Invoke(this, true);
     }
 
     private void CloseArtwork()
@@ -94,6 +97,7 @@ public partial class GameEditor : UserControl
         ArtworkHost.Content = null;
         ArtworkHost.Visibility = Visibility.Collapsed;
         EditorScroll.Visibility = EditorFooter.Visibility = Visibility.Visible;
+        FullWidthChanged?.Invoke(this, false);
         GameName.Focus();
     }
 

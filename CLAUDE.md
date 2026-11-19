@@ -30,7 +30,7 @@ Dependencies use exact versions with committed `packages.lock.json`; change them
 
 - `GameVault.Core`: plain models/contracts, no WPF.
 - `GameVault.Infrastructure`: `Storage/` (versioned JSON repository `AppDataStore*`, `ProfileFolders`, `ManagedPaths`), `Library/`, `Launching/`, `Playtime/`, `Saves/` (discovery, backup, restore, destinations), `Notes/`, `Artwork/`, `Capture/` (`CaptureCoordinator`, `CaptureMediaStore`, `NvidiaApp`, `NvidiaCaptureImporter`), `ApplicationWorkspace` (exclusive `.gamevault.lock` handle).
-- `GameVault.App`: WPF shell; `MainWindow` partials (`.Navigation`, `.Tray`, `.Capture`, `.Performance`); same-window views (`NotesView`, `BackupsView`, `RestoreView`, `SaveSourcesView`, cover search, `GameEditor`). A type named `*Window` may be hosted inline: check its base type. Capture UI in `Capture/`.
+- `GameVault.App`: WPF shell; `MainWindow` partials (`.Navigation`, `.Tray`, `.Capture`, `.Performance`, `.Shell` for title-bar history, command palette, toasts and the now-playing chip; its logic is in `GameVault.Core/ShellModels.cs`, see `docs/ui-shell.md`); same-window views (`NotesView`, `BackupsView`, `RestoreView`, `SaveSourcesView`, cover search, `GameEditor`). A type named `*Window` may be hosted inline: check its base type. Capture UI in `Capture/`.
 - `GameVault.Capture`: lazy native capture backend (ScreenRecorderLib 7.0.1). Missing prerequisites must degrade gracefully and never block startup.
 
 ### Persistence

@@ -7,12 +7,19 @@ internal static class CoverImages
 {
     private static readonly GameVault.Infrastructure.Library.BoundedAsyncCache<BitmapImage> Thumbnails =
         new(32L * 1024 * 1024, 2, image => checked((long)image.PixelWidth * image.PixelHeight * 4));
+    private static readonly GameVault.Infrastructure.Library.BoundedAsyncCache<BitmapImage> Icons =
+        new(4L * 1024 * 1024, 2, image => checked((long)image.PixelWidth * image.PixelHeight * 4));
     internal static long CachedThumbnailBytes => Thumbnails.RetainedBytes;
+    /// <summary>A tiny decode (64 px wide) for the left rail, kept apart from the grid thumbnails so scrolling the library never frees it.</summary>
+    internal static Task<BitmapImage> LoadIconAsync(string path, CancellationToken cancellationToken = default) =>
+        Icons.GetAsync(Path.GetFullPath(path), () => Task.FromResult(Load(path, 64)), cancellationToken);
     internal static Task<BitmapImage> LoadThumbnailAsync(string path, CancellationToken cancellationToken = default) =>
         Thumbnails.GetAsync(Path.GetFullPath(path), () => Task.FromResult(Load(path, 240)), cancellationToken);
     internal static void InvalidateThumbnail(string? path)
     {
-        if (path is not null) Thumbnails.Invalidate(Path.GetFullPath(path));
+        if (path is null) return;
+        Thumbnails.Invalidate(Path.GetFullPath(path));
+        Icons.Invalidate(Path.GetFullPath(path));
     }
     public static byte[] Normalize(string path)
     {

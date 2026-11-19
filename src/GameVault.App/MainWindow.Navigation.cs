@@ -84,9 +84,10 @@ public partial class MainWindow
   OverviewSection.Visibility=section=="Overview"?Visibility.Visible:Visibility.Collapsed;
   SavesSection.Visibility=section=="Saves"?Visibility.Visible:Visibility.Collapsed;
   MediaSection.Visibility=section=="Media"?Visibility.Visible:Visibility.Collapsed;
-  foreach(var button in new[]{OverviewTab,NotesButton,SavesTab,MediaTab})button.SetResourceReference(Control.BackgroundProperty,(string?)button.Tag==section?"AppRaised":"AppBackground");
+  foreach(var button in new[]{OverviewTab,NotesButton,SavesTab,MediaTab}){var on=(string?)button.Tag==section;if(on){button.SetResourceReference(Control.BorderBrushProperty,"AppAccent");button.SetResourceReference(Control.ForegroundProperty,"AppText");}else{button.ClearValue(Control.BorderBrushProperty);button.ClearValue(Control.ForegroundProperty);}}
   if(section=="Media")_=RefreshCaptureMediaAsync();
   if(section=="Saves")_=RefreshBackupDestinationsAsync();
+  RecordRoute();
  }
  private async Task<bool> ShowInlineEditorAsync(UserControl view,Action<EventHandler<bool>> subscribe,Action<EventHandler<bool>> unsubscribe)
  {
@@ -102,15 +103,14 @@ public partial class MainWindow
   activeInlineEditor=session;
   void Completed(object? sender,bool saved)=>session.Complete(saved);
   subscribe(Completed);
-  LibraryPanel.Visibility=GamePage.Visibility=SettingsPanel.Visibility=Visibility.Collapsed;
+  SetDrawerFullWidth(view is GameEditor);DrawerLayer.Visibility=Visibility.Visible;ContentRoot.IsEnabled=false;
   EditorHost.Content=view;EditorHost.Visibility=Visibility.Visible;
   try{return await session.Completion;}
   finally
   {
    unsubscribe(Completed);EditorHost.Content=null;EditorHost.Visibility=Visibility.Collapsed;
-   if(returnToLibrary)SetNavigation(true);
-   else if(returnToSettings)SetNavigation(false);
-   else if(GameList.SelectedItem is LibraryItemView){ShowGamePage();ShowGameSection(gameSection);}else SetNavigation(true);
+   DrawerLayer.Visibility=Visibility.Collapsed;SetDrawerFullWidth(false);ContentRoot.IsEnabled=true;
+   if(returnToLibrary&&IsLoaded)RestoreLibraryFocus();
   }
  }
  private void CompleteInlineEditor()

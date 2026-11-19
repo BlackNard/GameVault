@@ -22,8 +22,8 @@ public sealed class ManualUiBatchTests
  [Fact] public void Main_shell_keeps_entire_artwork_and_compact_add_action()
  {
   var xml=XDocument.Parse(Source("MainWindow.xaml"));XNamespace ns="http://schemas.microsoft.com/winfx/2006/xaml/presentation",x="http://schemas.microsoft.com/winfx/2006/xaml";
-  var images=xml.Descendants(ns+"Image").Where(e=>e.Attribute("Source")?.Value=="{Binding Cover}"||e.Attribute(x+"Name")?.Value=="GameHeroCover").ToArray();Assert.Equal(2,images.Length);Assert.All(images,e=>Assert.Equal("Uniform",e.Attribute("Stretch")?.Value));
-  var library=images.Single(e=>e.Attribute("Source")?.Value=="{Binding Cover}").Ancestors(ns+"Border").First();Assert.Equal("276",library.Attribute("Height")?.Value);
+  var images=xml.Descendants(ns+"Image").Where(e=>e.Attribute("Source")?.Value=="{Binding Cover}"||e.Attribute(x+"Name")?.Value=="GameHeroCover").ToArray();Assert.Equal(3,images.Length);Assert.All(images,e=>Assert.Equal("Uniform",e.Attribute("Stretch")?.Value)); // grid card, list row and the game page header: all keep the whole artwork
+  var library=images.First(e=>e.Attribute("Source")?.Value=="{Binding Cover}").Ancestors(ns+"Border").First();Assert.Equal("276",library.Attribute("Height")?.Value);
   var hero=images.Single(e=>e.Attribute(x+"Name")?.Value=="GameHeroCover").Ancestors(ns+"Border").First();Assert.Equal("96",hero.Attribute("Width")?.Value);Assert.Equal("144",hero.Attribute("Height")?.Value);
   var add=xml.Descendants(ns+"Button").Single(e=>e.Attribute(x+"Name")?.Value=="AddButton");Assert.Equal("40",add.Attribute("Height")?.Value);Assert.Equal("Center",add.Attribute("VerticalAlignment")?.Value);
   Assert.DoesNotContain("Advanced privacy",Source("MainWindow.xaml"));Assert.DoesNotContain("ClearLegacyArtworkKey",Source("MainWindow.Navigation.cs"));Assert.Contains("Local profile storage",Source("MainWindow.xaml"));
