@@ -61,4 +61,41 @@ public sealed class MainWindowStartupTests
             (string?)Named("ToastHost").Attributes().FirstOrDefault(a => a.Name.LocalName.EndsWith("LiveSetting"))?.Value);
         Assert.NotNull(Named("PaletteInput")); Assert.NotNull(Named("PaletteList"));
     }
+
+    [Fact]
+    public void Library_has_status_chips_a_layout_switch_and_card_and_row_templates_with_a_context_menu()
+    {
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        XNamespace ns = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        var window = Root();
+        XElement Named(string name) => window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == name);
+        var chips = window.Descendants(ns + "RadioButton").Where(e => (string?)e.Attribute("GroupName") == "StatusChips").Select(e => e.Attribute("Tag")!.Value).ToArray();
+        Assert.Equal(new[] { "All", "Playing", "Completed", "OnHold", "NotStarted" }, chips);
+        // the chips drive the original filter controls, which stay in the tree for the filtering code
+        Assert.Equal(new[] { "All", "NotStarted", "Playing", "Completed", "OnHold" }.Order(), Named("StatusFilter").Elements().Select(e => e.Attribute("Tag")!.Value).Order());
+        Assert.NotNull(Named("RemovedFilter")); Assert.NotNull(Named("ChipRemoved"));
+        Assert.NotNull(Named("GridModeButton")); Assert.NotNull(Named("ListModeButton"));
+        var templates = window.Descendants(ns + "DataTemplate").Select(e => (string?)e.Attribute(x + "Key")).Where(k => k is not null).ToArray();
+        Assert.Contains("CardTemplate", templates); Assert.Contains("RowTemplate", templates);
+        var menu = window.Descendants(ns + "ContextMenu").Single(e => (string?)e.Attribute(x + "Key") == "GameContextMenu");
+        Assert.Equal(new[] { "Play", "Back up now", "Open install folder", "Edit game…", "Sessions & notes", "Remove from library" }, menu.Elements(ns + "MenuItem").Select(e => e.Attribute("Header")!.Value).ToArray());
+    }
+
+    [Fact]
+    public void Every_settings_menu_entry_scrolls_to_a_real_section_and_editors_open_in_a_side_drawer()
+    {
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        XNamespace ns = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        var window = Root();
+        var names = window.Descendants().Select(e => (string?)e.Attribute(x + "Name")).Where(n => n is not null).ToHashSet();
+        var settings = window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "SettingsPanel");
+        var tags = settings.Descendants(ns + "Button").Where(e => (string?)e.Attribute("Click") == "SettingsSectionClicked").Select(e => e.Attribute("Tag")!.Value).ToArray();
+        Assert.Equal(5, tags.Length);
+        Assert.All(tags, tag => Assert.Contains(tag, names));
+        var drawer = window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "DrawerLayer");
+        Assert.Equal("Collapsed", (string?)drawer.Attribute("Visibility"));
+        Assert.Contains(drawer.Descendants(), e => (string?)e.Attribute(x + "Name") == "EditorHost");
+        Assert.NotNull(window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "ContentRoot"));
+        foreach (var name in new[] { "RecentList", "LibraryNav", "SettingsNav", "QuitButton", "HeroBackupButton", "OpenFolderButton" }) Assert.Contains(name, names);
+    }
 }

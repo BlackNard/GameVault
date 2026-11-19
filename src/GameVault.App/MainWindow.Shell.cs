@@ -87,7 +87,9 @@ public partial class MainWindow
     private void RecordRoute()
     {
         if (navigatingByHistory) return;
-        navHistory.Record(CurrentRoute());
+        var route = CurrentRoute();
+        navHistory.Record(route);
+        UpdateRecent(route);
         UpdateNavUi();
     }
 
@@ -98,6 +100,8 @@ public partial class MainWindow
         var route = CurrentRoute();
         var name = route.GameId is Guid id ? items.FirstOrDefault(i => i.Game.Id == id)?.Name : null;
         BreadcrumbText.Text = NavBreadcrumb.Text(route, name);
+        UpdateRailSelection(route);
+        UpdateRecent();
     }
 
     private bool RouteStillExists(NavRoute route) => route.Kind != NavKind.Game || items.Any(i => i.Game.Id == route.GameId);
@@ -155,6 +159,12 @@ public partial class MainWindow
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
         if (key == Key.K && Keyboard.Modifiers == ModifierKeys.Control) { e.Handled = true; TogglePalette(); return; }
         if (PaletteOverlay.Visibility == Visibility.Visible) return;
+        if (key == Key.OemQuestion && Keyboard.Modifiers == ModifierKeys.None && libraryVisible && LibraryPanel.Visibility == Visibility.Visible && Keyboard.FocusedElement is not TextBox)
+        {
+            e.Handled = true;
+            Search.Focus();
+            return;
+        }
         if (Keyboard.Modifiers == ModifierKeys.Alt && key is Key.Left or Key.Right && !InlinePrompts.IsOpen(this))
         {
             e.Handled = true;

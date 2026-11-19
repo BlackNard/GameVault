@@ -9,8 +9,17 @@ Part of the UI overhaul (ticket #90, phases 2 and 3). The logic lives in `GameVa
 - **Now playing chip:** while a game runs, the title bar shows its name and elapsed time; clicking it opens the game page.
 - **Design tokens:** shape tokens (`AppRadius`, `AppRadiusSmall`) and the title bar button styles (`TitleIconButton`, `TitlePillButton`) are in `Styles.xaml`. Colours stay in `ThemePalette`.
 
+## Library, game page, rail, settings and drawer (UI overhaul, same PR)
+- **Library:** search box with placeholder, status chips (All, Playing, Completed, On hold, Not started) and a Removed chip, a cover-grid / compact-list switch, cover cards with a status badge, and hover actions (Play and a more-actions menu). Right-click a card or row for Play, Back up now, Open install folder, Edit, Sessions & notes, Remove. The chips drive the original (now hidden) status filter and removed checkbox, so filtering behaves as before. Artwork is still shown whole (Stretch Uniform).
+- **Game page:** a hero banner (soft backdrop from the cover), large Play button, icon buttons for Edit, Open install folder, Back up now and More (launch settings, remove), a facts row (playtime, latest session) and underline tabs. The separate Back button is gone: use the title bar history or the breadcrumb.
+- **Left rail:** icons, a Recent list (the last four games you opened this session) and highlighting of the current section.
+- **Settings:** a section menu (Appearance, Backups, Background, Capture, Storage) that scrolls to the section.
+- **Edit game, Launch settings and Add game** open in a right-hand drawer over the page instead of replacing it. The page behind is disabled while the drawer is open.
+
 ## Not in this change
-Library cards and list, game page hero, drawer for editing, settings sub-navigation and the other screens follow in later phases.
+Continue-playing row, saved filter views, settings search, and the global Backups and Captures pages from the prototype are not built yet.
+
+
 
 ## Manual checks (owner)
 1. Open a game, switch tabs, press Back and Forward: each returns to the right game and tab; Back is disabled at the start.
