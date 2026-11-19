@@ -69,8 +69,8 @@
       <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Top"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><ContentPresenter/></ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
       <ListBox.Resources>
        <ContextMenu x:Key="GameContextMenu" Opened="GameContextMenuOpened">
-        <MenuItem Header="Play" Click="MenuPlayClicked"/><MenuItem Header="Back up now" Click="MenuBackUpClicked"/><MenuItem Header="Open install folder" Click="OpenInstallFolderClicked"/><Separator/>
-        <MenuItem Header="Edit game…" Click="EditGame"/><MenuItem Header="Sessions &amp; notes" Click="MenuNotesClicked"/><Separator/><MenuItem Header="Remove from library" Click="ArchiveGame"/>
+        <MenuItem Header="Play" Click="MenuPlayClicked"/><MenuItem Header="Back up now" Click="MenuBackUpClicked"/><MenuItem Header="Open install folder" Click="OpenInstallFolderClicked"/>
+        <MenuItem Header="Edit game…" Click="EditGame"/><MenuItem Header="Sessions &amp; notes" Click="MenuNotesClicked"/><MenuItem Header="Remove from library" Click="ArchiveGame"/>
        </ContextMenu>
        <DataTemplate x:Key="CardTemplate"><Button Click="OpenGameCard" Style="{StaticResource CardButton}" ContextMenu="{StaticResource GameContextMenu}" ContextMenuOpening="GameContextMenuOpening" AutomationProperties.Name="{Binding Name}"><StackPanel Loaded="CoverRowLoaded" Unloaded="CoverRowUnloaded" DataContextChanged="CoverRowChanged">
         <Border Height="276" CornerRadius="12" Background="{DynamicResource AppSurface}" ClipToBounds="True"><Grid><TextBlock Text="{Binding Initial}" FontSize="48" Foreground="{DynamicResource AppMuted}" HorizontalAlignment="Center" VerticalAlignment="Center"/><Image Source="{Binding Cover}" Stretch="Uniform"/>

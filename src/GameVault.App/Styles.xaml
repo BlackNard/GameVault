@@ -677,6 +677,7 @@
         <Setter Property="Padding" Value="0,0,0,8"/>
     </Style>
     <Style TargetType="Separator">
+        <Setter Property="Visibility" Value="Collapsed"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Separator">
