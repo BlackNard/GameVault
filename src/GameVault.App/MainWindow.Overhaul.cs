@@ -129,6 +129,7 @@ public partial class MainWindow
         }
         var shown = recentGameIds.Select(game => items.FirstOrDefault(i => i.Game.Id == game)).Where(i => i is not null).ToArray();
         RecentList.ItemsSource = shown;
+        foreach (var item in shown) _ = item!.LoadRailIconAsync();
         RecentHeader.Visibility = shown.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
     }
 

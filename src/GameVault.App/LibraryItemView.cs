@@ -25,6 +25,10 @@ internal sealed class LibraryItemView(LibraryGame game, Func<string, Cancellatio
         $"{(session.IsActive ? "This session" : "Last session")}: {FormatSeconds(session.SessionSeconds)}";
     public string? SessionWarning => session?.Warning;
     public BitmapImage? Cover { get; private set; }
+    private int iconGeneration;
+    private bool iconLoading;
+    /// <summary>Small cover for the left rail. Loaded on request and not released when a grid card scrolls away.</summary>
+    public BitmapImage? RailIcon { get; private set; }
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public void SetLaunchState(LaunchState state)
@@ -52,11 +56,28 @@ internal sealed class LibraryItemView(LibraryGame game, Func<string, Cancellatio
     {
         if (game.Id != Game.Id) throw new ArgumentException("A library row must retain its game identity.", nameof(game));
         CoverImages.InvalidateThumbnail(Game.CoverFile);
+        iconGeneration++; RailIcon = null; PropertyChanged?.Invoke(this, new(nameof(RailIcon)));
         ReleaseCover();
         Game = game;
         if (session is { IsActive: false } && game.PlayedSeconds is long seconds) session = session with { TotalSeconds = seconds };
         foreach (var name in new[] { nameof(Game), nameof(Name), nameof(Initial), nameof(Status), nameof(Availability), nameof(Played), nameof(SessionTime), nameof(SessionWarning) })
             PropertyChanged?.Invoke(this, new(name));
+    }
+
+    public async Task LoadRailIconAsync()
+    {
+        if (RailIcon is not null || iconLoading || Game.CoverFile is not string file) return;
+        iconLoading = true;
+        var generation = iconGeneration;
+        try
+        {
+            var image = await CoverImages.LoadIconAsync(file);
+            if (generation != iconGeneration) return;
+            RailIcon = image;
+            PropertyChanged?.Invoke(this, new(nameof(RailIcon)));
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException or OperationCanceledException or System.Runtime.InteropServices.COMException) { }
+        finally { iconLoading = false; }
     }
 
     public void ReleaseCover()
