@@ -82,6 +82,18 @@ public sealed class MainWindowStartupTests
     }
 
     [Fact]
+    public void Overhaul_part_two_has_continue_row_views_settings_search_and_global_pages()
+    {
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var window = Root();
+        var names = window.Descendants().Select(e => (string?)e.Attribute(x + "Name")).Where(n => n is not null).ToHashSet();
+        foreach (var name in new[] { "ContinueRow", "ContinueList", "ViewsButton", "SettingsSearchBox", "BackupsNav", "CapturesNav", "OverviewPanel", "OverviewList", "OverviewEmpty" })
+            Assert.Contains(name, names);
+        Assert.Equal("Collapsed", (string?)window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "OverviewPanel").Attribute("Visibility"));
+        Assert.Equal("Collapsed", (string?)window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "ContinueRow").Attribute("Visibility"));
+    }
+
+    [Fact]
     public void Every_settings_menu_entry_scrolls_to_a_real_section_and_editors_open_in_a_side_drawer()
     {
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";

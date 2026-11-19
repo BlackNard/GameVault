@@ -3,7 +3,7 @@ namespace GameVault.Core;
 public sealed record GameDraft(Guid? Id, string Name, string ExecutablePath, string WorkingDirectory,
     string[] SaveSources, GameStatus Status = GameStatus.NotStarted);
 public sealed record LibraryGame(Guid Id, GameProfile? Profile, bool IsReadOnly, bool ExecutableMissing,
-    string? CoverFile, long? PlayedSeconds, string? Warning);
+    string? CoverFile, long? PlayedSeconds, string? Warning, DateTimeOffset? LastPlayedAt = null);
 public sealed record LibrarySnapshot(LibraryGame[] Games, string[] Warnings);
 public sealed record GameSaveResult(GameProfile Profile, string? Warning);
 

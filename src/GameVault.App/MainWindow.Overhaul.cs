@@ -140,8 +140,10 @@ public partial class MainWindow
             if (on) { button.SetResourceReference(Control.BackgroundProperty, "AppRaised"); button.SetResourceReference(Control.ForegroundProperty, "AppText"); }
             else { button.ClearValue(Control.BackgroundProperty); button.ClearValue(Control.ForegroundProperty); }
         }
-        Mark(LibraryNav, route.Kind != NavKind.Settings);
+        Mark(LibraryNav, route.Kind is NavKind.Library or NavKind.Game);
         Mark(SettingsNav, route.Kind == NavKind.Settings);
+        Mark(BackupsNav, route.Kind == NavKind.Backups);
+        Mark(CapturesNav, route.Kind == NavKind.Captures);
     }
 
     private async void RecentClicked(object sender, RoutedEventArgs e)
@@ -161,5 +163,142 @@ public partial class MainWindow
     private void SettingsSectionClicked(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: string name } && FindName(name) is FrameworkElement target) target.BringIntoView();
+    }
+}
+
+// Continue-playing row, saved filter views and settings search (UI overhaul part two, ticket #90).
+public partial class MainWindow
+{
+    private readonly SavedViewList savedViews = new();
+    private bool savedViewsReadOnly;
+    private bool savedViewsLoaded;
+
+    // ---------- continue playing ----------
+    private void UpdateContinueRow()
+    {
+        if (ContinueRow is null) return;
+        var plain = Search.Text.Trim().Length == 0 && RemovedFilter.IsChecked != true && ((StatusFilter.SelectedItem as ComboBoxItem)?.Tag as string ?? "All") == "All";
+        var picked = plain
+            ? ContinuePlaying.Pick(items.Where(i => i.Game.Profile is { IsArchived: false }).Select(i => i.LastPlayedAt is { } at ? new ContinuePlaying.Entry(i.Game.Id, at) : null)).Select(e => libraryRows[e.GameId]).ToArray()
+            : [];
+        ContinueList.ItemsSource = picked;
+        ContinueRow.Visibility = picked.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        foreach (var item in picked) _ = item.LoadRailIconAsync();
+    }
+
+    private async void ContinueOpenClicked(object sender, RoutedEventArgs e)
+    {
+        if (ItemOf(sender) is { } item) await NavigateToAsync(NavRoute.Game(item.Game.Id, "Overview"));
+    }
+
+    // ---------- saved views ----------
+    private async Task LoadSavedViewsAsync()
+    {
+        if (savedViewsLoaded) return;
+        savedViewsLoaded = true;
+        try
+        {
+            var stored = await store.LoadLibraryViewsAsync();
+            savedViewsReadOnly = stored.IsReadOnly;
+            if (stored.Value is { } document) foreach (var view in document.Views) savedViews.Save(view);
+        }
+        catch (Exception error) when (IsExpected(error)) { savedViewsReadOnly = true; }
+    }
+
+    private async Task PersistSavedViewsAsync()
+    {
+        try { await store.SaveLibraryViewsAsync(new LibraryViewsDocument(1, [.. savedViews.Views])); }
+        catch (Exception error) when (IsExpected(error)) { ShowToast("Could not save the view", error.Message, true); }
+    }
+
+    private SavedLibraryView CurrentView()
+    {
+        var status = (StatusFilter.SelectedItem as ComboBoxItem)?.Tag as string ?? "All";
+        var removed = RemovedFilter.IsChecked == true;
+        var search = Search.Text.Trim();
+        var parts = new List<string>();
+        if (status != "All") parts.Add(status switch { "NotStarted" => "Not started", "OnHold" => "On hold", _ => status });
+        if (removed) parts.Add("Removed");
+        if (search.Length > 0) parts.Add("“" + search + "”");
+        return new SavedLibraryView(string.Join(" · ", parts), status, removed, search);
+    }
+
+    private async void ViewsButtonClicked(object sender, RoutedEventArgs e)
+    {
+        await LoadSavedViewsAsync();
+        var menu = new ContextMenu { PlacementTarget = ViewsButton, Placement = PlacementMode.Bottom };
+        var current = CurrentView();
+        foreach (var view in savedViews.Views)
+        {
+            var captured = view;
+            var entry = new MenuItem { Header = view.Name, IsChecked = view.Status == current.Status && view.Removed == current.Removed && view.Search == current.Search };
+            entry.Click += (_, _) => ApplySavedView(captured);
+            menu.Items.Add(entry);
+        }
+        var save = new MenuItem { Header = current.Name.Length == 0 ? "Save current view (choose a filter first)" : "Save view “" + current.Name + "”", IsEnabled = current.Name.Length > 0 && !savedViewsReadOnly };
+        save.Click += async (_, _) =>
+        {
+            if (!savedViews.Save(current)) { ShowToast("Could not save the view", "You can keep up to " + SavedViewList.MaxViews + " saved views. Delete one first.", true); return; }
+            await PersistSavedViewsAsync();
+            ShowToast("View saved", current.Name);
+        };
+        menu.Items.Add(save);
+        if (savedViews.Views.Count > 0)
+        {
+            var delete = new MenuItem { Header = "Delete a view", IsEnabled = !savedViewsReadOnly };
+            foreach (var view in savedViews.Views)
+            {
+                var name = view.Name;
+                var item = new MenuItem { Header = name };
+                item.Click += async (_, _) => { savedViews.Remove(name); await PersistSavedViewsAsync(); ShowToast("View deleted", name); };
+                delete.Items.Add(item);
+            }
+            menu.Items.Add(delete);
+        }
+        menu.IsOpen = true;
+    }
+
+    private void ApplySavedView(SavedLibraryView view)
+    {
+        initializing = true;
+        try
+        {
+            Search.Text = view.Search;
+            RemovedFilter.IsChecked = view.Removed;
+            StatusFilter.SelectedItem = StatusFilter.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string?)i.Tag == view.Status) ?? StatusFilter.Items[0];
+        }
+        finally { initializing = false; }
+        ApplyFilters((GameList.SelectedItem as LibraryItemView)?.Game.Id);
+    }
+
+    // ---------- settings search ----------
+    private void SettingsSearchChanged(object sender, TextChangedEventArgs e)
+    {
+        if (SettingsScroll.Content is not StackPanel sections) return;
+        var query = SettingsSearchBox.Text.Trim();
+        // A section starts at each heading (a 20 pt title) and runs to the next one.
+        var groups = new List<List<UIElement>>();
+        foreach (UIElement child in sections.Children)
+        {
+            if (child is TextBlock { FontSize: 20 } || groups.Count == 0) groups.Add([]);
+            groups[^1].Add(child);
+        }
+        foreach (var group in groups)
+        {
+            var text = string.Join(" ", group.SelectMany(TextOf));
+            var show = SettingsSearch.Matches(query, text);
+            foreach (var element in group) element.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
+    private static IEnumerable<string> TextOf(DependencyObject node)
+    {
+        switch (node)
+        {
+            case TextBlock { Text.Length: > 0 } block: yield return block.Text; break;
+            case ContentControl { Content: string content }: yield return content; break;
+        }
+        foreach (var child in LogicalTreeHelper.GetChildren(node).OfType<DependencyObject>())
+            foreach (var text in TextOf(child)) yield return text;
     }
 }

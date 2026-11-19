@@ -36,8 +36,9 @@ public sealed class LibraryService
             long? played = statistics is null ? null : statistics.Adjustments.Aggregate(
                 statistics.Sessions.Aggregate(0L, (total, session) => checked(total + session.DurationSeconds)),
                 (total, adjustment) => checked(total + adjustment.Seconds));
+            DateTimeOffset? lastPlayed = statistics is { Sessions.Length: > 0 } ? statistics.Sessions.Max(session => session.EndedAt ?? session.StartedAt) : null;
             return new LibraryGame(game.Id, game.Profile.Value, game.Profile.IsReadOnly || game.Profile.Value is null,
-                game.Profile.Value is not null && !File.Exists(game.Profile.Value.ExecutablePath), cover, played, warning);
+                game.Profile.Value is not null && !File.Exists(game.Profile.Value.ExecutablePath), cover, played, warning, lastPlayed);
         }).OrderBy(g => g.Profile?.Name, StringComparer.OrdinalIgnoreCase).ThenBy(g => g.Id).ToArray();
         return new LibrarySnapshot(items, snapshot.Warnings);
     });

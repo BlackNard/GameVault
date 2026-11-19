@@ -76,6 +76,7 @@ public partial class MainWindow
     private NavRoute CurrentRoute()
     {
         if (SettingsPanel.Visibility == Visibility.Visible) return NavRoute.Settings;
+        if (OverviewVisible) return overviewKind == NavKind.Backups ? NavRoute.Backups : NavRoute.Captures;
         if (GameList.SelectedItem is LibraryItemView item && (GamePage.Visibility == Visibility.Visible || notesView is not null))
         {
             var section = notesView is not null ? "Sessions" : gameSection;
@@ -134,6 +135,11 @@ public partial class MainWindow
             case NavKind.Settings:
                 if (!await LeaveNotes()) return false;
                 SetNavigation(false);
+                return true;
+            case NavKind.Backups:
+            case NavKind.Captures:
+                if (!await LeaveNotes()) return false;
+                await ShowOverviewAsync(route.Kind);
                 return true;
             default:
                 var item = items.FirstOrDefault(i => i.Game.Id == route.GameId);
@@ -230,6 +236,8 @@ public partial class MainWindow
             yield return new PaletteEntry("Game", item.Name, "", Go(NavRoute.Game(item.Game.Id, "Overview")));
         yield return new PaletteEntry("Go to", "Library", "", Go(NavRoute.Library));
         yield return new PaletteEntry("Go to", "Settings", "", Go(NavRoute.Settings));
+        yield return new PaletteEntry("Go to", "Backups", "", Go(NavRoute.Backups));
+        yield return new PaletteEntry("Go to", "Captures", "", Go(NavRoute.Captures));
         yield return new PaletteEntry("Action", "Add game", "", (Func<Task>)(() => { AddGame(this, new RoutedEventArgs()); return Task.CompletedTask; }));
         foreach (var item in visibleGames.Where(i => i.Game is { IsReadOnly: false, Profile.IsArchived: false }))
         {

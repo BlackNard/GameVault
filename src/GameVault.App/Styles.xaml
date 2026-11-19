@@ -751,6 +751,15 @@
                 <Trigger Property="IsChecked" Value="True"><Setter TargetName="Frame" Property="Background" Value="{DynamicResource AppRaised}"/><Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource AppAccent}"/><Setter Property="Foreground" Value="{DynamicResource AppText}"/></Trigger>
             </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
     </Style>
+    <Style x:Key="ChipButton" TargetType="Button">
+        <Setter Property="Foreground" Value="{DynamicResource AppMuted}"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="{DynamicResource AppLine}"/>
+        <Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}"/><Setter Property="Margin" Value="0,0,8,0"/><Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+            <Border x:Name="Frame" Height="32" Padding="14,0" CornerRadius="16" BorderThickness="1" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"><ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource AppAccent}"/><Setter Property="Foreground" Value="{DynamicResource AppText}"/></Trigger>
+            </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+    </Style>
     <Style x:Key="TabLink" TargetType="Button">
         <Setter Property="Foreground" Value="{DynamicResource AppMuted}"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/><Setter Property="MinHeight" Value="0"/>
         <Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}"/><Setter Property="Padding" Value="16,11"/>

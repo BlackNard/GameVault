@@ -1,12 +1,14 @@
 namespace GameVault.Core;
 
-public enum NavKind { Library, Settings, Game }
+public enum NavKind { Library, Settings, Game, Backups, Captures }
 
 /// <summary>A place in the app that Back and Forward can return to. Section is a game page section (Overview, Sessions, Saves, Media).</summary>
 public sealed record NavRoute(NavKind Kind, Guid? GameId = null, string? Section = null)
 {
  public static readonly NavRoute Library = new(NavKind.Library);
  public static readonly NavRoute Settings = new(NavKind.Settings);
+ public static readonly NavRoute Backups = new(NavKind.Backups);
+ public static readonly NavRoute Captures = new(NavKind.Captures);
  public static NavRoute Game(Guid id, string? section = null) => new(NavKind.Game, id, string.IsNullOrWhiteSpace(section) ? "Overview" : section);
 }
 
@@ -54,6 +56,8 @@ public static class NavBreadcrumb
   switch (route.Kind)
   {
    case NavKind.Settings: return "Settings";
+   case NavKind.Backups: return "Backups";
+   case NavKind.Captures: return "Captures";
    case NavKind.Game:
     var name = string.IsNullOrWhiteSpace(gameName) ? "Game" : gameName;
     var section = route.Section switch { "Sessions" => "Sessions & notes", "Saves" => "Saves", "Media" => "Media", _ => null };
@@ -161,4 +165,89 @@ public static class ToastText
   var detail = text[(end + 1)..].Trim();
   return (title, detail.Length == 0 ? null : detail);
  }
+}
+
+/// <summary>Which games appear in the "Continue playing" row on the library page.</summary>
+public static class ContinuePlaying
+{
+ public sealed record Entry(Guid GameId, DateTimeOffset LastPlayedAt);
+
+ /// <summary>The most recently played games first, at most <paramref name="count"/>. Games never played are left out.</summary>
+ public static Entry[] Pick(IEnumerable<Entry?> games, int count = 4) =>
+  games.Where(g => g is not null).Select(g => g!).OrderByDescending(g => g.LastPlayedAt).ThenBy(g => g.GameId).Take(Math.Max(0, count)).ToArray();
+
+ /// <summary>Short, friendly "last played" text such as "Just now", "3 h ago", "Yesterday" or "12 Mar".</summary>
+ public static string Ago(DateTimeOffset playedAt, DateTimeOffset now)
+ {
+  var span = now - playedAt;
+  if (span < TimeSpan.Zero || span < TimeSpan.FromMinutes(1)) return "Just now";
+  if (span < TimeSpan.FromHours(1)) return $"{(int)span.TotalMinutes} min ago";
+  if (span < TimeSpan.FromDays(1)) return $"{(int)span.TotalHours} h ago";
+  if (span < TimeSpan.FromDays(2)) return "Yesterday";
+  if (span < TimeSpan.FromDays(14)) return $"{(int)span.TotalDays} days ago";
+  return playedAt.ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture);
+ }
+}
+
+/// <summary>A named library filter the user saved (status chip, removed toggle and search text).</summary>
+public sealed record SavedLibraryView(string Name, string Status, bool Removed, string Search);
+
+/// <summary>The list of saved library views, kept in Data/library-views.json. Names are unique ignoring case; saving an existing name replaces it.</summary>
+public sealed class SavedViewList
+{
+ public const int MaxViews = 12;
+ public const int MaxNameLength = 40;
+ readonly List<SavedLibraryView> views = [];
+ public IReadOnlyList<SavedLibraryView> Views => views;
+
+ public SavedViewList() { }
+ public SavedViewList(IEnumerable<SavedLibraryView> existing) { foreach (var v in existing) { if (TryClean(v, out var clean)) Put(clean); } }
+
+ /// <summary>Adds or replaces a view. Returns false when the name is empty or the list is full.</summary>
+ public bool Save(SavedLibraryView view)
+ {
+  if (!TryClean(view, out var clean)) return false;
+  if (views.Count >= MaxViews && !views.Any(v => Same(v.Name, clean.Name))) return false;
+  Put(clean);
+  return true;
+ }
+
+ public bool Remove(string name) => views.RemoveAll(v => Same(v.Name, name)) > 0;
+
+ static bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+
+ void Put(SavedLibraryView clean)
+ {
+  var i = views.FindIndex(v => Same(v.Name, clean.Name));
+  if (i >= 0) views[i] = clean; else views.Add(clean);
+ }
+
+ static bool TryClean(SavedLibraryView? view, out SavedLibraryView clean)
+ {
+  clean = view!;
+  if (view is null || string.IsNullOrWhiteSpace(view.Name)) return false;
+  var name = view.Name.Trim();
+  if (name.Length > MaxNameLength) name = name[..MaxNameLength].TrimEnd();
+  var status = string.IsNullOrWhiteSpace(view.Status) ? "All" : view.Status.Trim();
+  clean = new SavedLibraryView(name, status, view.Removed, (view.Search ?? "").Trim());
+  return true;
+ }
+}
+
+/// <summary>Matching for the settings search box: every word typed must appear somewhere in the section text.</summary>
+public static class SettingsSearch
+{
+ public static bool Matches(string query, string sectionText)
+ {
+  if (string.IsNullOrWhiteSpace(query)) return true;
+  return query.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries)
+   .All(word => sectionText.Contains(word, StringComparison.OrdinalIgnoreCase));
+ }
+}
+
+/// <summary>On-disk form of the saved library views (Data/library-views.json).</summary>
+public sealed record LibraryViewsDocument(int SchemaVersion, SavedLibraryView[] Views)
+{
+ public static LibraryViewsDocument Empty => new(1, []);
+ public static bool IsValid(LibraryViewsDocument? value) => value is { SchemaVersion: 1, Views: not null } && value.Views.Length <= SavedViewList.MaxViews && value.Views.All(v => v is not null && !string.IsNullOrWhiteSpace(v.Name) && v.Status is not null && v.Search is not null);
 }

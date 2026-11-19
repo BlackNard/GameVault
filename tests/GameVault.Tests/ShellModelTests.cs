@@ -71,6 +71,8 @@ public sealed class ShellModelTests
     [Theory]
     [InlineData(NavKind.Library, null, "Library")]
     [InlineData(NavKind.Settings, null, "Settings")]
+    [InlineData(NavKind.Backups, null, "Backups")]
+    [InlineData(NavKind.Captures, null, "Captures")]
     [InlineData(NavKind.Game, "Overview", "Library › TEKKEN 8")]
     [InlineData(NavKind.Game, "Sessions", "Library › TEKKEN 8 › Sessions & notes")]
     [InlineData(NavKind.Game, "Saves", "Library › TEKKEN 8 › Saves")]
@@ -174,4 +176,69 @@ public sealed class ShellModelTests
         var (title, detail) = ToastText.Split(new string('x', 200));
         Assert.True(title.Length <= 90); Assert.Equal(200, detail!.Length);
     }
+}
+
+public sealed class OverhaulPartTwoTests
+{
+ static readonly DateTimeOffset Now = new(2026, 11, 19, 12, 0, 0, TimeSpan.Zero);
+
+ [Fact]
+ public void Continue_playing_orders_newest_first_skips_unplayed_and_limits()
+ {
+  var a = Guid.NewGuid(); var b = Guid.NewGuid(); var c = Guid.NewGuid(); var d = Guid.NewGuid(); var e = Guid.NewGuid();
+  var picked = ContinuePlaying.Pick([new(a, Now.AddDays(-5)), null, new(b, Now.AddHours(-1)), new(c, Now.AddDays(-1)), new(d, Now.AddDays(-9)), new(e, Now.AddDays(-30))], 4);
+  Assert.Equal([b, c, a, d], picked.Select(x => x.GameId));
+  Assert.Empty(ContinuePlaying.Pick([null, null]));
+  Assert.Empty(ContinuePlaying.Pick([new(a, Now)], 0));
+ }
+
+ [Theory]
+ [InlineData(0, "Just now")]
+ [InlineData(30, "Just now")]
+ [InlineData(300, "5 min ago")]
+ [InlineData(3 * 3600, "3 h ago")]
+ [InlineData(30 * 3600, "Yesterday")]
+ [InlineData(5 * 86400, "5 days ago")]
+ public void Ago_is_friendly(int seconds, string expected) => Assert.Equal(expected, ContinuePlaying.Ago(Now.AddSeconds(-seconds), Now));
+
+ [Fact]
+ public void Ago_uses_a_date_after_two_weeks_and_tolerates_clock_skew()
+ {
+  Assert.Equal("1 Nov 2026", ContinuePlaying.Ago(new(2026, 11, 1, 8, 0, 0, TimeSpan.Zero), Now));
+  Assert.Equal("Just now", ContinuePlaying.Ago(Now.AddMinutes(5), Now));
+ }
+
+ [Fact]
+ public void Saved_views_replace_by_name_ignoring_case_trim_and_cap()
+ {
+  var list = new SavedViewList();
+  Assert.True(list.Save(new(" Backlog ", "NotStarted", false, " rpg ")));
+  Assert.True(list.Save(new("backlog", "Playing", true, "")));
+  var only = Assert.Single(list.Views);
+  Assert.Equal(("backlog", "Playing", true, ""), (only.Name, only.Status, only.Removed, only.Search));
+  Assert.False(list.Save(new("  ", "All", false, "")));
+  for (var i = 0; i < SavedViewList.MaxViews - 1; i++) Assert.True(list.Save(new("v" + i, "All", false, "")));
+  Assert.False(list.Save(new("one too many", "All", false, "")));
+  Assert.True(list.Save(new("V1", "Completed", false, "")));
+  Assert.True(list.Remove("BACKLOG"));
+  Assert.False(list.Remove("missing"));
+  Assert.Equal(SavedViewList.MaxViews - 1, list.Views.Count);
+ }
+
+ [Fact]
+ public void Saved_view_names_are_shortened_and_empty_status_means_all()
+ {
+  var list = new SavedViewList([new(new string('x', 100), "", false, ""), new("", "All", false, "")]);
+  var view = Assert.Single(list.Views);
+  Assert.Equal(SavedViewList.MaxNameLength, view.Name.Length);
+  Assert.Equal("All", view.Status);
+ }
+
+ [Theory]
+ [InlineData("", "anything", true)]
+ [InlineData("backup folder", "Backup storage. Choose the default destination folder", true)]
+ [InlineData("BACKUP", "Backup storage", true)]
+ [InlineData("tray", "Backup storage", false)]
+ [InlineData("backup tray", "Backup storage", false)]
+ public void Settings_search_requires_every_word(string query, string text, bool expected) => Assert.Equal(expected, SettingsSearch.Matches(query, text));
 }

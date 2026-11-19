@@ -134,6 +134,7 @@ public partial class MainWindow : Window
         EmptyDescription.Text = removed ? "Removed games keep their data here so you can restore them." : items.Length == 0 ? "Choose Add game and browse to its executable to start your library." : "Try another search or status. You can also check Removed profiles.";
         ShowSelection();
         SyncChips();
+        UpdateContinueRow();
     }
 
     private void SelectedGameChanged(object sender, SelectionChangedEventArgs e) { if (!initializing) ShowSelection(); }
@@ -189,6 +190,7 @@ public partial class MainWindow : Window
         GamePage.Visibility=Visibility.Collapsed;
         LibraryPanel.Visibility = showLibrary ? Visibility.Visible : Visibility.Collapsed;
         SettingsPanel.Visibility = showLibrary ? Visibility.Collapsed : Visibility.Visible;
+        OverviewPanel.Visibility = Visibility.Collapsed;
         if(!showLibrary)_=RefreshBackupDestinationsAsync();
         else if(IsLoaded)RestoreLibraryFocus();
         LibraryNav.SetResourceReference(Control.BorderBrushProperty, showLibrary ? "AppAccent" : "AppLine");
@@ -482,7 +484,7 @@ public partial class MainWindow : Window
     private void BackupChanged(object? sender,BackupResult result)
     {
         if(Dispatcher.HasShutdownStarted)return;
-        _=Dispatcher.InvokeAsync(()=>{if(stoppingObservation)return;RecordBackupAlert(result);if(backupsView is not null&&backupsView.GameId==result.GameId&&result.Phase!=BackupPhase.Working)_=backupsView.RefreshAsync();if(GameList.SelectedItem is LibraryItemView item&&item.Game.Id==result.GameId){backupViewRevision++;ApplyBackupSummary(result);}UpdateButtons();});
+        _=Dispatcher.InvokeAsync(()=>{if(stoppingObservation)return;RecordBackupAlert(result);if(backupsView is not null&&backupsView.GameId==result.GameId&&result.Phase!=BackupPhase.Working)_=backupsView.RefreshAsync();if(OverviewVisible&&overviewKind==NavKind.Backups&&result.Phase!=BackupPhase.Working)_=RefreshOverviewAsync();if(GameList.SelectedItem is LibraryItemView item&&item.Game.Id==result.GameId){backupViewRevision++;ApplyBackupSummary(result);}UpdateButtons();});
     }
     private void ApplyBackupSummary(BackupResult result)
     {

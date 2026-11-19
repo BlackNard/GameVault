@@ -24,6 +24,8 @@ internal sealed class LibraryItemView(LibraryGame game, Func<string, Cancellatio
     public string SessionTime => session is null ? "No active session" :
         $"{(session.IsActive ? "This session" : "Last session")}: {FormatSeconds(session.SessionSeconds)}";
     public string? SessionWarning => session?.Warning;
+    public DateTimeOffset? LastPlayedAt => Game.LastPlayedAt;
+    public string LastPlayedText => Game.LastPlayedAt is { } at ? ContinuePlaying.Ago(at, DateTimeOffset.Now) : "Not played yet";
     public BitmapImage? Cover { get; private set; }
     private int iconGeneration;
     private bool iconLoading;
@@ -60,7 +62,7 @@ internal sealed class LibraryItemView(LibraryGame game, Func<string, Cancellatio
         ReleaseCover();
         Game = game;
         if (session is { IsActive: false } && game.PlayedSeconds is long seconds) session = session with { TotalSeconds = seconds };
-        foreach (var name in new[] { nameof(Game), nameof(Name), nameof(Initial), nameof(Status), nameof(Availability), nameof(Played), nameof(SessionTime), nameof(SessionWarning) })
+        foreach (var name in new[] { nameof(Game), nameof(Name), nameof(Initial), nameof(Status), nameof(Availability), nameof(Played), nameof(SessionTime), nameof(SessionWarning), nameof(LastPlayedAt), nameof(LastPlayedText) })
             PropertyChanged?.Invoke(this, new(name));
     }
 
