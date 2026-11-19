@@ -160,6 +160,30 @@
          </Border>
         </DataTemplate></ItemsControl.ItemTemplate>
        </ItemsControl>
+       <ItemsControl x:Name="CaptureGroups" Focusable="False" Visibility="Collapsed">
+        <ItemsControl.ItemTemplate><DataTemplate>
+         <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppLine}" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,16" MaxWidth="900" HorizontalAlignment="Left" MinWidth="620">
+          <StackPanel>
+           <DockPanel Margin="0,0,0,10">
+            <Button DockPanel.Dock="Right" Content="Open game" Click="CaptureGroupOpenGameClicked" Height="32" MinHeight="32" Padding="14,0" VerticalAlignment="Center"/>
+            <Border DockPanel.Dock="Left" Width="36" Height="50" CornerRadius="6" Background="{DynamicResource AppRaised}" ClipToBounds="True" Margin="0,0,12,0"><Grid><TextBlock Text="{Binding Item.Initial}" Foreground="{DynamicResource AppMuted}" HorizontalAlignment="Center" VerticalAlignment="Center"/><Image Source="{Binding Item.RailIcon}" Stretch="Uniform"/></Grid></Border>
+            <StackPanel VerticalAlignment="Center"><TextBlock Text="{Binding Item.Name}" FontWeight="SemiBold" FontSize="16" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding Summary}" Foreground="{DynamicResource AppMuted}" Margin="0,2,0,0"/></StackPanel>
+           </DockPanel>
+           <ItemsControl ItemsSource="{Binding Lines}" Focusable="False">
+            <ItemsControl.ItemTemplate><DataTemplate>
+             <Grid Margin="0,0,0,2" Height="36">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <TextBlock Text="{Binding Kind}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+              <TextBlock Grid.Column="1" Text="{Binding When}" VerticalAlignment="Center" Foreground="{DynamicResource AppMuted}"/>
+              <Button Grid.Column="2" Content="Open" Click="CaptureLineOpenClicked" IsEnabled="{Binding CanOpen}" Height="30" MinHeight="30" Padding="14,0"/>
+             </Grid>
+            </DataTemplate></ItemsControl.ItemTemplate>
+           </ItemsControl>
+           <TextBlock Text="{Binding More}" Foreground="{DynamicResource AppMuted}" Margin="0,6,0,0" Visibility="{Binding MoreVisibility}"/>
+          </StackPanel>
+         </Border>
+        </DataTemplate></ItemsControl.ItemTemplate>
+       </ItemsControl>
        <StackPanel x:Name="OverviewEmpty" Visibility="Collapsed" Margin="0,40,0,0" HorizontalAlignment="Left"><TextBlock x:Name="OverviewEmptyText" Foreground="{DynamicResource AppMuted}" TextWrapping="Wrap" MaxWidth="480"/></StackPanel>
       </StackPanel>
      </ScrollViewer>

@@ -162,7 +162,12 @@ public partial class MainWindow
     // ---------- settings ----------
     private void SettingsSectionClicked(object sender, RoutedEventArgs e)
     {
-        if (sender is Button { Tag: string name } && FindName(name) is FrameworkElement target) target.BringIntoView();
+        if (sender is not Button { Tag: string name } || FindName(name) is not FrameworkElement target || SettingsScroll.Content is not FrameworkElement content) return;
+        // Put the section at the top of the page (BringIntoView alone does nothing when the heading is already on screen).
+        SettingsSearchBox.Clear();
+        content.UpdateLayout();
+        try { SettingsScroll.ScrollToVerticalOffset(Math.Max(0, target.TransformToAncestor(content).Transform(new Point(0, 0)).Y - 4)); }
+        catch (InvalidOperationException) { target.BringIntoView(); }
     }
 }
 
