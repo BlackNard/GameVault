@@ -158,17 +158,6 @@ public partial class MainWindow
         DrawerPanel.HorizontalAlignment = full ? HorizontalAlignment.Stretch : HorizontalAlignment.Right;
         DrawerPanel.Width = full ? double.NaN : 700;
     }
-
-    // ---------- settings ----------
-    private void SettingsSectionClicked(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button { Tag: string name } || FindName(name) is not FrameworkElement target || SettingsScroll.Content is not FrameworkElement content) return;
-        // Put the section at the top of the page (BringIntoView alone does nothing when the heading is already on screen).
-        SettingsSearchBox.Clear();
-        content.UpdateLayout();
-        try { SettingsScroll.ScrollToVerticalOffset(Math.Max(0, target.TransformToAncestor(content).Transform(new Point(0, 0)).Y - 4)); }
-        catch (InvalidOperationException) { target.BringIntoView(); }
-    }
 }
 
 // Continue-playing row, saved filter views and settings search (UI overhaul part two, ticket #90).
@@ -274,36 +263,5 @@ public partial class MainWindow
         }
         finally { initializing = false; }
         ApplyFilters((GameList.SelectedItem as LibraryItemView)?.Game.Id);
-    }
-
-    // ---------- settings search ----------
-    private void SettingsSearchChanged(object sender, TextChangedEventArgs e)
-    {
-        if (SettingsScroll.Content is not StackPanel sections) return;
-        var query = SettingsSearchBox.Text.Trim();
-        // A section starts at each heading (a 20 pt title) and runs to the next one.
-        var groups = new List<List<UIElement>>();
-        foreach (UIElement child in sections.Children)
-        {
-            if (child is TextBlock { FontSize: 20 } || groups.Count == 0) groups.Add([]);
-            groups[^1].Add(child);
-        }
-        foreach (var group in groups)
-        {
-            var text = string.Join(" ", group.SelectMany(TextOf));
-            var show = SettingsSearch.Matches(query, text);
-            foreach (var element in group) element.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        }
-    }
-
-    private static IEnumerable<string> TextOf(DependencyObject node)
-    {
-        switch (node)
-        {
-            case TextBlock { Text.Length: > 0 } block: yield return block.Text; break;
-            case ContentControl { Content: string content }: yield return content; break;
-        }
-        foreach (var child in LogicalTreeHelper.GetChildren(node).OfType<DependencyObject>())
-            foreach (var text in TextOf(child)) yield return text;
     }
 }

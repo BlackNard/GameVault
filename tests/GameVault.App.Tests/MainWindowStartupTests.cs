@@ -87,14 +87,14 @@ public sealed class MainWindowStartupTests
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
         var window = Root();
         var names = window.Descendants().Select(e => (string?)e.Attribute(x + "Name")).Where(n => n is not null).ToHashSet();
-        foreach (var name in new[] { "ContinueRow", "ContinueList", "ViewsButton", "SettingsSearchBox", "BackupsNav", "CapturesNav", "OverviewPanel", "OverviewList", "CaptureGroups", "OverviewEmpty" })
+        foreach (var name in new[] { "ContinueRow", "ContinueList", "ViewsButton", "BackupsNav", "CapturesNav", "OverviewPanel", "OverviewList", "CaptureGroups", "OverviewEmpty" })
             Assert.Contains(name, names);
         Assert.Equal("Collapsed", (string?)window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "OverviewPanel").Attribute("Visibility"));
         Assert.Equal("Collapsed", (string?)window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "ContinueRow").Attribute("Visibility"));
     }
 
     [Fact]
-    public void Every_settings_menu_entry_scrolls_to_a_real_section_and_editors_open_in_a_side_drawer()
+    public void Settings_has_no_section_menu_and_editors_open_in_a_side_drawer()
     {
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
         XNamespace ns = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
@@ -102,8 +102,8 @@ public sealed class MainWindowStartupTests
         var names = window.Descendants().Select(e => (string?)e.Attribute(x + "Name")).Where(n => n is not null).ToHashSet();
         var settings = window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "SettingsPanel");
         var tags = settings.Descendants(ns + "Button").Where(e => (string?)e.Attribute("Click") == "SettingsSectionClicked").Select(e => e.Attribute("Tag")!.Value).ToArray();
-        Assert.Equal(5, tags.Length);
-        Assert.All(tags, tag => Assert.Contains(tag, names));
+        Assert.Empty(tags);   // the settings page has no left section menu or search box
+        Assert.DoesNotContain("SettingsSearchBox", names);
         var drawer = window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "DrawerLayer");
         Assert.Equal("Collapsed", (string?)drawer.Attribute("Visibility"));
         Assert.Contains(drawer.Descendants(), e => (string?)e.Attribute(x + "Name") == "EditorHost");
