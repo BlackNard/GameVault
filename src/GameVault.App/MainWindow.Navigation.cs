@@ -87,6 +87,7 @@ public partial class MainWindow
   foreach(var button in new[]{OverviewTab,NotesButton,SavesTab,MediaTab})button.SetResourceReference(Control.BackgroundProperty,(string?)button.Tag==section?"AppRaised":"AppBackground");
   if(section=="Media")_=RefreshCaptureMediaAsync();
   if(section=="Saves")_=RefreshBackupDestinationsAsync();
+  RecordRoute();
  }
  private async Task<bool> ShowInlineEditorAsync(UserControl view,Action<EventHandler<bool>> subscribe,Action<EventHandler<bool>> unsubscribe)
  {

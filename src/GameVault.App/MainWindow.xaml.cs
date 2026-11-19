@@ -76,6 +76,7 @@ public partial class MainWindow : Window
         InitializePerformanceFeatures();
         InitializeRedesign();
         InitializeCaptureFeatures();
+        InitializeShell();
     }
 
     private async void LoadLibrary(object sender, RoutedEventArgs e)
@@ -107,6 +108,7 @@ public partial class MainWindow : Window
         StorageNotice.Text = string.Join("\n", snapshot.Warnings.Concat(recoveryNotices).Distinct());
         ApplyFilters(previous);
         ReloadVisibleCovers();
+        UpdateNavUi();
     }
 
     private void FilterChanged(object sender, RoutedEventArgs e)
@@ -190,6 +192,7 @@ public partial class MainWindow : Window
         else if(IsLoaded)RestoreLibraryFocus();
         LibraryNav.SetResourceReference(Control.BorderBrushProperty, showLibrary ? "AppAccent" : "AppLine");
         SettingsNav.SetResourceReference(Control.BorderBrushProperty, showLibrary ? "AppLine" : "AppAccent");
+        RecordRoute();
     }
     private void AddGame(object sender, RoutedEventArgs e) => OpenEditor(null);
     private void EditGame(object sender, RoutedEventArgs e)
@@ -378,6 +381,7 @@ public partial class MainWindow : Window
         DetailFields.Visibility=Visibility.Collapsed;
         OperationNotice.Text = "Sessions & notes · " + item.Name;
         UpdateButtons();
+        RecordRoute();
     }
     private async void BackFromNotes(object? sender, EventArgs e) { var section=gameSection=="Sessions"?"Overview":gameSection; if (await LeaveNotes()){ShowGamePage();ShowGameSection(section);} }
     private async Task<bool> LeaveNotes(bool detach = true)

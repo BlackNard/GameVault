@@ -675,4 +675,29 @@
         <Setter Property="BorderBrush" Value="{DynamicResource AppLine}"/>
         <Setter Property="Padding" Value="12,8"/>
     </Style>
+    <!-- Shared design tokens (UI overhaul, ticket #90). Colours stay in ThemePalette; shape tokens live here. -->
+    <CornerRadius x:Key="AppRadius">12</CornerRadius>
+    <CornerRadius x:Key="AppRadiusSmall">8</CornerRadius>
+    <Style x:Key="TitleIconButton" TargetType="Button">
+        <Setter Property="Width" Value="32"/><Setter Property="Height" Value="32"/><Setter Property="MinHeight" Value="32"/><Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Foreground" Value="{DynamicResource AppMuted}"/>
+        <Setter Property="Focusable" Value="True"/><Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}"/>
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+            <Border x:Name="Frame" Background="{TemplateBinding Background}" CornerRadius="{StaticResource AppRadiusSmall}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Frame" Property="Background" Value="{DynamicResource AppRaised}"/><Setter Property="Foreground" Value="{DynamicResource AppText}"/></Trigger>
+                <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="{DynamicResource AppDisabledOpacity}"/></Trigger>
+            </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="TitlePillButton" TargetType="Button">
+        <Setter Property="Height" Value="32"/><Setter Property="MinHeight" Value="32"/><Setter Property="Padding" Value="12,0"/><Setter Property="Foreground" Value="{DynamicResource AppMuted}"/>
+        <Setter Property="Background" Value="{DynamicResource AppSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource AppLine}"/><Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}"/>
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+            <Border x:Name="Frame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="16" Padding="{TemplateBinding Padding}"><ContentPresenter VerticalAlignment="Center" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/></Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource AppAccent}"/><Setter Property="Foreground" Value="{DynamicResource AppText}"/></Trigger>
+                <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="{DynamicResource AppDisabledOpacity}"/></Trigger>
+            </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+    </Style>
 </ResourceDictionary>
