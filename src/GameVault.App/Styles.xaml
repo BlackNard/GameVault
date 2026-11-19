@@ -586,7 +586,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="ContextMenu">
                     <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" Padding="4">
-                        <ScrollViewer CanContentScroll="True">
+                        <ScrollViewer CanContentScroll="True" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
                             <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/>
                         </ScrollViewer>
                     </Border>
