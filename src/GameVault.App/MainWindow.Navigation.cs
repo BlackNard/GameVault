@@ -103,7 +103,7 @@ public partial class MainWindow
   activeInlineEditor=session;
   void Completed(object? sender,bool saved)=>session.Complete(saved);
   subscribe(Completed);
-  DrawerLayer.Visibility=Visibility.Visible;ContentRoot.IsEnabled=false;
+  SetDrawerFullWidth(view is GameEditor);DrawerLayer.Visibility=Visibility.Visible;ContentRoot.IsEnabled=false;
   EditorHost.Content=view;EditorHost.Visibility=Visibility.Visible;
   try{return await session.Completion;}
   finally

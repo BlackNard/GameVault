@@ -295,7 +295,7 @@ public partial class MainWindow : Window
                 try { return await library.RestoreAsync(id); }
                 finally { busy = false; }
             });
-            editor.FullWidthChanged += (_, full) => SetDrawerFullWidth(full);
+            editor.FullWidthChanged += (_, _) => SetDrawerFullWidth(true);   // the editor always fills the window
             if (await ShowInlineEditorAsync(editor,h=>editor.Completed+=h,h=>editor.Completed-=h) && editor.Result is GameSaveResult result)
             {
                 busy = true;
