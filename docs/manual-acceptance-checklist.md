@@ -1,0 +1,106 @@
+# Manual acceptance checklist
+
+Use the build folder you were given (private test data already imported). Quit GameVault with its **Quit** button when you finish so test data can be refreshed. Tick a box only after you saw it work. Anything that does not match: write the exact step and what you saw.
+
+`verify.ps1` passing means the automated tests, publish and source audit passed. It does not replace this list.
+
+## 0. Quick smoke test (5 minutes)
+
+- [ ] GameVault opens maximized, Library shows your four games with covers.
+- [ ] Left rail: Library, Backups, Captures; Settings and Quit at the bottom. Back/Forward arrows work.
+- [ ] Ctrl+K opens the command palette; typing a game name finds it.
+- [ ] Settings opens without the old left menu or search box.
+
+## 1. Data backup and restore (#89)
+
+Settings → **GameVault data**
+
+- [ ] Untick *Include game backups and recorded media*, press **Back up GameVault data…**: it shows the number of files and size, then asks for a folder. A `GameVault-data-<date>.zip` appears and the toast has *Show in folder*.
+- [ ] Repeat with the box ticked: the zip is bigger.
+- [ ] Choosing a folder inside GameVault's own `Data` or `Profiles` folder is refused.
+- [ ] Start a game, then press **Back up** or **Restore**: refused with a message (games running).
+- [ ] **Restore from a backup…** with the zip: it shows the date and file count and warns that the library is replaced. After **Yes**, GameVault closes. Reopen it: your games are all there. A `Replaced-<time>` folder next to `GameVault.exe` holds the library from before.
+- [ ] Pick a zip that is not a GameVault backup (any other zip): "cannot be used… nothing was changed".
+- [ ] (Optional) Open a backup zip in Explorer, change a file inside, save, try to restore it: rejected, library untouched.
+
+## 2. Diagnostics package (#86)
+
+Settings → **Diagnostics**
+
+- [ ] **Create diagnostics package…** first shows what is inside (environment, settings, counts, log) and your Windows/GPU/NVIDIA details.
+- [ ] Choose a folder: a zip is created. Open it: no user name, no `C:\Users\<you>`, no game names (they appear as `<game 1>`…), no notes text.
+- [ ] Tick *Include game names*: only then `games.txt` is added.
+- [ ] `Logs\gamevault.log` exists next to `GameVault.exe` and has lines.
+
+## 3. Tags, categories, sort and saved views (#88)
+
+- [ ] Open a game → Overview → **Edit tags…**, enter `RPG, Co-op, Finish soon`, Save. Tags show on the page.
+- [ ] The library now has a **Tags ▾** chip. Tick `RPG`: only tagged games remain. Tick a second tag: only games with both. **Clear tag filter** resets.
+- [ ] **Sort: Name ▾** switches between Name, Recently played, Most played; order changes and makes sense.
+- [ ] Set a status chip + a tag + a sort, then **Views ▾ → Save view**. The view appears as a quick button next to the chips. Change filters, click the button: search, status, tags and sort come back exactly.
+- [ ] Settings → **Saved views**: rename a view (Enter), move it up/down, delete it. The quick buttons follow.
+- [ ] Rename a game (Edit game), archive it (Remove from library) and restore it: its tags are still there.
+- [ ] Close and reopen GameVault: tags, sort-less filters and saved views are still there.
+
+## 4. Play actions, arguments and hooks (#87)
+
+Game → ⋯ → **Launch settings**
+
+- [ ] **Add play action**: name, program (.exe), arguments, optional working folder, administrator tick, *Play button runs this action*. Save.
+- [ ] A **▾** button appears next to **Play** for that game; its menu lists *Game executable* and your actions.
+- [ ] Play with an action that starts the game with an argument (for example a launcher or a second shortcut). The game starts; playtime is recorded as usual.
+- [ ] Choose *Game executable* in the menu: the game itself starts, ignoring the default.
+- [ ] With a mod manager as an action: it opens, you start the game from it, playtime is tracked once the game process appears.
+- [ ] An action with *Run as administrator*: Windows asks for approval; cancelling it says so and nothing starts.
+- [ ] **Before launch** hook with *Wait* ticked (for example a small program): it runs before the game; a failing or missing hook shows a toast, and the game still starts.
+- [ ] **After exit** hook: runs after you close the game. A hook that exceeds its timeout is stopped and reported.
+- [ ] A game with no actions or hooks behaves exactly as before (no ▾ button).
+- [ ] Invalid input is refused with a clear message (action without a name, a relative path, two actions with one name).
+
+## 5. Add games from Steam and Epic (#85)
+
+Library → **Add from Steam / Epic**
+
+- [ ] The drawer lists your installed Steam games (all library folders) and Epic games with store, size and a program path.
+- [ ] No Steamworks/Proton/redistributable entries, no DLC.
+- [ ] Games already in your library say *already in your library* and cannot be ticked. A game you removed earlier says it can be restored.
+- [ ] Tick two new games, check or change the program (list, Browse…), **Add selected games**: both appear in the library, with the right executable; saves discovery runs.
+- [ ] A game where no program was found shows a warning and cannot be added until you pick an .exe.
+
+## 6. Game information (#83)
+
+- [ ] A game's Overview has **About this game** with *Refresh info* and *Edit description…*.
+- [ ] **Refresh info** on a Steam game fills description, release date, developer, publisher, genres (Steam store) and install size. On a non-Steam game only install size appears.
+- [ ] **Edit description…**, save, then **Refresh info** again: your text is kept.
+- [ ] Settings → **Game information**: untick a field (for example Genres) and refresh: it is not filled. *Only fill fields that are empty* on/off behaves as described.
+- [ ] **Fetch missing info for all games** shows progress, can be cancelled with **Cancel**, and ends with a summary.
+- [ ] With the PC offline: Refresh shows a short message, nothing crashes.
+
+## 7. Save-location database (#84)
+
+Settings → **Save-location database**
+
+- [ ] The text explains source and licence (Ludusavi manifest, PCGamingWiki, CC BY-NC-SA) and nothing downloads on its own.
+- [ ] **Download the save-location database** (about 18 MB): status shows the number of games and the date.
+- [ ] Open a game whose saves GameVault could not find before (for example TEKKEN 8) → Saves → refresh discovery: new candidates mention *Save-location database* and need **Confirm**; nothing is selected automatically.
+- [ ] Disconnect from the internet, restart GameVault: the status still shows the games and discovery still works.
+
+## 8. Earlier UI work (overhaul parts one and two)
+
+- [ ] Right-click a game card: menu has even spacing, no stray lines. The card's **⋯** button sits inside the cover border.
+- [ ] Continue-playing row shows recently played games (when any played).
+- [ ] **Backups** page: one row per game with *Back up now* and *Open game*.
+- [ ] **Captures** page: grouped per game, newest first, *Open* on a capture and *Open game* on a group.
+- [ ] Add game / Edit game open as a side drawer; the cover search takes the whole window.
+- [ ] Add game button hover is readable (no black text).
+
+## 9. Existing acceptance issues (cannot be closed by tests)
+
+These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.
+
+- [ ] **#1 First Windows version:** the whole product works for your real games (add, play, track time, back up, restore, notes, capture).
+- [ ] **#3 Library, details and backup screens:** the three screens are clear and usable (sections 0, 3 and 8 above).
+- [ ] **#14 Complete play-and-restore workflow:** play a real game for a few minutes, quit it, check the session is recorded and a backup was made, change/delete a save, **restore** the backup and confirm the game loads the restored save.
+- [ ] **#18 Responsiveness and performance:** with all your games, scrolling the library, switching pages and typing in search stay smooth; no freezes during a recording or while a game runs.
+- [ ] **#16 Installer: clean install, upgrade, uninstall keep data.** *Not done yet.* Needs your go-ahead to build the installer (release script). Then: install on a clean state, upgrade over an older version, uninstall; profiles and data must survive.
+- [ ] **#17 Release packaging:** *Not done yet.* Depends on #16 and on your direction (release publication is yours).
