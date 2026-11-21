@@ -15,6 +15,8 @@ public interface IGameProcess : IDisposable
 public interface IGameProcessSystem
 {
     IGameProcess Start(string executable, string workingDirectory);
+    /// <summary>Starts with launch arguments and optionally as administrator. Systems that cannot do either simply start the executable.</summary>
+    IGameProcess Start(string executable, string workingDirectory, string arguments, bool elevated) => Start(executable, workingDirectory);
     ProcessCandidate[] Find(string executable);
     IGameProcess? Open(ProcessIdentity identity);
     IGameProcess? Recover(string executable, ProcessIdentity identity, string? groupName) =>

@@ -9,14 +9,16 @@ using Microsoft.Win32.SafeHandles;
 
 namespace GameVault.Infrastructure.Launching;
 
-internal sealed record BrokerRequest(string Executable, string WorkingDirectory);
+internal sealed record BrokerRequest(string Executable, string WorkingDirectory, string Arguments = "");
 internal sealed record BrokerHandles(long ProcessHandle, long JobHandle, ProcessIdentity Identity, string? GroupName = null);
 internal sealed record BrokerResponse(BrokerHandles? Handles, string? Error, int NativeError = 0);
 
 [SupportedOSPlatform("windows")]
 public static class ElevationBroker
 {
-    internal static IGameProcess Launch(string executable, string workingDirectory) => LaunchWithHelper(executable, workingDirectory, (pipe, parent) =>
+    internal static IGameProcess Launch(string executable, string workingDirectory) => Launch(executable, workingDirectory, "");
+
+    internal static IGameProcess Launch(string executable, string workingDirectory, string arguments) => LaunchWithHelper(executable, workingDirectory, arguments, (pipe, parent) =>
     {
         var app = Environment.ProcessPath ?? throw new IOException("GameVault's executable could not be located.");
         var start = new ProcessStartInfo(app) { UseShellExecute = true, Verb = "runas", WorkingDirectory = AppContext.BaseDirectory };
@@ -25,9 +27,12 @@ public static class ElevationBroker
     });
 
     internal static IGameProcess LaunchWithHelper(string executable, string workingDirectory, Func<string, int, Process> startHelper) =>
-        LaunchAsync(executable, workingDirectory, startHelper).GetAwaiter().GetResult();
+        LaunchWithHelper(executable, workingDirectory, "", startHelper);
 
-    private static async Task<IGameProcess> LaunchAsync(string executable, string workingDirectory, Func<string, int, Process> startHelper)
+    internal static IGameProcess LaunchWithHelper(string executable, string workingDirectory, string arguments, Func<string, int, Process> startHelper) =>
+        LaunchAsync(executable, workingDirectory, arguments, startHelper).GetAwaiter().GetResult();
+
+    private static async Task<IGameProcess> LaunchAsync(string executable, string workingDirectory, string arguments, Func<string, int, Process> startHelper)
     {
         var name = "GameVault.Elevation." + Guid.NewGuid().ToString("N");
         using var pipe = BrokerPipe.Create(name);
@@ -38,7 +43,7 @@ public static class ElevationBroker
             await pipe.WaitForConnectionAsync(timeout.Token).ConfigureAwait(false);
             if (!Native.GetNamedPipeClientProcessId(pipe.SafePipeHandle, out var peer) || peer != helper.Id)
                 throw new IOException("The launch helper's identity could not be verified.");
-            await BrokerWire.Send(pipe, new BrokerRequest(executable, workingDirectory), timeout.Token).ConfigureAwait(false);
+            await BrokerWire.Send(pipe, new BrokerRequest(executable, workingDirectory, arguments), timeout.Token).ConfigureAwait(false);
             var response = await BrokerWire.Read<BrokerResponse>(pipe, timeout.Token).ConfigureAwait(false);
             if (response.Handles is not BrokerHandles handles)
             {
@@ -78,7 +83,9 @@ public static class ElevationBroker
                 !string.Equals(Path.GetExtension(request.Executable), ".exe", StringComparison.OrdinalIgnoreCase) ||
                 !Path.IsPathFullyQualified(request.WorkingDirectory) || !Directory.Exists(request.WorkingDirectory))
                 throw new IOException("The game executable or working directory is invalid.");
-            game = (WindowsProcessGroup)WindowsProcessGroup.Start(request.Executable, request.WorkingDirectory);
+            if (request.Arguments is null || request.Arguments.Length > 2000 || request.Arguments.Any(char.IsControl))
+                throw new IOException("The launch arguments are invalid.");
+            game = (WindowsProcessGroup)WindowsProcessGroup.Start(request.Executable, request.WorkingDirectory, request.Arguments);
             handles = game.DuplicateForParent(parent);
             await BrokerWire.Send(pipe, new BrokerResponse(handles, null), timeout.Token).ConfigureAwait(false);
             responseSent = true;

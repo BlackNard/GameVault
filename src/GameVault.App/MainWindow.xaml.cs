@@ -55,6 +55,7 @@ public partial class MainWindow : Window
         discovery.Changed += SourceDiscoveryChanged;
         launchSettings = new(paths, store);
         launches.StateChanged += LaunchStateChanged;
+        launches.HookCompleted += HookCompleted;
         launches.SessionUpdated += SessionUpdated;
         settings = snapshot.Settings.Value ?? AppSettings.Default;
         settingsReadOnly = snapshot.Settings.IsReadOnly;
@@ -170,6 +171,7 @@ public partial class MainWindow : Window
             PlayButton.Content = launch.Phase switch { LaunchPhase.Starting => "Starting…", LaunchPhase.Running => "Running", _ => "Play" };
         }
         UpdateTagsUi(item);
+        _ = RefreshPlayActionsAsync(item);
         UpdateButtons();
         _=RefreshBackupDestinationsAsync();
         if(gameSection=="Media"&&!libraryVisible)_=RefreshCaptureMediaAsync();
@@ -207,17 +209,7 @@ public partial class MainWindow : Window
         if (GameList.SelectedItem is LibraryItemView { Game.IsReadOnly: false } item && !launches.GetState(item.Game.Id).IsActive) OpenEditor(item.Game.Profile);
     }
 
-    private async void PlayGame(object sender, RoutedEventArgs e)
-    {
-        if (busy || editorOpen || stoppingObservation || quitPreparing || GameList.SelectedItem is not LibraryItemView { Game.IsReadOnly: false, Game.Profile: { IsArchived: false } } item) return;
-        try
-        {
-            var run = launches.RunAsync(item.Game.Id);
-            ShowSelection();
-            await run;
-        }
-        catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = error.Message; }
-    }
+    private async void PlayGame(object sender, RoutedEventArgs e) => await PlayWithAsync(null);
 
     private void LaunchStateChanged(object? sender, LaunchState state)
     {
@@ -276,7 +268,7 @@ public partial class MainWindow : Window
         {
             var configuration = await launchSettings.LoadAsync(item.Game.Id);
             var dialog = new LaunchSettingsWindow(settings.Theme, item.Game.Profile, launchSettings, configuration);
-            if (await ShowInlineEditorAsync(dialog,h=>dialog.Completed+=h,h=>dialog.Completed-=h)) OperationNotice.Text = "Launch settings saved.";
+            if (await ShowInlineEditorAsync(dialog,h=>dialog.Completed+=h,h=>dialog.Completed-=h)) { OperationNotice.Text = "Launch settings saved."; _ = RefreshPlayActionsAsync(item); }
         }
         catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = error.Message; }
         finally { editorOpen = false; EndOperation(); CompleteInlineEditor(); }

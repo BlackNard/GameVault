@@ -40,7 +40,10 @@ internal sealed class WindowsProcessGroup : IGameProcess
         catch (Exception error) when (error is ArgumentException or InvalidOperationException) { return false; }
     }
 
-    public static IGameProcess Start(string executable, string workingDirectory)
+    public static IGameProcess Start(string executable, string workingDirectory) => Start(executable, workingDirectory, "");
+
+    /// <summary>Starts the program with a fixed argument string. The string goes straight to CreateProcess: no shell, no expansion.</summary>
+    public static IGameProcess Start(string executable, string workingDirectory, string arguments)
     {
         var groupName = "Local\\GameVault.Game." + Guid.NewGuid().ToString("N");
         using var security = new WindowsUserSecurity("GA");
@@ -53,7 +56,7 @@ internal sealed class WindowsProcessGroup : IGameProcess
         {
             var startup = new Native.StartupInfo { Size = Marshal.SizeOf<Native.StartupInfo>() };
             // Assign before user code runs, preventing fast launcher/helper chains from escaping observation.
-            if (!Native.CreateProcess(executable, new StringBuilder('"' + executable + '"'), IntPtr.Zero, IntPtr.Zero,
+            if (!Native.CreateProcess(executable, new StringBuilder('"' + executable + '"' + (string.IsNullOrEmpty(arguments) ? "" : " " + arguments)), IntPtr.Zero, IntPtr.Zero,
                 false, 0x00000004, IntPtr.Zero, workingDirectory, ref startup, out var info))
                 throw NativeLaunchErrors.Create(Marshal.GetLastWin32Error(), "Windows could not launch the game.");
             nativeProcess = new SafeProcessHandle(info.Process, ownsHandle: true);

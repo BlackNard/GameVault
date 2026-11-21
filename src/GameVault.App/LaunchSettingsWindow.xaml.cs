@@ -20,6 +20,7 @@ public partial class LaunchSettingsWindow : UserControl
         GameTitle.Text = profile.Name;
         TargetPath.Text = settings.Value?.TargetExecutablePath ?? "";
         UseLaunchExecutable.IsChecked = settings.Value?.TargetExecutablePath is null;
+        BuildActionsAndHooks(settings.Value);
         initialized = true;
         TargetFields.IsEnabled = UseLaunchExecutable.IsChecked != true;
         Notice.Text = settings.Message ?? "";
@@ -48,7 +49,8 @@ public partial class LaunchSettingsWindow : UserControl
         try
         {
             var path = UseLaunchExecutable.IsChecked == true ? null : TargetPath.Text.Trim().Trim('"');
-            await store.SaveAsync(new(1, gameId, path));
+            if (!TryReadActionsAndHooks(out var actions, out var defaultId, out var beforeHook, out var afterHook, out var problem)) { Notice.Text = problem; return; }
+            await store.SaveAsync(new(1, gameId, path, actions, defaultId, beforeHook, afterHook));
             navigation.AcceptSaved(Snapshot()); saving = false; Completed?.Invoke(this, true);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
@@ -59,7 +61,7 @@ public partial class LaunchSettingsWindow : UserControl
     public bool IsBusy => saving;
     public event EventHandler<bool>? Completed;
     private readonly InlineDraftGuard navigation;
-    private string Snapshot() => $"{UseLaunchExecutable.IsChecked}|{TargetPath.Text}";
+    private string Snapshot() => $"{UseLaunchExecutable.IsChecked}|{TargetPath.Text}|{ActionsSnapshot()}";
     public async Task<bool> CanLeaveAsync()
     {
         if (saving) { Notice.Text = "Finishing the launch settings save..."; return false; }

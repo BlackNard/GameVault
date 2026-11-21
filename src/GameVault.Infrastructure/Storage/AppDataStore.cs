@@ -110,9 +110,7 @@ public sealed partial class AppDataStore
             value => ValidLaunchSettings(value, settings.GameId));
     });
 
-    private static bool ValidLaunchSettings(LaunchSettings value, Guid id) => value.SchemaVersion == 1 && value.GameId == id &&
-        (value.TargetExecutablePath is null || (Path.IsPathFullyQualified(value.TargetExecutablePath) &&
-            string.Equals(Path.GetExtension(value.TargetExecutablePath), ".exe", StringComparison.OrdinalIgnoreCase)));
+    private static bool ValidLaunchSettings(LaunchSettings value, Guid id) => LaunchRules.IsValid(value, id);
 
     public Task SaveStatisticsAsync(GameStatistics statistics) => Run(() =>
     {
