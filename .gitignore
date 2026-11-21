@@ -38,3 +38,4 @@ artifacts/
 .gamevault-probe-*
 /work/
 /outputs/
+/Logs/

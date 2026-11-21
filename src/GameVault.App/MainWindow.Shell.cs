@@ -40,8 +40,11 @@ public partial class MainWindow
     }
 
     // ---------- toasts ----------
-    public void ShowToast(string title, string? detail = null, bool isError = false, string? actionLabel = null, Action? action = null) =>
+    public void ShowToast(string title, string? detail = null, bool isError = false, string? actionLabel = null, Action? action = null)
+    {
+        if (isError) GameVault.Infrastructure.Diagnostics.AppLog.Warn(title + (detail is null ? "" : ": " + detail));
         toastQueue.Add(title, detail, isError, actionLabel, action);
+    }
 
     private static readonly string[] PageLabels = ["Sessions & notes · ", "Save sources · ", "Backups · "];
 
