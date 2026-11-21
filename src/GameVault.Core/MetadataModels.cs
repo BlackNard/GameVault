@@ -70,7 +70,8 @@ public sealed record GameMetadataDocument(int SchemaVersion, Guid GameId, Dictio
 }
 
 /// <summary>Which providers may fill each field, in order, and the global switches (Data/metadata-settings.json).</summary>
-public sealed record MetadataSettings(int SchemaVersion, bool OnlyFillEmpty, bool SizeOnDisk, string[] DisabledFields, Dictionary<string, string[]> ProviderOrder)
+/// <param name="AutoFetch">Look information up (and fetch a missing Steam cover) in the background for new games and for games that have none yet. On by default, like Playnite's download-on-import.</param>
+public sealed record MetadataSettings(int SchemaVersion, bool OnlyFillEmpty, bool SizeOnDisk, string[] DisabledFields, Dictionary<string, string[]> ProviderOrder, bool AutoFetch = true)
 {
     public static MetadataSettings Default => new(1, true, true, [], []);
 

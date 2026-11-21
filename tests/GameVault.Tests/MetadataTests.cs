@@ -286,6 +286,59 @@ public sealed class MetadataTests : IAsyncLifetime
         await Assert.ThrowsAsync<IOException>(() => new GameMetadataService(store, []).SaveDescriptionAsync(profile.Id, "x"));
     }
 
+    [Fact]
+    public async Task A_failed_lookup_does_not_mark_the_game_as_looked_up_so_it_is_retried_and_a_finished_one_is_skipped()
+    {
+        var failing = new Fake("p", null, MetadataField.Genres) { Fail = new IOException("offline") };
+        var service = new GameMetadataService(store, [failing], new NoStore());
+        var failed = await service.RefreshAsync(profile.Id, false, CancellationToken.None);
+        Assert.NotEmpty(failed.Problems);
+        Assert.Equal(DocumentState.Missing, (await service.LoadAsync(profile.Id)).State);          // nothing saved: retried next time
+        failing.Fail = null;
+        var ok = new Fake("q", new ProviderData(Genres: ["RPG"]), MetadataField.Genres);
+        var working = new GameMetadataService(store, [ok], new NoStore());
+        var games = new[] { (profile.Id, "My Game") };
+        Assert.Equal(1, (await working.FetchMissingAsync(games, null, CancellationToken.None, onlyNeverLookedUp: true)).GamesUpdated);
+        Assert.Equal(1, ok.Calls);
+        await working.FetchMissingAsync(games, null, CancellationToken.None, onlyNeverLookedUp: true);
+        Assert.Equal(1, ok.Calls);                                                                   // already looked up: no second request
+    }
+
+    [Fact]
+    public async Task A_game_nobody_knows_is_saved_as_looked_up_once_so_it_is_not_asked_again_every_start()
+    {
+        var none = new Fake("n", null, MetadataField.Genres);
+        var service = new GameMetadataService(store, [none], new NoStore());
+        await service.FetchMissingAsync([(profile.Id, "My Game")], null, CancellationToken.None, onlyNeverLookedUp: true);
+        await service.FetchMissingAsync([(profile.Id, "My Game")], null, CancellationToken.None, onlyNeverLookedUp: true);
+        Assert.Equal(1, none.Calls);
+        Assert.NotNull((await service.LoadAsync(profile.Id)).Value!.LastRefresh);
+    }
+
+    [Fact]
+    public async Task Automatic_lookup_is_on_by_default_and_older_settings_files_keep_it_on()
+    {
+        Assert.True(MetadataSettings.Default.AutoFetch);
+        File.WriteAllText(Path.Combine(paths.Data, "metadata-settings.json"), "{\"schemaVersion\":1,\"onlyFillEmpty\":true,\"sizeOnDisk\":true,\"disabledFields\":[],\"providerOrder\":{}}");
+        var loaded = await store.LoadMetadataSettingsAsync();
+        Assert.Equal(DocumentState.Ready, loaded.State);
+        Assert.True(loaded.Value!.AutoFetch);
+    }
+
+    [Fact]
+    public async Task A_cover_is_only_written_when_the_game_has_none()
+    {
+        var library = new LibraryService(paths, store);
+        byte[] Png(byte tail) => [137, 80, 78, 71, 13, 10, 26, 10, .. new byte[40], tail];
+        var cover = Path.Combine(ProfileFolders.Resolve(paths, profile.Id), "cover.png");
+        Assert.True(await library.SetCoverIfMissingAsync(profile.Id, Png(1)));
+        Assert.Equal(1, File.ReadAllBytes(cover)[^1]);
+        Assert.False(await library.SetCoverIfMissingAsync(profile.Id, Png(2)));                     // an existing cover is never replaced
+        Assert.Equal(1, File.ReadAllBytes(cover)[^1]);
+        await Assert.ThrowsAsync<ArgumentException>(() => library.SetCoverIfMissingAsync(profile.Id, new byte[100]));
+        Assert.False(await library.SetCoverIfMissingAsync(Guid.NewGuid(), Png(3)));
+    }
+
     private sealed class NoStore : IStoreGameLauncher
     {
         public StoreLaunchPlan? Resolve(string selectedExecutable, string? targetOverride) => null;

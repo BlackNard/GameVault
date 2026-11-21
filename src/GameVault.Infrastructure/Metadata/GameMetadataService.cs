@@ -65,12 +65,14 @@ public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameM
         var existing = stored.Value ?? GameMetadataDocument.Empty(id);
         var request = await BuildRequestAsync(id, existing.LastSizeScan, settings.SizeOnDisk, replaceExisting).ConfigureAwait(false);
         var result = await MetadataResolver.ResolveAsync(request, providers, settings, existing, cancellationToken, p => p.Id == SteamStoreProvider.ProviderId).ConfigureAwait(false);
-        if (result.FieldsFilled > 0 || existing.LastRefresh is null) await store.SaveMetadataAsync(result.Document).ConfigureAwait(false);
+        // A lookup that failed (offline, rate limited) must not mark the game as looked up, or the automatic pass would never retry it.
+        var failedEmpty = result.FieldsFilled == 0 && result.Problems.Length > 0;
+        if (!failedEmpty && (result.FieldsFilled > 0 || existing.LastRefresh is null)) await store.SaveMetadataAsync(result.Document).ConfigureAwait(false);
         return result;
     }
 
     /// <summary>Fills only the missing fields of every given game, reporting progress, and stops cleanly when cancelled.</summary>
-    public async Task<BulkMetadataResult> FetchMissingAsync(IReadOnlyList<(Guid Id, string Name)> games, IProgress<(int Done, int Total, string Name)>? progress, CancellationToken cancellationToken)
+    public async Task<BulkMetadataResult> FetchMissingAsync(IReadOnlyList<(Guid Id, string Name)> games, IProgress<(int Done, int Total, string Name)>? progress, CancellationToken cancellationToken, bool onlyNeverLookedUp = false)
     {
         var updated = 0;
         var filled = 0;
@@ -84,6 +86,7 @@ public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameM
                 progress?.Report((done, games.Count, name));
                 try
                 {
+                    if (onlyNeverLookedUp && (await store.LoadMetadataAsync(id).ConfigureAwait(false)).Value?.LastRefresh is not null) { done++; continue; }
                     var result = await RefreshAsync(id, false, cancellationToken).ConfigureAwait(false);
                     if (result.FieldsFilled > 0) updated++;
                     filled += result.FieldsFilled;
@@ -99,6 +102,13 @@ public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameM
         }
         progress?.Report((done, games.Count, ""));
         return new(games.Count, updated, filled, [.. problems.Take(20)], false);
+    }
+
+    /// <summary>The Steam app id of a game installed through Steam, or null. Used to fetch its cover.</summary>
+    public async Task<string?> SteamAppIdAsync(Guid id)
+    {
+        try { return (await BuildRequestAsync(id, null, true, false).ConfigureAwait(false)).SteamAppId; }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException) { return null; }
     }
 
     /// <summary>The owner's own description. It is marked as typed by the owner, so no provider ever replaces it. Empty text removes it.</summary>
