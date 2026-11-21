@@ -44,7 +44,8 @@ public partial class MainWindow : Window
         this.store = store;
         this.paths = paths;
         library = new(paths, store);
-        discovery = new(paths, store, SaveDiscoveryEnvironment.Current());
+        saveLocations = new(paths);
+        discovery = new(paths, store, SaveDiscoveryEnvironment.Current() with { Database = saveLocations });
         launches = new(paths, store, new WindowsGameProcessSystem());
         discoveryCoordinator = new(launches, discovery);
         backups=new(paths,store,discovery,new GameOperationLeases(),launches.IsGameRunningAsync);
@@ -198,7 +199,7 @@ public partial class MainWindow : Window
         LibraryPanel.Visibility = showLibrary ? Visibility.Visible : Visibility.Collapsed;
         SettingsPanel.Visibility = showLibrary ? Visibility.Collapsed : Visibility.Visible;
         OverviewPanel.Visibility = Visibility.Collapsed;
-        if(!showLibrary){_=RefreshBackupDestinationsAsync();RefreshSavedViewsManager();RefreshMetadataSettingsUi();}
+        if(!showLibrary){_=RefreshBackupDestinationsAsync();RefreshSavedViewsManager();RefreshMetadataSettingsUi();RefreshSaveDatabaseStatus();}
         else if(IsLoaded)RestoreLibraryFocus();
         LibraryNav.SetResourceReference(Control.BorderBrushProperty, showLibrary ? "AppAccent" : "AppLine");
         SettingsNav.SetResourceReference(Control.BorderBrushProperty, showLibrary ? "AppLine" : "AppAccent");

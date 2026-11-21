@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using GameVault.Core;
 namespace GameVault.Infrastructure.Saves;
-public sealed record SaveDiscoveryEnvironment(string Home,string Documents,string SavedGames,string Roaming,string Local,string PublicDocuments,string[] SteamRoots)
+public sealed record SaveDiscoveryEnvironment(string Home,string Documents,string SavedGames,string Roaming,string Local,string PublicDocuments,string[] SteamRoots,ISaveLocationSource? Database=null)
 {
     public string[] BroadRoots=>[Home,Documents,SavedGames,Roaming,Local,PublicDocuments,..SteamRoots.Select(r=>Path.Combine(r,"userdata"))];
     public static SaveDiscoveryEnvironment Current()
@@ -68,6 +68,12 @@ public static class SaveCandidateRules
         }
         foreach(var leaf in new[]{"saves","save","SaveGames","Saved/SaveGames"})
             Add(Path.Combine(folder,leaf.Replace('/',Path.DirectorySeparatorChar)),SaveSourceOrigin.Suggestion,"Install-folder save candidate; confirmation required","save");
+        // Community database (only after the owner downloaded it). Always a suggestion: the usual confirmation decides.
+        if(env.Database is not null)
+        {
+            try{foreach(var path in env.Database.Candidates(profile,env))Add(path,SaveSourceOrigin.Suggestion,"Save-location database (PCGamingWiki via Ludusavi); confirmation required","any");}
+            catch(Exception e)when(e is IOException or UnauthorizedAccessException or ArgumentException){warnings.Add("The save-location database could not be read. "+e.Message);}
+        }
         return new(candidates.DistinctBy(c=>SaveSourcePolicy.Canonical(c.Path),StringComparer.OrdinalIgnoreCase).Take(96).ToArray(),warnings.Take(64).ToArray());
         void Add(string path,SaveSourceOrigin origin,string evidence,string payload,bool known=false)=>candidates.Add(new(path,origin,evidence,payload,known));
     }
