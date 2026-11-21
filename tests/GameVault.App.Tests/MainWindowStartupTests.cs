@@ -94,6 +94,19 @@ public sealed class MainWindowStartupTests
     }
 
     [Fact]
+    public void Tags_sort_saved_view_management_data_backup_and_diagnostics_are_wired_in_the_window()
+    {
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var window = Root();
+        var names = window.Descendants().Select(e => (string?)e.Attribute(x + "Name")).Where(n => n is not null).ToHashSet();
+        foreach (var name in new[] { "TagsButton", "SortButton", "ChipsPanel", "TagsBlock", "TagsInput", "SavedViewsManager", "DataBackupBulky", "DiagnosticsGameNames" })
+            Assert.Contains(name, names);
+        var clicks = window.Descendants().Select(e => (string?)e.Attribute("Click")).Where(n => n is not null).ToHashSet();
+        foreach (var handler in new[] { "BackUpDataClicked", "RestoreDataClicked", "CreateDiagnosticsClicked", "EditTagsClicked", "SaveTagsClicked" })
+            Assert.Contains(handler, clicks);
+    }
+
+    [Fact]
     public void Settings_has_no_section_menu_and_editors_open_in_a_side_drawer()
     {
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
