@@ -129,6 +129,9 @@ public partial class MainWindow
         onlyEmpty.Click += (_, _) => Save(current with { OnlyFillEmpty = onlyEmpty.IsChecked == true });
         var onDisk = new CheckBox { Content = "Measure install size as size on disk (whole 4 KB clusters)", IsChecked = current.SizeOnDisk, IsEnabled = !readOnly, Margin = new Thickness(0, 0, 0, 12) };
         onDisk.Click += (_, _) => Save(current with { SizeOnDisk = onDisk.IsChecked == true });
+        var automatic = new CheckBox { Content = "Look up information and a missing Steam cover automatically for new games and games that have none yet", IsChecked = current.AutoFetch, IsEnabled = !readOnly, Margin = new Thickness(0, 0, 0, 8) };
+        automatic.Click += (_, _) => Save(current with { AutoFetch = automatic.IsChecked == true });
+        MetadataFields.Children.Add(automatic);
         MetadataFields.Children.Add(onlyEmpty);
         MetadataFields.Children.Add(onDisk);
         foreach (var (field, label) in FieldLabels)

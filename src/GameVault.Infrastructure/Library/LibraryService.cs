@@ -92,6 +92,24 @@ public sealed class LibraryService
         finally { gate.Release(); }
     }
 
+    /// <summary>Writes a cover only when the game has none. Never replaces a cover the owner chose. Returns whether a cover was written.</summary>
+    public async Task<bool> SetCoverIfMissingAsync(Guid id, byte[] png)
+    {
+        ArgumentNullException.ThrowIfNull(png);
+        if (png.Length < 33 || png.Length > 10 * 1024 * 1024 || !png.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }))
+            throw new ArgumentException("The cover must be a valid PNG of at most 10 MB.");
+        await gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var game = await store.LoadProfileAsync(id).ConfigureAwait(false);
+            if (game.Profile.IsReadOnly || game.Profile.Value is not { IsArchived: false }) return false;
+            if (File.Exists(Path.Combine(ProfileFolders.Resolve(paths, id), "cover.png"))) return false;
+            WriteCover(id, png);
+            return true;
+        }
+        finally { gate.Release(); }
+    }
+
     public async Task<GameSaveResult> RestoreAsync(Guid id)
     {
         await gate.WaitAsync().ConfigureAwait(false);

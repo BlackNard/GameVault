@@ -6,7 +6,7 @@ namespace GameVault.Infrastructure.Metadata;
 public sealed record MetadataRequest(Guid GameId, string Name, string ExecutablePath, string? InstallRoot, string? SteamAppId, string? SteamAppsFolder, DateTimeOffset? LastSizeScan, bool SizeOnDisk, bool ForceSizeScan);
 
 /// <summary>Everything one provider found. Fields it cannot supply stay null or empty.</summary>
-public sealed record ProviderData(string? Description = null, PartialDate? ReleaseDate = null, string[]? Developers = null, string[]? Publishers = null, string[]? Genres = null, long? InstallSizeBytes = null)
+public sealed record ProviderData(string? Description = null, PartialDate? ReleaseDate = null, string[]? Developers = null, string[]? Publishers = null, string[]? Genres = null, long? InstallSizeBytes = null, string? SteamAppId = null)
 {
     public bool Has(MetadataField field) => field switch
     {
@@ -81,7 +81,9 @@ public static class MetadataResolver
                 break;
             }
         }
-        var document = existing with { Fields = fields, LastSizeScan = sizeScanned, LastRefresh = DateTimeOffset.UtcNow };
+        // Remember which Steam game this is, so covers and later lookups do not search again.
+        var resolvedId = responses.Values.Select(r => r?.SteamAppId).FirstOrDefault(id => id is not null) ?? existing.SteamAppId;
+        var document = existing with { Fields = fields, LastSizeScan = sizeScanned, LastRefresh = DateTimeOffset.UtcNow, SteamAppId = resolvedId };
         return new(document, filled, [.. problems.Distinct()], usedNetwork);
     }
 

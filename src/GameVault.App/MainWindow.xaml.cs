@@ -73,6 +73,7 @@ public partial class MainWindow : Window
         SetNavigation(true);
         UpdateButtons();
         Closing += BeforeClosing;
+        Closed += (_, _) => StopAutoInfo();
         Loaded += InitializeTray;
         Loaded += LoadLibrary;
         InitializePerformanceFeatures();
@@ -88,6 +89,7 @@ public partial class MainWindow : Window
         try
         {
             recoveryNotices = await launches.RecoverAsync(); await RefreshLibrary();
+            _ = StartupInfoAsync();
             // Automatic discovery follows session signals; never block startup by scanning every game.
         }
         catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = "Could not load the library. " + error.Message; }
@@ -308,7 +310,7 @@ public partial class MainWindow : Window
                 }
                 if (!editor.WasRestored) await discovery.ScanAsync(result.Profile.Id);
                 await RefreshLibrary(result.Profile.Id);
-                if(profile is null){ShowGamePage();ShowGameSection("Overview");}
+                if(profile is null){ShowGamePage();ShowGameSection("Overview");_ = AutoInfoAsync([(result.Profile.Id, result.Profile.Name)], false);}
                 OperationNotice.Text = result.Warning ?? (editor.WasRestored ? $"{result.Profile.Name} restored with its saved configuration and history." : $"{result.Profile.Name} saved.");
             }
         }

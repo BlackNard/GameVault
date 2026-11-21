@@ -286,6 +286,105 @@ public sealed class MetadataTests : IAsyncLifetime
         await Assert.ThrowsAsync<IOException>(() => new GameMetadataService(store, []).SaveDescriptionAsync(profile.Id, "x"));
     }
 
+    [Fact]
+    public async Task A_failed_lookup_does_not_mark_the_game_as_looked_up_so_it_is_retried_and_a_finished_one_is_skipped()
+    {
+        var failing = new Fake("p", null, MetadataField.Genres) { Fail = new IOException("offline") };
+        var service = new GameMetadataService(store, [failing], new NoStore());
+        var failed = await service.RefreshAsync(profile.Id, false, CancellationToken.None);
+        Assert.NotEmpty(failed.Problems);
+        Assert.Equal(DocumentState.Missing, (await service.LoadAsync(profile.Id)).State);          // nothing saved: retried next time
+        failing.Fail = null;
+        var ok = new Fake("q", new ProviderData(Genres: ["RPG"]), MetadataField.Genres);
+        var working = new GameMetadataService(store, [ok], new NoStore());
+        var games = new[] { (profile.Id, "My Game") };
+        Assert.Equal(1, (await working.FetchMissingAsync(games, null, CancellationToken.None, onlyNeverLookedUp: true)).GamesUpdated);
+        Assert.Equal(1, ok.Calls);
+        await working.FetchMissingAsync(games, null, CancellationToken.None, onlyNeverLookedUp: true);
+        Assert.Equal(1, ok.Calls);                                                                   // already looked up: no second request
+    }
+
+    [Fact]
+    public async Task A_game_nobody_knows_is_saved_as_looked_up_once_so_it_is_not_asked_again_every_start()
+    {
+        var none = new Fake("n", null, MetadataField.Genres);
+        var service = new GameMetadataService(store, [none], new NoStore());
+        await service.FetchMissingAsync([(profile.Id, "My Game")], null, CancellationToken.None, onlyNeverLookedUp: true);
+        await service.FetchMissingAsync([(profile.Id, "My Game")], null, CancellationToken.None, onlyNeverLookedUp: true);
+        Assert.Equal(1, none.Calls);
+        Assert.NotNull((await service.LoadAsync(profile.Id)).Value!.LastRefresh);
+    }
+
+    [Fact]
+    public async Task Automatic_lookup_is_on_by_default_and_older_settings_files_keep_it_on()
+    {
+        Assert.True(MetadataSettings.Default.AutoFetch);
+        File.WriteAllText(Path.Combine(paths.Data, "metadata-settings.json"), "{\"schemaVersion\":1,\"onlyFillEmpty\":true,\"sizeOnDisk\":true,\"disabledFields\":[],\"providerOrder\":{}}");
+        var loaded = await store.LoadMetadataSettingsAsync();
+        Assert.Equal(DocumentState.Ready, loaded.State);
+        Assert.True(loaded.Value!.AutoFetch);
+    }
+
+    [Fact]
+    public async Task A_cover_is_only_written_when_the_game_has_none()
+    {
+        var library = new LibraryService(paths, store);
+        byte[] Png(byte tail) => [137, 80, 78, 71, 13, 10, 26, 10, .. new byte[40], tail];
+        var cover = Path.Combine(ProfileFolders.Resolve(paths, profile.Id), "cover.png");
+        Assert.True(await library.SetCoverIfMissingAsync(profile.Id, Png(1)));
+        Assert.Equal(1, File.ReadAllBytes(cover)[^1]);
+        Assert.False(await library.SetCoverIfMissingAsync(profile.Id, Png(2)));                     // an existing cover is never replaced
+        Assert.Equal(1, File.ReadAllBytes(cover)[^1]);
+        await Assert.ThrowsAsync<ArgumentException>(() => library.SetCoverIfMissingAsync(profile.Id, new byte[100]));
+        Assert.False(await library.SetCoverIfMissingAsync(Guid.NewGuid(), Png(3)));
+    }
+
+    private const string SearchJson = "{\"total\":3,\"items\":[{\"type\":\"app\",\"name\":\"TEKKEN 8 Ultimate Edition\",\"id\":111},{\"type\":\"dlc\",\"name\":\"TEKKEN 8\",\"id\":222},{\"type\":\"app\",\"name\":\"TEKKEN\\u2122 8\",\"id\":1778820}]}";
+
+    [Fact]
+    public async Task A_game_that_is_not_a_steam_install_is_found_by_its_exact_title_only()
+    {
+        var handler = new Handler(r => r.RequestUri!.AbsolutePath.Contains("storesearch") ? Json(SearchJson) : Json(SteamJson.Replace("\"620\"", "\"1778820\"")));
+        using var provider = new SteamStoreProvider(handler, minimumGap: TimeSpan.Zero);
+        Assert.Equal("1778820", await provider.FindAppIdAsync("Tekken 8", CancellationToken.None));               // case, trademark sign and edition-less title match
+        Assert.Null(await provider.FindAppIdAsync("Tekken", CancellationToken.None));                              // a near match is never used
+        var data = await provider.GetAsync(new(profile.Id, "TEKKEN 8", "x.exe", null, null, null, null, true, false), CancellationToken.None);
+        Assert.Equal("1778820", data!.SteamAppId);
+        Assert.Equal("Solve puzzles & escape.", data.Description);
+        Assert.Contains(handler.Urls, u => u.Contains("storesearch") && (u.Contains("TEKKEN 8") || u.Contains("TEKKEN%208")));
+        Assert.Contains(handler.Urls, u => u.EndsWith("appdetails?appids=1778820&l=english"));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("x")]
+    [InlineData("C:\\Games\\x")]
+    [InlineData("a/b")]
+    [InlineData("http://evil")]
+    public async Task Unsuitable_titles_are_never_searched(string title)
+    {
+        var handler = new Handler(_ => Json(SearchJson));
+        using var provider = new SteamStoreProvider(handler, minimumGap: TimeSpan.Zero);
+        Assert.Null(await provider.FindAppIdAsync(title, CancellationToken.None));
+        Assert.Empty(handler.Urls);
+    }
+
+    [Fact]
+    public async Task The_steam_game_found_by_title_is_remembered_for_covers_and_later_lookups()
+    {
+        var calls = 0;
+        var handler = new Handler(r => { calls++; return r.RequestUri!.AbsolutePath.Contains("storesearch") ? Json(SearchJson) : Json(SteamJson.Replace("\"620\"", "\"1778820\"")); });
+        using var steam = new SteamStoreProvider(handler, minimumGap: TimeSpan.Zero);
+        var service = new GameMetadataService(store, [steam], new NoStore());
+        await store.SaveProfileAsync(profile with { Name = "Tekken 8" });
+        var first = await service.RefreshAsync(profile.Id, false, CancellationToken.None);
+        Assert.Equal("1778820", first.Document.SteamAppId);
+        Assert.Equal("1778820", await service.SteamAppIdAsync(profile.Id));
+        var before = calls;
+        await service.RefreshAsync(profile.Id, true, CancellationToken.None);
+        Assert.Equal(before + 1, calls);                                                                         // one details request, no second search
+    }
+
     private sealed class NoStore : IStoreGameLauncher
     {
         public StoreLaunchPlan? Resolve(string selectedExecutable, string? targetOverride) => null;
