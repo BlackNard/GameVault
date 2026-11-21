@@ -3,6 +3,7 @@ using System.Windows;
 using GameVault.Core;
 using GameVault.Infrastructure;
 using GameVault.Infrastructure.Storage;
+using GameVault.Infrastructure.Diagnostics;
 using GameVault.Infrastructure.Launching;
 using System.Security.Principal;
 
@@ -27,6 +28,9 @@ public partial class App : Application
             return;
         }
         var paths = ApplicationPaths.FromRoot(AppContext.BaseDirectory);
+        AppLog.Initialize(paths.Root);
+        DispatcherUnhandledException += (_, args) => AppLog.Error("Unhandled UI error", args.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, args) => AppLog.Error("Unhandled error", args.ExceptionObject as Exception);
         try
         {
             workspace = await Task.Run(() => ApplicationWorkspace.Open(paths));
