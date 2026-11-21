@@ -1,0 +1,197 @@
+using System.Windows;
+using System.Windows.Controls;
+using GameVault.Core;
+using GameVault.Infrastructure.Metadata;
+
+namespace GameVault.App;
+
+// Game information: description, release date, developers, genres and install size (ticket #83).
+public partial class MainWindow
+{
+    private GameMetadataService? metadataService;
+    private Guid aboutFor;
+    private CancellationTokenSource? bulkInfo;
+
+    private GameMetadataService Metadata => metadataService ??= new(store, [new LocalInstallProvider(), new SteamStoreProvider()]);
+
+    private static string SizeText(long bytes) => bytes switch
+    {
+        < 1024L * 1024 => $"{Math.Max(1, bytes / 1024)} KB",
+        < 1024L * 1024 * 1024 => $"{bytes / 1024.0 / 1024:0.#} MB",
+        _ => $"{bytes / 1024.0 / 1024 / 1024:0.##} GB"
+    };
+
+    private async Task RefreshAboutAsync(LibraryItemView? item)
+    {
+        if (item?.Game.Profile is null) { AboutBlock.Visibility = Visibility.Collapsed; return; }
+        var id = item.Game.Id;
+        aboutFor = id;
+        GameMetadataDocument? document = null;
+        string? problem = null;
+        try
+        {
+            var stored = await Metadata.LoadAsync(id);
+            document = stored.Value;
+            problem = stored.IsReadOnly ? stored.Message : null;
+        }
+        catch (Exception error) when (IsExpected(error)) { problem = error.Message; }
+        if (aboutFor != id) return;
+        AboutBlock.Visibility = Visibility.Visible;
+        var description = document?.Get(MetadataField.Description);
+        AboutText.Text = description?.Text ?? "No description yet. Choose Refresh info to look it up, or write your own with Edit description.";
+        AboutFacts.Children.Clear();
+        void Fact(string label, string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return;
+            var panel = new StackPanel { Margin = new Thickness(0, 0, 32, 8) };
+            var caption = new TextBlock { Text = label };
+            caption.SetResourceReference(TextBlock.ForegroundProperty, "AppMuted");
+            panel.Children.Add(caption);
+            panel.Children.Add(new TextBlock { Text = value, Margin = new Thickness(0, 2, 0, 0) });
+            AboutFacts.Children.Add(panel);
+        }
+        Fact("Released", document?.Get(MetadataField.ReleaseDate)?.Date is { } date ? PartialDate.Parse(date)?.Display() : null);
+        Fact("Developer", Join(document?.Get(MetadataField.Developers)?.Items));
+        Fact("Publisher", Join(document?.Get(MetadataField.Publishers)?.Items));
+        Fact("Genres", Join(document?.Get(MetadataField.Genres)?.Items));
+        Fact("Install size", document?.Get(MetadataField.InstallSize)?.Bytes is long bytes ? SizeText(bytes) : null);
+        var sources = document?.Fields.Values.Select(v => v.Provider).Distinct().Select(p => p switch { "steam" => "Steam store", "local" => "this PC", "you" => "you", var other => other }).ToArray();
+        AboutSource.Text = sources is { Length: > 0 } ? "Information from " + string.Join(", ", sources) + "." : "";
+        AboutNotice.Text = problem ?? "";
+        RefreshInfoButton.IsEnabled = EditDescriptionButton.IsEnabled = problem is null && !item.Game.IsReadOnly;
+    }
+
+    private static string? Join(string[]? items) => items is { Length: > 0 } ? string.Join(", ", items) : null;
+
+    private async void RefreshInfoClicked(object sender, RoutedEventArgs e)
+    {
+        if (GameList.SelectedItem is not LibraryItemView { Game.Profile: { IsArchived: false } } item || bulkInfo is not null) return;
+        var id = item.Game.Id;
+        RefreshInfoButton.IsEnabled = false;
+        AboutNotice.Text = "Looking up information…";
+        try
+        {
+            var result = await Task.Run(() => Metadata.RefreshAsync(id, true, CancellationToken.None));
+            AboutNotice.Text = "";
+            ShowToast(result.FieldsFilled > 0 ? "Game information updated" : "Nothing new found", result.Problems.Length > 0 ? string.Join(" ", result.Problems) : result.UsedNetwork ? "Steam store" : "Your PC", result.Problems.Length > 0);
+        }
+        catch (Exception error) when (IsExpected(error)) { ShowToast("Could not update the information", error.Message, true); }
+        finally { RefreshInfoButton.IsEnabled = true; await RefreshAboutAsync(GameList.SelectedItem as LibraryItemView); }
+    }
+
+    private async void EditDescriptionClicked(object sender, RoutedEventArgs e)
+    {
+        if (GameList.SelectedItem is not LibraryItemView { Game.Profile: { IsArchived: false } } item) return;
+        var stored = await Metadata.LoadAsync(item.Game.Id);
+        DescriptionInput.Text = stored.Value?.Get(MetadataField.Description)?.Text ?? "";
+        DescriptionEditor.Visibility = Visibility.Visible;
+        DescriptionInput.Focus();
+    }
+
+    private void CancelDescriptionClicked(object sender, RoutedEventArgs e) => DescriptionEditor.Visibility = Visibility.Collapsed;
+
+    private async void SaveDescriptionClicked(object sender, RoutedEventArgs e)
+    {
+        if (GameList.SelectedItem is not LibraryItemView { Game.Profile: { IsArchived: false } } item) return;
+        try
+        {
+            await Metadata.SaveDescriptionAsync(item.Game.Id, DescriptionInput.Text);
+            DescriptionEditor.Visibility = Visibility.Collapsed;
+            ShowToast("Description saved", "Your text is never replaced by a lookup.");
+        }
+        catch (Exception error) when (IsExpected(error)) { ShowToast("Could not save the description", error.Message, true); }
+        await RefreshAboutAsync(item);
+    }
+
+    // ---------- settings: Game information ----------
+    private static readonly (MetadataField Field, string Label)[] FieldLabels =
+    [
+        (MetadataField.Description, "Description"), (MetadataField.ReleaseDate, "Release date"), (MetadataField.Developers, "Developers"),
+        (MetadataField.Publishers, "Publishers"), (MetadataField.Genres, "Genres"), (MetadataField.InstallSize, "Install size"),
+    ];
+
+    private async void RefreshMetadataSettingsUi()
+    {
+        MetadataSettings current;
+        bool readOnly;
+        try { current = await Metadata.LoadSettingsAsync(); readOnly = await Metadata.SettingsReadOnlyAsync(); }
+        catch (Exception error) when (IsExpected(error)) { current = MetadataSettings.Default; readOnly = true; }
+        MetadataFields.Children.Clear();
+        var capable = Metadata.CapableProviders();
+        var names = Metadata.Providers.ToDictionary(p => p.Id, p => p.DisplayName);
+
+        async void Save(MetadataSettings next)
+        {
+            try { await Metadata.SaveSettingsAsync(next); current = next; }
+            catch (Exception error) when (IsExpected(error)) { ShowToast("Could not save the settings", error.Message, true); }
+        }
+        var onlyEmpty = new CheckBox { Content = "Only fill fields that are empty (never replace a value that is already there)", IsChecked = current.OnlyFillEmpty, IsEnabled = !readOnly, Margin = new Thickness(0, 0, 0, 8) };
+        onlyEmpty.Click += (_, _) => Save(current with { OnlyFillEmpty = onlyEmpty.IsChecked == true });
+        var onDisk = new CheckBox { Content = "Measure install size as size on disk (whole 4 KB clusters)", IsChecked = current.SizeOnDisk, IsEnabled = !readOnly, Margin = new Thickness(0, 0, 0, 12) };
+        onDisk.Click += (_, _) => Save(current with { SizeOnDisk = onDisk.IsChecked == true });
+        MetadataFields.Children.Add(onlyEmpty);
+        MetadataFields.Children.Add(onDisk);
+        foreach (var (field, label) in FieldLabels)
+        {
+            var row = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var enabled = new CheckBox { Content = label, IsChecked = current.IsEnabled(field), IsEnabled = !readOnly, MinWidth = 170, VerticalAlignment = VerticalAlignment.Center };
+            var captured = field;
+            enabled.Click += (_, _) =>
+            {
+                var disabled = current.DisabledFields.Where(f => f != captured.ToString()).ToList();
+                if (enabled.IsChecked != true) disabled.Add(captured.ToString());
+                Save(current with { DisabledFields = [.. disabled] });
+            };
+            row.Children.Add(enabled);
+            var providers = capable[field];
+            if (providers.Length > 1)
+            {
+                var order = new ComboBox { Width = 260, IsEnabled = !readOnly };
+                var ordered = current.OrderFor(field, providers);
+                foreach (var id in providers) order.Items.Add(new ComboBoxItem { Content = "First ask: " + names[id], Tag = id });
+                order.SelectedItem = order.Items.OfType<ComboBoxItem>().First(i => (string)i.Tag == ordered[0]);
+                order.SelectionChanged += (_, _) =>
+                {
+                    if (order.SelectedItem is not ComboBoxItem { Tag: string first }) return;
+                    var rest = providers.Where(p => p != first);
+                    var map = new Dictionary<string, string[]>(current.ProviderOrder) { [captured.ToString()] = [first, .. rest] };
+                    Save(current with { ProviderOrder = map });
+                };
+                row.Children.Add(order);
+            }
+            else
+            {
+                var only = new TextBlock { Text = providers.Length == 0 ? "no source" : "from " + names[providers[0]], VerticalAlignment = VerticalAlignment.Center };
+                only.SetResourceReference(TextBlock.ForegroundProperty, "AppMuted");
+                row.Children.Add(only);
+            }
+            MetadataFields.Children.Add(row);
+        }
+    }
+
+    private async void FetchAllInfoClicked(object sender, RoutedEventArgs e)
+    {
+        if (bulkInfo is not null || busy) return;
+        var games = items.Where(i => i.Game.Profile is { IsArchived: false } && !i.Game.IsReadOnly).Select(i => (i.Game.Id, i.Name)).ToArray();
+        if (games.Length == 0) { FetchAllProgress.Text = "There are no games to look up."; return; }
+        bulkInfo = new CancellationTokenSource();
+        FetchAllInfoButton.IsEnabled = false;
+        CancelFetchAllButton.Visibility = Visibility.Visible;
+        var progress = new Progress<(int Done, int Total, string Name)>(p => FetchAllProgress.Text = p.Name.Length == 0 ? $"Done: {p.Done} of {p.Total}." : $"Looking up {p.Name} ({p.Done + 1} of {p.Total})…");
+        try
+        {
+            var result = await Task.Run(() => Metadata.FetchMissingAsync(games, progress, bulkInfo.Token));
+            FetchAllProgress.Text = (result.Cancelled ? "Stopped. " : "") + $"{result.GamesUpdated} of {result.Games} game(s) updated, {result.FieldsFilled} fact(s) added." + (result.Problems.Length > 0 ? " Some lookups had problems: " + string.Join(" ", result.Problems.Take(3)) : "");
+        }
+        catch (Exception error) when (IsExpected(error)) { FetchAllProgress.Text = "Could not finish: " + error.Message; }
+        finally
+        {
+            bulkInfo.Dispose(); bulkInfo = null;
+            FetchAllInfoButton.IsEnabled = true;
+            CancelFetchAllButton.Visibility = Visibility.Collapsed;
+            if (GameList.SelectedItem is LibraryItemView selected) await RefreshAboutAsync(selected);
+        }
+    }
+
+    private void CancelFetchAllClicked(object sender, RoutedEventArgs e) => bulkInfo?.Cancel();
+}
