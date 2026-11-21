@@ -98,6 +98,7 @@ public partial class MainWindow
    GameEditor editor=>editor.CanLeaveAsync,
    LaunchSettingsWindow editor=>editor.CanLeaveAsync,
    NoteExportWindow editor=>editor.CanLeaveAsync,
+   StoreImportView editor=>editor.CanLeaveAsync,
    _=>throw new ArgumentException("The inline editor must provide a navigation guard.",nameof(view))
   });
   activeInlineEditor=session;

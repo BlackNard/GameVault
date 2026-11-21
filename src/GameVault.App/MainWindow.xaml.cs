@@ -502,6 +502,7 @@ public partial class MainWindow : Window
         SaveSourcesButton.IsEnabled = !busy && !editorOpen && !stoppingObservation && !quitPreparing && GameList.SelectedItem is LibraryItemView;
         NotesButton.IsEnabled = !busy && !editorOpen && !stoppingObservation && !quitPreparing && GameList.SelectedItem is LibraryItemView;
         AddButton.IsEnabled = !busy && !editorOpen && !settingsReadOnly && !quitPreparing && !stoppingObservation;
+        StoreImportButton.IsEnabled = AddButton.IsEnabled;
         ThemeChoice.IsEnabled = !busy && !editorOpen && !settingsReadOnly && !quitPreparing && !stoppingObservation;
         var selected = GameList.SelectedItem as LibraryItemView;
         var active = selected is not null && (launches.GetState(selected.Game.Id).IsActive||backups.IsWorking(selected.Game.Id));
