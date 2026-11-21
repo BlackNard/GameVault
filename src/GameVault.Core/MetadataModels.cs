@@ -43,7 +43,7 @@ public sealed record PartialDate(int Year, int? Month = null, int? Day = null)
 public sealed record MetadataValue(string Provider, bool UserEdited, DateTimeOffset At, string? Text = null, string[]? Items = null, long? Bytes = null, string? Date = null);
 
 /// <summary>Per-game metadata (Profiles/&lt;game&gt;/metadata.json).</summary>
-public sealed record GameMetadataDocument(int SchemaVersion, Guid GameId, Dictionary<string, MetadataValue> Fields, DateTimeOffset? LastSizeScan = null, DateTimeOffset? LastRefresh = null)
+public sealed record GameMetadataDocument(int SchemaVersion, Guid GameId, Dictionary<string, MetadataValue> Fields, DateTimeOffset? LastSizeScan = null, DateTimeOffset? LastRefresh = null, string? SteamAppId = null)
 {
     public const int MaxTextLength = 4000;
     public const int MaxItems = 24;
@@ -53,7 +53,7 @@ public sealed record GameMetadataDocument(int SchemaVersion, Guid GameId, Dictio
 
     public MetadataValue? Get(MetadataField field) => Fields.GetValueOrDefault(field.ToString());
 
-    public static bool IsValid(GameMetadataDocument? value, Guid gameId) => value is { SchemaVersion: 1, Fields: not null } && value.GameId == gameId &&
+    public static bool IsValid(GameMetadataDocument? value, Guid gameId) => value is { SchemaVersion: 1, Fields: not null } && value.GameId == gameId && (value.SteamAppId is null || (value.SteamAppId.Length is > 0 and <= 10 && value.SteamAppId.All(char.IsAsciiDigit))) &&
         value.Fields.All(pair => Enum.TryParse<MetadataField>(pair.Key, out var field) && IsValidValue(field, pair.Value));
 
     private static bool IsValidValue(MetadataField field, MetadataValue? value)

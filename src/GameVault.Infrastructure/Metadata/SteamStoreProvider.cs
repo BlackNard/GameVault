@@ -8,7 +8,7 @@ namespace GameVault.Infrastructure.Metadata;
 
 /// <summary>
 /// Description, release date, developers, publishers and genres for Steam games from the public Steam store API (no key, no account).
-/// Only the numeric app id leaves the PC. Requests have a timeout, a 1 MB response limit and a minimum gap between them.
+/// A Steam install is looked up by its numeric app id; any other game by an exact-title search of the Steam store. Requests have a timeout, a 1 MB response limit and a minimum gap between them.
 /// </summary>
 public sealed class SteamStoreProvider : IGameMetadataProvider, IDisposable
 {
@@ -38,15 +38,56 @@ public sealed class SteamStoreProvider : IGameMetadataProvider, IDisposable
     public async Task<ProviderData?> GetAsync(MetadataRequest request, CancellationToken cancellationToken)
     {
         var appId = request.SteamAppId;
-        if (appId is null || appId.Length is 0 or > 10 || !appId.All(char.IsAsciiDigit)) return null;
+        if (!ValidId(appId))
+        {
+            // Not known to be a Steam install: look the game up by its exact title, like a name-based provider in Playnite (the title is sent to the Steam store).
+            appId = await FindAppIdAsync(request.Name, cancellationToken).ConfigureAwait(false);
+            if (appId is null) return null;
+        }
+        var json = await GetBytesAsync($"https://store.steampowered.com/api/appdetails?appids={appId}&l=english", cancellationToken).ConfigureAwait(false);
+        var data = Parse(json, appId!);
+        return data is null ? null : data with { SteamAppId = appId };
+    }
+
+    private static bool ValidId(string? id) => id is { Length: > 0 and <= 10 } && id.All(char.IsAsciiDigit);
+
+    /// <summary>Normalised title for matching: no trademark signs, case, spaces or punctuation.</summary>
+    public static string NormalizeTitle(string title) => new(title.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+
+    /// <summary>Searches the Steam store and accepts only an app whose title equals the game title (ignoring case, punctuation and trademark signs). A near match is never used.</summary>
+    public async Task<string?> FindAppIdAsync(string name, CancellationToken cancellationToken)
+    {
+        var title = (name ?? "").Trim();
+        if (title.Length is < 2 or > 120 || title.Any(char.IsControl) || title.Contains('\\') || title.Contains('/') || title.Contains("://")) return null;
+        var wanted = NormalizeTitle(title);
+        if (wanted.Length < 2) return null;
+        var json = await GetBytesAsync("https://store.steampowered.com/api/storesearch/?term=" + Uri.EscapeDataString(title) + "&l=english&cc=US", cancellationToken).ConfigureAwait(false);
+        try
+        {
+            using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 16 });
+            if (document.RootElement.ValueKind != JsonValueKind.Object || !document.RootElement.TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array) return null;
+            foreach (var item in items.EnumerateArray().Take(50))
+            {
+                if (item.ValueKind != JsonValueKind.Object) continue;
+                if (item.TryGetProperty("type", out var type) && !(type.ValueKind == JsonValueKind.String && type.GetString() == "app")) continue;
+                if (!item.TryGetProperty("name", out var itemName) || itemName.ValueKind != JsonValueKind.String || NormalizeTitle(itemName.GetString() ?? "") != wanted) continue;
+                if (item.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number && id.TryGetInt64(out var number) && number > 0 && number <= 9_999_999_999)
+                    return number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+            return null;
+        }
+        catch (JsonException) { throw new IOException("Steam sent an answer GameVault could not read."); }
+    }
+
+    private async Task<byte[]> GetBytesAsync(string url, CancellationToken cancellationToken)
+    {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var wait = lastRequest + minimumGap - DateTime.UtcNow;
             if (wait > TimeSpan.Zero) await Task.Delay(wait, cancellationToken).ConfigureAwait(false);
             lastRequest = DateTime.UtcNow;
-            // The address is built from the digits only; no game name, path or user data is sent.
-            using var message = new HttpRequestMessage(HttpMethod.Get, $"https://store.steampowered.com/api/appdetails?appids={appId}&l=english");
+            using var message = new HttpRequestMessage(HttpMethod.Get, url);
             using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             if (response.StatusCode == HttpStatusCode.TooManyRequests) throw new IOException("Steam asked GameVault to slow down. Try again in a few minutes.");
             if (!response.IsSuccessStatusCode) throw new IOException($"Steam answered with status {(int)response.StatusCode}.");
@@ -60,7 +101,7 @@ public sealed class SteamStoreProvider : IGameMetadataProvider, IDisposable
                 if (buffer.Length + read > MaxResponseBytes) throw new IOException("Steam sent an unexpectedly large answer.");
                 buffer.Write(chunk, 0, read);
             }
-            return Parse(buffer.ToArray(), appId);
+            return buffer.ToArray();
         }
         catch (HttpRequestException error) { throw new IOException("Steam could not be reached. " + error.Message, error); }
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested) { throw new IOException("Steam did not answer in time."); }

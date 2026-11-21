@@ -64,6 +64,7 @@ public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameM
         JsonDocuments.RequireWritable(stored);
         var existing = stored.Value ?? GameMetadataDocument.Empty(id);
         var request = await BuildRequestAsync(id, existing.LastSizeScan, settings.SizeOnDisk, replaceExisting).ConfigureAwait(false);
+        request = request with { SteamAppId = request.SteamAppId ?? existing.SteamAppId };
         var result = await MetadataResolver.ResolveAsync(request, providers, settings, existing, cancellationToken, p => p.Id == SteamStoreProvider.ProviderId).ConfigureAwait(false);
         // A lookup that failed (offline, rate limited) must not mark the game as looked up, or the automatic pass would never retry it.
         var failedEmpty = result.FieldsFilled == 0 && result.Problems.Length > 0;
@@ -104,10 +105,14 @@ public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameM
         return new(games.Count, updated, filled, [.. problems.Take(20)], false);
     }
 
-    /// <summary>The Steam app id of a game installed through Steam, or null. Used to fetch its cover.</summary>
+    /// <summary>The Steam app id of the game (from its Steam install, or found earlier by exact title), or null. Used to fetch its cover.</summary>
     public async Task<string?> SteamAppIdAsync(Guid id)
     {
-        try { return (await BuildRequestAsync(id, null, true, false).ConfigureAwait(false)).SteamAppId; }
+        try
+        {
+            var request = await BuildRequestAsync(id, null, true, false).ConfigureAwait(false);
+            return request.SteamAppId ?? (await store.LoadMetadataAsync(id).ConfigureAwait(false)).Value?.SteamAppId;
+        }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException) { return null; }
     }
 

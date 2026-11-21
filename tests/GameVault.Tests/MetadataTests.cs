@@ -339,6 +339,52 @@ public sealed class MetadataTests : IAsyncLifetime
         Assert.False(await library.SetCoverIfMissingAsync(Guid.NewGuid(), Png(3)));
     }
 
+    private const string SearchJson = "{\"total\":3,\"items\":[{\"type\":\"app\",\"name\":\"TEKKEN 8 Ultimate Edition\",\"id\":111},{\"type\":\"dlc\",\"name\":\"TEKKEN 8\",\"id\":222},{\"type\":\"app\",\"name\":\"TEKKEN\\u2122 8\",\"id\":1778820}]}";
+
+    [Fact]
+    public async Task A_game_that_is_not_a_steam_install_is_found_by_its_exact_title_only()
+    {
+        var handler = new Handler(r => r.RequestUri!.AbsolutePath.Contains("storesearch") ? Json(SearchJson) : Json(SteamJson.Replace("\"620\"", "\"1778820\"")));
+        using var provider = new SteamStoreProvider(handler, minimumGap: TimeSpan.Zero);
+        Assert.Equal("1778820", await provider.FindAppIdAsync("Tekken 8", CancellationToken.None));               // case, trademark sign and edition-less title match
+        Assert.Null(await provider.FindAppIdAsync("Tekken", CancellationToken.None));                              // a near match is never used
+        var data = await provider.GetAsync(new(profile.Id, "TEKKEN 8", "x.exe", null, null, null, null, true, false), CancellationToken.None);
+        Assert.Equal("1778820", data!.SteamAppId);
+        Assert.Equal("Solve puzzles & escape.", data.Description);
+        Assert.Contains(handler.Urls, u => u.Contains("storesearch") && (u.Contains("TEKKEN 8") || u.Contains("TEKKEN%208")));
+        Assert.Contains(handler.Urls, u => u.EndsWith("appdetails?appids=1778820&l=english"));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("x")]
+    [InlineData("C:\\Games\\x")]
+    [InlineData("a/b")]
+    [InlineData("http://evil")]
+    public async Task Unsuitable_titles_are_never_searched(string title)
+    {
+        var handler = new Handler(_ => Json(SearchJson));
+        using var provider = new SteamStoreProvider(handler, minimumGap: TimeSpan.Zero);
+        Assert.Null(await provider.FindAppIdAsync(title, CancellationToken.None));
+        Assert.Empty(handler.Urls);
+    }
+
+    [Fact]
+    public async Task The_steam_game_found_by_title_is_remembered_for_covers_and_later_lookups()
+    {
+        var calls = 0;
+        var handler = new Handler(r => { calls++; return r.RequestUri!.AbsolutePath.Contains("storesearch") ? Json(SearchJson) : Json(SteamJson.Replace("\"620\"", "\"1778820\"")); });
+        using var steam = new SteamStoreProvider(handler, minimumGap: TimeSpan.Zero);
+        var service = new GameMetadataService(store, [steam], new NoStore());
+        await store.SaveProfileAsync(profile with { Name = "Tekken 8" });
+        var first = await service.RefreshAsync(profile.Id, false, CancellationToken.None);
+        Assert.Equal("1778820", first.Document.SteamAppId);
+        Assert.Equal("1778820", await service.SteamAppIdAsync(profile.Id));
+        var before = calls;
+        await service.RefreshAsync(profile.Id, true, CancellationToken.None);
+        Assert.Equal(before + 1, calls);                                                                         // one details request, no second search
+    }
+
     private sealed class NoStore : IStoreGameLauncher
     {
         public StoreLaunchPlan? Resolve(string selectedExecutable, string? targetOverride) => null;
