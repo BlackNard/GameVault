@@ -214,7 +214,9 @@ public partial class MainWindow
         if (status != "All") parts.Add(status switch { "NotStarted" => "Not started", "OnHold" => "On hold", _ => status });
         if (removed) parts.Add("Removed");
         if (search.Length > 0) parts.Add("“" + search + "”");
-        return new SavedLibraryView(string.Join(" · ", parts), status, removed, search);
+        if (selectedTags.Count > 0) parts.Add(string.Join(" + ", selectedTags.OrderBy(t => t, StringComparer.OrdinalIgnoreCase)));
+        if (sortOrder != LibrarySortOrder.Name) parts.Add(LibrarySortOrder.Label(sortOrder));
+        return new SavedLibraryView(string.Join(" · ", parts), status, removed, search, [.. selectedTags], sortOrder);
     }
 
     private async void ViewsButtonClicked(object sender, RoutedEventArgs e)
@@ -225,7 +227,7 @@ public partial class MainWindow
         foreach (var view in savedViews.Views)
         {
             var captured = view;
-            var entry = new MenuItem { Header = view.Name, IsChecked = view.Status == current.Status && view.Removed == current.Removed && view.Search == current.Search };
+            var entry = new MenuItem { Header = view.Name, IsChecked = view.Status == current.Status && view.Removed == current.Removed && view.Search == current.Search && LibrarySortOrder.Normalize(view.Sort) == current.Sort && TagRules.Normalize(view.Tags).SequenceEqual(TagRules.Normalize(current.Tags), StringComparer.OrdinalIgnoreCase) };
             entry.Click += (_, _) => ApplySavedView(captured);
             menu.Items.Add(entry);
         }
@@ -234,6 +236,7 @@ public partial class MainWindow
         {
             if (!savedViews.Save(current)) { ShowToast("Could not save the view", "You can keep up to " + SavedViewList.MaxViews + " saved views. Delete one first.", true); return; }
             await PersistSavedViewsAsync();
+            RebuildPresetChips();
             ShowToast("View saved", current.Name);
         };
         menu.Items.Add(save);
@@ -244,7 +247,7 @@ public partial class MainWindow
             {
                 var name = view.Name;
                 var item = new MenuItem { Header = name };
-                item.Click += async (_, _) => { savedViews.Remove(name); await PersistSavedViewsAsync(); ShowToast("View deleted", name); };
+                item.Click += async (_, _) => { savedViews.Remove(name); await PersistSavedViewsAsync(); RebuildPresetChips(); ShowToast("View deleted", name); };
                 delete.Items.Add(item);
             }
             menu.Items.Add(delete);
@@ -259,6 +262,9 @@ public partial class MainWindow
         {
             Search.Text = view.Search;
             RemovedFilter.IsChecked = view.Removed;
+            selectedTags.Clear();
+            foreach (var tag in TagRules.Normalize(view.Tags)) selectedTags.Add(tag);
+            sortOrder = LibrarySortOrder.Normalize(view.Sort);
             StatusFilter.SelectedItem = StatusFilter.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string?)i.Tag == view.Status) ?? StatusFilter.Items[0];
         }
         finally { initializing = false; }

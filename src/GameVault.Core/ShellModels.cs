@@ -190,7 +190,7 @@ public static class ContinuePlaying
 }
 
 /// <summary>A named library filter the user saved (status chip, removed toggle and search text).</summary>
-public sealed record SavedLibraryView(string Name, string Status, bool Removed, string Search);
+public sealed record SavedLibraryView(string Name, string Status, bool Removed, string Search, string[]? Tags = null, string Sort = "Name");
 
 /// <summary>The list of saved library views, kept in Data/library-views.json. Names are unique ignoring case; saving an existing name replaces it.</summary>
 public sealed class SavedViewList
@@ -214,6 +214,31 @@ public sealed class SavedViewList
 
  public bool Remove(string name) => views.RemoveAll(v => Same(v.Name, name)) > 0;
 
+ /// <summary>Renames a view. Fails when the new name is empty or already used by another view.</summary>
+ public bool Rename(string name, string newName)
+ {
+  var i = views.FindIndex(v => Same(v.Name, name));
+  if (i < 0 || string.IsNullOrWhiteSpace(newName)) return false;
+  var trimmed = newName.Trim();
+  if (trimmed.Length > MaxNameLength) trimmed = trimmed[..MaxNameLength].TrimEnd();
+  if (views.Where((_, index) => index != i).Any(v => Same(v.Name, trimmed))) return false;
+  views[i] = views[i] with { Name = trimmed };
+  return true;
+ }
+
+ /// <summary>Moves a view up (negative) or down (positive) by that many places, stopping at the ends.</summary>
+ public bool Move(string name, int offset)
+ {
+  var i = views.FindIndex(v => Same(v.Name, name));
+  if (i < 0) return false;
+  var target = Math.Clamp(i + offset, 0, views.Count - 1);
+  if (target == i) return false;
+  var view = views[i];
+  views.RemoveAt(i);
+  views.Insert(target, view);
+  return true;
+ }
+
  static bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
  void Put(SavedLibraryView clean)
@@ -229,7 +254,7 @@ public sealed class SavedViewList
   var name = view.Name.Trim();
   if (name.Length > MaxNameLength) name = name[..MaxNameLength].TrimEnd();
   var status = string.IsNullOrWhiteSpace(view.Status) ? "All" : view.Status.Trim();
-  clean = new SavedLibraryView(name, status, view.Removed, (view.Search ?? "").Trim());
+  clean = new SavedLibraryView(name, status, view.Removed, (view.Search ?? "").Trim(), TagRules.Normalize(view.Tags), LibrarySortOrder.Normalize(view.Sort));
   return true;
  }
 }
@@ -249,5 +274,5 @@ public static class SettingsSearch
 public sealed record LibraryViewsDocument(int SchemaVersion, SavedLibraryView[] Views)
 {
  public static LibraryViewsDocument Empty => new(1, []);
- public static bool IsValid(LibraryViewsDocument? value) => value is { SchemaVersion: 1, Views: not null } && value.Views.Length <= SavedViewList.MaxViews && value.Views.All(v => v is not null && !string.IsNullOrWhiteSpace(v.Name) && v.Status is not null && v.Search is not null);
+ public static bool IsValid(LibraryViewsDocument? value) => value is { SchemaVersion: 1, Views: not null } && value.Views.Length <= SavedViewList.MaxViews && value.Views.All(v => v is not null && !string.IsNullOrWhiteSpace(v.Name) && v.Status is not null && v.Search is not null && (v.Tags is null || v.Tags.Length <= TagRules.MaxTagsPerGame) && v.Sort is not null);
 }

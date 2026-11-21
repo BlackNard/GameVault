@@ -95,6 +95,7 @@ public partial class MainWindow : Window
     private async Task RefreshLibrary(Guid? select = null)
     {
         var previous = select ?? (GameList.SelectedItem as LibraryItemView)?.Game.Id;
+        await EnsureTagsLoadedAsync();
         var snapshot = await library.ListAsync();
         var previousRows=libraryRows;
         items=snapshot.Games.Select(game=>
@@ -123,9 +124,10 @@ public partial class MainWindow : Window
         var removed = RemovedFilter.IsChecked == true;
         var filter = (StatusFilter.SelectedItem as ComboBoxItem)?.Tag as string ?? "All";
         var search = Search.Text.Trim();
-        var visible = items.Where(i => (i.Game.Profile?.IsArchived ?? false) == removed &&
+        var matching = items.Where(i => (i.Game.Profile?.IsArchived ?? false) == removed &&
             (search.Length == 0 || i.Name.Contains(search, StringComparison.OrdinalIgnoreCase)) &&
-            (filter == "All" || i.Game.Profile?.Status.ToString() == filter)).ToArray();
+            (filter == "All" || i.Game.Profile?.Status.ToString() == filter) && TagRules.HasAll(TagsOf(i.Game.Id), selectedTags));
+        var visible = LibrarySortOrder.Apply(matching, sortOrder, i => i.Name, i => i.LastPlayedAt, i => i.Game.PlayedSeconds).ToArray();
         if(GameList.ItemsSource is not LibraryItemView[] current || !current.SequenceEqual(visible))GameList.ItemsSource=visible;
         GameList.SelectedItem = visible.FirstOrDefault(i => i.Game.Id == selected) ?? visible.FirstOrDefault();
         LibrarySummary.Text = $"{visible.Length} {(removed ? "removed profiles" : "games")} · stored on your device";
@@ -134,6 +136,7 @@ public partial class MainWindow : Window
         EmptyDescription.Text = removed ? "Removed games keep their data here so you can restore them." : items.Length == 0 ? "Choose Add game and browse to its executable to start your library." : "Try another search or status. You can also check Removed profiles.";
         ShowSelection();
         SyncChips();
+        UpdateFilterButtons();
         UpdateContinueRow();
     }
 
@@ -166,6 +169,7 @@ public partial class MainWindow : Window
             LaunchNotice.Text = launch.Message;
             PlayButton.Content = launch.Phase switch { LaunchPhase.Starting => "Starting…", LaunchPhase.Running => "Running", _ => "Play" };
         }
+        UpdateTagsUi(item);
         UpdateButtons();
         _=RefreshBackupDestinationsAsync();
         if(gameSection=="Media"&&!libraryVisible)_=RefreshCaptureMediaAsync();
@@ -191,7 +195,7 @@ public partial class MainWindow : Window
         LibraryPanel.Visibility = showLibrary ? Visibility.Visible : Visibility.Collapsed;
         SettingsPanel.Visibility = showLibrary ? Visibility.Collapsed : Visibility.Visible;
         OverviewPanel.Visibility = Visibility.Collapsed;
-        if(!showLibrary)_=RefreshBackupDestinationsAsync();
+        if(!showLibrary){_=RefreshBackupDestinationsAsync();RefreshSavedViewsManager();}
         else if(IsLoaded)RestoreLibraryFocus();
         LibraryNav.SetResourceReference(Control.BorderBrushProperty, showLibrary ? "AppAccent" : "AppLine");
         SettingsNav.SetResourceReference(Control.BorderBrushProperty, showLibrary ? "AppLine" : "AppAccent");
