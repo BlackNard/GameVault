@@ -27,10 +27,12 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
     private readonly SessionRecorder recorder;
     private readonly SemaphoreSlim recoveryGate = new(1, 1);
     private bool recoveryCompleted;
+    private readonly ILaunchHookRunner hooks;
 
     public LaunchService(ApplicationPaths paths, AppDataStore store, IGameProcessSystem processes,
-        TimeSpan? startupTimeout = null, TimeSpan? pollInterval = null, IPlaytimeClock? clock = null, TimeSpan? storeStartupTimeout = null, IStoreGameLauncher? storeLauncher = null)
+        TimeSpan? startupTimeout = null, TimeSpan? pollInterval = null, IPlaytimeClock? clock = null, TimeSpan? storeStartupTimeout = null, IStoreGameLauncher? storeLauncher = null, ILaunchHookRunner? hooks = null)
     {
+        this.hooks = hooks ?? new ProcessHookRunner();
         this.store = store; this.processes = processes;
         settings = new(paths, store); library = new(paths, store);
         this.startupTimeout = startupTimeout ?? TimeSpan.FromSeconds(30);
@@ -43,6 +45,8 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
     public event EventHandler<GameSessionEnded>? SessionEnded;
     private void NotifySessionEnded(Guid id,bool confirmed)=>SessionEnded?.Invoke(this,new(id,confirmed));
     public event EventHandler<LaunchState>? StateChanged;
+    /// <summary>Raised when a before-launch or after-exit hook finishes, so the app can say what happened.</summary>
+    public event EventHandler<LaunchHookResult>? HookCompleted;
     public event EventHandler<SessionProgress>? SessionUpdated;
     public SessionProgress? GetSessionProgress(Guid id) => recorder.GetProgress(id);
     internal Task SaveCheckpointAsync(Guid id) => recorder.SampleAsync(id, true);
@@ -76,7 +80,8 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
         var plan = storeLauncher.Resolve(profile.ExecutablePath, config.Value?.TargetExecutablePath);
         return new[]{profile.ExecutablePath, plan?.TargetExecutablePath ?? config.Value?.TargetExecutablePath ?? profile.ExecutablePath}.Distinct(StringComparer.OrdinalIgnoreCase).Any(path=>processes.Find(path).Length>0);
     }
-    public Task RunAsync(Guid id)
+    /// <summary>Starts a game. actionId picks a play action; Guid.Empty means the game itself even if a default action is set; null uses the default action.</summary>
+    public Task RunAsync(Guid id, Guid? actionId = null)
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         IDisposable operation;
@@ -87,11 +92,11 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
             if (!active.TryAdd(id, completion)){operation.Dispose();throw new InvalidOperationException("This game is already starting or running.");}
         }
         SetState(new(id, LaunchPhase.Starting, "Starting game…"));
-        _ = Task.Run(() => RunCore(id, completion, operation));
+        _ = Task.Run(() => RunCore(id, completion, operation, actionId));
         return completion.Task;
     }
 
-    private async Task RunCore(Guid id, TaskCompletionSource completion, IDisposable operation)
+    private async Task RunCore(Guid id, TaskCompletionSource completion, IDisposable operation, Guid? actionId = null)
     {
         var token = shutdown.Token;
         try
@@ -104,10 +109,21 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
             if (!Directory.Exists(profile.WorkingDirectory)) throw new IOException("The working directory is missing. Repair it through Edit game.");
             var configuration = await settings.LoadAsync(id).ConfigureAwait(false);
             if (configuration.IsReadOnly) throw new IOException(configuration.Message);
-            var storePlan = storeLauncher.Resolve(profile.ExecutablePath, configuration.Value?.TargetExecutablePath);
-            var targetPath = storePlan?.TargetExecutablePath ?? configuration.Value?.TargetExecutablePath ?? profile.ExecutablePath;
+            var action = actionId == Guid.Empty ? null : actionId is null ? LaunchRules.DefaultAction(configuration.Value) : LaunchRules.Find(configuration.Value, actionId)
+                ?? throw new IOException("That play action no longer exists. Check Launch settings.");
+            var resolvedPlan = storeLauncher.Resolve(profile.ExecutablePath, configuration.Value?.TargetExecutablePath);
+            // A custom play action starts its own program; only the plain game uses the store launch request.
+            var storePlan = action is null ? resolvedPlan : null;
+            var targetPath = resolvedPlan?.TargetExecutablePath ?? configuration.Value?.TargetExecutablePath ?? profile.ExecutablePath;
             ValidateExecutable(targetPath);
-            var paths = new[] { Path.GetFullPath(profile.ExecutablePath), Path.GetFullPath(targetPath) }.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (action is not null)
+            {
+                ValidateExecutable(action.ExecutablePath);
+                if (action.WorkingDirectory.Length > 0 && !Directory.Exists(action.WorkingDirectory)) throw new IOException($"The working folder of \"{action.Name}\" is missing. Check Launch settings.");
+            }
+            var startPath = action?.ExecutablePath ?? profile.ExecutablePath;
+            var startFolder = action is { WorkingDirectory.Length: > 0 } ? action.WorkingDirectory : profile.WorkingDirectory;
+            var paths = new[] { Path.GetFullPath(profile.ExecutablePath), Path.GetFullPath(targetPath), Path.GetFullPath(startPath) }.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             var reservations = storePlan is null ? paths : paths.Append("store:" + storePlan.StoreKey).ToArray();
             lock (gate)
             {
@@ -116,6 +132,8 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
             }
             foreach (var path in paths)
                 if (processes.Find(path).Length > 0) throw new InvalidOperationException("This game or its launcher is already running. Close it before starting another session.");
+            token.ThrowIfCancellationRequested();
+            await RunHookAsync(id, "Before launch", configuration.Value?.BeforeLaunch, token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
             if (storePlan is not null)
             {
@@ -128,11 +146,12 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
                 using var actual = await FindStoreTarget(targetPath, before, requestedUtcTicks, token).ConfigureAwait(false);
                 await ObserveAsync(id, targetPath, actual, actual, null, token).ConfigureAwait(false);
                 SetState(new(id, LaunchPhase.Stopped, StopMessage(id)));
+                StartAfterExitHook(id, configuration.Value?.AfterExit);
                 return;
             }
-            using var starter = processes.Start(profile.ExecutablePath, profile.WorkingDirectory);
+            using var starter = action is null ? processes.Start(profile.ExecutablePath, profile.WorkingDirectory) : processes.Start(startPath, startFolder, action.Arguments, action.RunAsAdministrator);
             IGameProcess observed = starter;
-            if (!string.Equals(profile.ExecutablePath, targetPath, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(startPath, targetPath, StringComparison.OrdinalIgnoreCase))
                 observed = await FindTarget(starter, targetPath, token).ConfigureAwait(false);
             if (observed.HasExited)
             {
@@ -141,6 +160,7 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
             }
             await ObserveAsync(id, targetPath, starter, observed, null, token).ConfigureAwait(false);
             SetState(new(id, LaunchPhase.Stopped, StopMessage(id)));
+            StartAfterExitHook(id, configuration.Value?.AfterExit);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         { SetState(new(id, LaunchPhase.Stopped, "Observation stopped. Any running game was left open.")); }
@@ -157,6 +177,23 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
             operation.Dispose();
             completion.TrySetResult();
         }
+    }
+
+    private async Task RunHookAsync(Guid id, string label, LaunchHook? hook, CancellationToken token)
+    {
+        if (hook is null) return;
+        HookOutcome outcome;
+        try { outcome = await hooks.RunAsync(label, hook, token).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+        catch (Exception error) { outcome = new(label, false, error.Message); }
+        HookCompleted?.Invoke(this, new(id, outcome));
+    }
+
+    // The after-exit hook never keeps the game slot busy: it runs on its own once the session has been recorded.
+    private void StartAfterExitHook(Guid id, LaunchHook? hook)
+    {
+        if (hook is null) return;
+        _ = Task.Run(async () => { try { await RunHookAsync(id, "After exit", hook, shutdown.Token).ConfigureAwait(false); } catch (OperationCanceledException) { } });
     }
 
     private async Task<IGameProcess> FindStoreTarget(string path, HashSet<ProcessIdentity> before, long requestedUtcTicks, CancellationToken token)

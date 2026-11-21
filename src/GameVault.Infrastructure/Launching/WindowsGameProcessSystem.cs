@@ -27,6 +27,23 @@ public sealed class WindowsGameProcessSystem : IGameProcessSystem
         }
     }
 
+    public IGameProcess Start(string executable, string workingDirectory, string arguments, bool elevated)
+    {
+        if (string.IsNullOrEmpty(arguments) && !elevated) return Start(executable, workingDirectory);
+        try
+        {
+            return elevated ? Elevated(executable, workingDirectory, arguments) : WindowsProcessGroup.Start(executable, workingDirectory, arguments);
+        }
+        catch (Win32Exception error) when (!elevated && error.NativeErrorCode == 740) { return Elevated(executable, workingDirectory, arguments); }
+    }
+
+    private static IGameProcess Elevated(string executable, string workingDirectory, string arguments)
+    {
+        try { return ElevationBroker.Launch(executable, workingDirectory, arguments); }
+        catch (Win32Exception cancelled) when (cancelled.NativeErrorCode == 1223)
+        { throw new Win32Exception(1223, "Administrator approval was cancelled. The game was not started. Click Play to try again."); }
+    }
+
     public ProcessCandidate[] Find(string executable)
     {
         using var snapshot = Native.CreateToolhelp32Snapshot(2, 0);
