@@ -24,7 +24,7 @@ Issue #6 adds an optional per-profile `launch.json` containing `schemaVersion`, 
 
 All serialized documents require `schemaVersion` and all of their constructor fields. Unknown fields, malformed values, missing fields, mismatched game IDs, invalid enum values, unsafe game paths, or invalid statistics are rejected without resetting data. Unsupported older/newer schema versions are read-only; no migration is currently required or implemented.
 
-- **settings.json:** `schemaVersion`, `theme` (Midnight/Crimson), `defaultBackupLimit` (positive integer), `keepAllBackups`, `reduceMotion`. New installations default to Midnight and 20 unpinned backups. These are defaults/configuration; actual backup retention is implemented in its own ticket.
+- **settings.json:** `schemaVersion`, `theme` (Midnight/Crimson/Vice City), `defaultBackupLimit` (positive integer), `keepAllBackups`, `reduceMotion`. New installations default to Midnight and 20 unpinned backups. These are defaults/configuration; actual backup retention is implemented in its own ticket.
 - **profile.json:** `schemaVersion`, stable `id`, `name`, absolute `executablePath` and `workingDirectory`, absolute `saveSources`, `status` (NotStarted/Playing/Completed/OnHold), `backupLimit`, `keepAllBackups`, and `isArchived`.
 - **statistics.json:** `schemaVersion`, matching `gameId`, `sessions` (ID/start/end/duration seconds) and `adjustments` (ID/signed seconds/reason). Timing and correction UI remain future features; this issue preserves their records without inventing playtime.
 
@@ -48,7 +48,7 @@ Managed Data/Profiles files and intermediate directories reject links/junctions.
 
 ## What the current window supports
 
-Startup initializes local directories/settings, loads the profile inventory, restores the saved theme, and displays storage warnings. The Midnight/Crimson control saves asynchronously and retains the previous selection on failure. Recovery/unsupported settings disable preference writes. The window shows a count of stored profiles; the approved full library UI and native game/path pickers are still issue #5 work.
+Startup initializes local directories/settings, loads the profile inventory, restores the saved theme, and displays storage warnings. The theme control (Midnight/Crimson/Vice City) saves asynchronously and retains the previous selection on failure. Recovery/unsupported settings disable preference writes. The window shows a count of stored profiles; the approved full library UI and native game/path pickers are still issue #5 work.
 
 ## Verification
 
