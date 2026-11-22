@@ -63,7 +63,7 @@ xUnit throughout. `tests/GameVault.Tests` (real filesystem, process fixtures), `
 
 - A person verifies UI, native dialogs, real games and installers. Do not launch the owner's apps, stores, games, browsers or installers to "test", and never kill a GameVault or game process. A green `verify.ps1` does not close the manual-acceptance issues (#1, #3, #14, #16, #17, #18).
 - Never commit real saves, profiles, credentials, installers or published binaries (`.gitignore` excludes `/Data/`, `/Profiles/`, `**/Backups/`, `artifacts/`, `work/`, `outputs/`). Never print or store tokens.
-- No open-source licence is selected and installers are unsigned; never infer release authorisation. The owner approves merges and owns releases, repository settings and collaborator changes.
+- GameVault is source-available, all rights reserved (see `LICENSE`; not an open-source licence) and installers are unsigned; never infer release authorisation. The owner approves merges and owns releases, repository settings and collaborator changes.
 - `licenses/windows-sdk/LICENSE.rtf` must stay byte-for-byte as shipped (`.gitattributes`).
 - Keep the same-window UI direction and Midnight/Crimson themes; resolve routine implementation choices yourself and ask only when a decision is load-bearing.
 - For a reported bug: record exact build/steps/expected/actual, find the failing boundary, add a meaningful regression, fix narrowly, run focused tests, then one full `verify.ps1` for the proposed revision.

@@ -63,12 +63,14 @@ See [installer and release requirements](docs/installer-and-releases.md) and the
 
 Actual game saves, local profiles, play histories, credentials, game executables, and game installation files must never be committed to this repository.
 
+## License
+
+GameVault is **source-available, all rights reserved**: you can read the code and use the official installer for yourself, free of charge, but you may not copy, modify or redistribute it without permission. See [LICENSE](LICENSE). Third-party components keep their own licenses ([THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt)).
+
 ## Decisions still open
 
-- Public release approval and final owner functionality/UI acceptance.
-- Licensing and signing of release installers.
-
-No open-source license has been selected.
+- Final owner functionality/UI acceptance.
+- Code signing of release installers (the installer is unsigned, so Windows shows an unknown-publisher warning).
 
 See the [session history test checklist](docs/design/session-history-manual-tests.md) for issue #8, including timezone estimates and correction safeguards.
 

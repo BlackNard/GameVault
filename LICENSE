@@ -1,0 +1,72 @@
+GameVault Source-Available License (All Rights Reserved)
+Version 1.0
+
+Copyright (c) 2026 Zaid-Alhmouz. All rights reserved.
+
+GameVault is source-available, not open source. You can read the code and use
+the official installer for yourself, but you cannot reuse or redistribute it
+without permission.
+
+1. What you may do
+
+   a. Read the source code in this repository, to learn from it, review it or
+      report a problem.
+   b. Download, install and run the official GameVault installers published on
+      this project's GitHub Releases page, and use the installed application
+      for personal, non-commercial purposes, free of charge.
+   c. Report issues and suggest changes through this project's issue tracker.
+
+2. What you may not do without the copyright holder's prior written permission
+
+   a. Copy, modify, adapt, translate or create derivative works of the source
+      code or of the application.
+   b. Distribute, publish, sublicense, sell, rent or lend the source code, the
+      application or its installers, in whole or in part, in original or
+      modified form. Linking to the official GitHub Releases page is allowed.
+   c. Use the source code, the application or its installers for any
+      commercial purpose.
+   d. Remove or change copyright or license notices.
+   e. Decompile or reverse engineer the compiled application, except to the
+      extent the law allows it despite this restriction.
+
+   GitHub's Terms of Service let others view and fork public repositories on
+   GitHub. That does not give anyone any other right in this software.
+
+3. Third-party components
+
+   GameVault includes components written by others. Each is licensed under its
+   own terms, listed in THIRD-PARTY-NOTICES.txt and in the licenses folder of
+   the installed application. This license does not change those terms.
+
+4. Contributions
+
+   If you contribute code, text or other material to this project, you grant
+   the copyright holder a perpetual, worldwide, royalty-free, irrevocable
+   license, including the right to sublicense, to use, modify and distribute
+   your contribution as part of GameVault.
+
+5. Your data
+
+   GameVault keeps its data (profiles, play history, notes and save backups) on
+   your own computer. This license gives the copyright holder no rights in your
+   data, and the data is not part of the software.
+
+6. No warranty
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+   PARTICULAR PURPOSE AND NON-INFRINGEMENT. Back up your game saves
+   independently; GameVault's backups are a convenience, not a guarantee.
+
+7. Limitation of liability
+
+   TO THE EXTENT THE LAW ALLOWS, THE COPYRIGHT HOLDER IS NOT LIABLE FOR ANY
+   CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
+   ARISING FROM OR IN CONNECTION WITH THE SOFTWARE OR ITS USE, INCLUDING LOSS OF
+   SAVE GAMES OR OTHER DATA.
+
+8. Ending this license
+
+   This license ends automatically if you break any of its terms. When it ends
+   you must stop using the software and delete your copies. The sections on
+   warranty and liability continue to apply.
