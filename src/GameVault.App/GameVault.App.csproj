@@ -13,7 +13,16 @@
     <Version>0.1.0</Version>
     <Product>GameVault</Product>
     <Description>GameVault foundation development build</Description>
+    <!-- The app is in English: do not ship 13 folders of translated framework resources (about 220 files). -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
+
+  <!-- Debug symbols are for developers, not for the installed app. -->
+  <Target Name="LeaveSymbolsOutOfPublish" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup><Using Remove="System.Windows.Forms" /><Using Remove="System.Drawing" /></ItemGroup>
   <ItemGroup>
