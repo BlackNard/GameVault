@@ -165,12 +165,15 @@ public sealed class LaunchTests : IAsyncLifetime
         var other = (await new LibraryService(paths, store).SaveAsync(new(null, "Other launcher", otherExe, root, []))).Profile;
         await store.SaveLaunchSettingsAsync(new(1, profile.Id, target));
         await store.SaveLaunchSettingsAsync(new(1, other.Id, target));
-        var first = service.RunAsync(profile.Id);
+        // The shared fixture service gives up waiting for the game process after 200 ms and then releases its claim; on a slow machine the second start
+        // could arrive after that. This test is about the claim, so it uses a service that waits long enough for the second start to arrive.
+        await using var patient = new LaunchService(paths, store, processes, TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(5));
+        var first = patient.RunAsync(profile.Id);
         await WaitUntil(() => processes.Starts == 1);
-        await service.RunAsync(other.Id);
-        Assert.Equal(LaunchPhase.Failed, service.GetState(other.Id).Phase);
+        await patient.RunAsync(other.Id);
+        Assert.Equal(LaunchPhase.Failed, patient.GetState(other.Id).Phase);
         Assert.Equal(1, processes.Starts);
-        await service.DisposeAsync(); await first;
+        await patient.DisposeAsync(); await first;
     }
 
     [Fact]
