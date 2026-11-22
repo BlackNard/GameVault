@@ -45,6 +45,10 @@ public static class ThemeCatalog
             Chrome: "#181918", Background: "#1b1c1b", Text: "#f2f1ee", Muted: "#c4c3bf", Surface: "#2a2b29", Raised: "#3a3b39",
             Line: "#646360", Accent: "#e4e1de", Primary: "#8fa89a", PrimaryText: "#101312", Warning: "#d68a63",
             BackgroundGradient: ["#1b1c1b", "#2c2d2b", "#434442"]),
+        new("Resident Evil 7", "Resident Evil 7", "Stained plaster and dark ink, with the sun-glow amber and the orange VII.",
+            Chrome: "#120b07", Background: "#150d09", Text: "#f4e9d6", Muted: "#d2bfa3", Surface: "#251912", Raised: "#3a281c",
+            Line: "#7f5c43", Accent: "#f0a64a", Primary: "#e8531f", PrimaryText: "#1a0b05", Warning: "#ffb060",
+            BackgroundGradient: ["#150d09", "#2a1b13", "#4a3022"]),
     ];
 
     public static bool IsKnown(string? id) => All.Any(t => t.Id == id);
