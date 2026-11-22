@@ -41,7 +41,7 @@ public sealed class SteamStoreProvider : IMatchSearchProvider, IDisposable
         if (!ValidId(appId))
         {
             // Not known to be a Steam install: look the game up by its exact title, like a name-based provider in Playnite (the title is sent to the Steam store).
-            appId = await FindAppIdAsync(request.Name, cancellationToken).ConfigureAwait(false);
+            appId = await FindAppIdAsync(request.Name, cancellationToken, BuildYear(request.ExecutablePath)).ConfigureAwait(false);
             if (appId is null) return null;
         }
         var json = await GetBytesAsync($"https://store.steampowered.com/api/appdetails?appids={appId}&l=english", cancellationToken).ConfigureAwait(false);
@@ -54,36 +54,69 @@ public sealed class SteamStoreProvider : IMatchSearchProvider, IDisposable
     /// <summary>Normalised title for matching: no trademark signs, case, spaces or punctuation.</summary>
     public static string NormalizeTitle(string title) => new(title.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
 
-    /// <summary>Searches the Steam store and accepts only an app whose title equals the game title (ignoring case, punctuation and trademark signs). A near match is never used.</summary>
-    public async Task<string?> FindAppIdAsync(string name, CancellationToken cancellationToken)
+    /// <summary>
+    /// Searches the Steam store and accepts only an app whose title equals the game title (ignoring case, punctuation and trademark signs).
+    /// When Steam also lists the same title with a year ("Resident Evil 2" and "Resident Evil 2 (1998)"), the build year of the game file
+    /// (<paramref name="exeYear"/>) picks the edition: the newest one released no later than that year. Without a usable year the plain title is used.
+    /// Two apps with exactly the same title are never guessed.
+    /// </summary>
+    public async Task<string?> FindAppIdAsync(string name, CancellationToken cancellationToken, int? exeYear = null)
     {
         var title = (name ?? "").Trim();
         if (title.Length is < 2 or > 120 || title.Any(char.IsControl) || title.Contains('\\') || title.Contains('/') || title.Contains("://")) return null;
         var wanted = NormalizeTitle(title);
         if (wanted.Length < 2) return null;
         var json = await GetBytesAsync("https://store.steampowered.com/api/storesearch/?term=" + Uri.EscapeDataString(title) + "&l=english&cc=US", cancellationToken).ConfigureAwait(false);
+        var exact = new List<string>();
+        var siblings = new List<(string Id, int Year)>();
         try
         {
             using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 16 });
             if (document.RootElement.ValueKind != JsonValueKind.Object || !document.RootElement.TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array) return null;
-            string? match = null;
-            var ambiguous = false;
             foreach (var item in items.EnumerateArray().Take(50))
             {
                 if (item.ValueKind != JsonValueKind.Object) continue;
                 if (item.TryGetProperty("type", out var type) && !(type.ValueKind == JsonValueKind.String && type.GetString() == "app")) continue;
                 if (!item.TryGetProperty("name", out var itemName) || itemName.ValueKind != JsonValueKind.String) continue;
+                if (!item.TryGetProperty("id", out var id) || id.ValueKind != JsonValueKind.Number || !id.TryGetInt64(out var number) || number <= 0 || number > 9_999_999_999) continue;
+                var text = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 var normalized = NormalizeTitle(itemName.GetString() ?? "");
-                // "Dead Space" and "Dead Space (2008)": a sibling whose title only adds a year means the title is not unique, so nothing is guessed.
-                if (normalized.Length == wanted.Length + 4 && normalized.StartsWith(wanted, StringComparison.Ordinal) && normalized[wanted.Length..] is var year && (year.StartsWith("19") || year.StartsWith("20")) && year.All(char.IsAsciiDigit)) { ambiguous = true; continue; }
-                if (normalized != wanted) continue;
-                if (match is not null) { ambiguous = true; continue; }
-                if (item.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number && id.TryGetInt64(out var number) && number > 0 && number <= 9_999_999_999)
-                    match = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (normalized == wanted) exact.Add(text);
+                else if (normalized.Length == wanted.Length + 4 && normalized.StartsWith(wanted, StringComparison.Ordinal) && int.TryParse(normalized[wanted.Length..], out var year) && year is >= 1970 and <= 2100)
+                    siblings.Add((text, year));
             }
-            return ambiguous ? null : match;
         }
         catch (JsonException) { throw new IOException("Steam sent an answer GameVault could not read."); }
+        if (exact.Count != 1) return null;
+        if (siblings.Count == 0 || exeYear is not { } built) return exact[0];
+        // The plain title has no year in its name, so ask Steam when it was released.
+        var plainYear = await ReleaseYearAsync(exact[0], cancellationToken).ConfigureAwait(false);
+        var choices = siblings.Select(x => (x.Id, Year: (int?)x.Year)).Append((Id: exact[0], Year: plainYear)).Where(x => x.Year is not null).ToList();
+        if (choices.Count == 0) return exact[0];
+        var fit = choices.Where(x => x.Year <= built + 1).OrderByDescending(x => x.Year).FirstOrDefault();
+        return fit.Id ?? exact[0];
+    }
+
+    private async Task<int?> ReleaseYearAsync(string appId, CancellationToken token)
+    {
+        try { return Parse(await GetBytesAsync($"https://store.steampowered.com/api/appdetails?appids={appId}&l=english", token).ConfigureAwait(false), appId)?.ReleaseDate?.Year; }
+        catch (IOException) { return null; }
+    }
+
+    /// <summary>The year the game program was built (from its PE header), or null when the header has no believable date.</summary>
+    public static int? BuildYear(string? executablePath)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(executablePath) || !File.Exists(executablePath)) return null;
+            using var stream = new FileStream(executablePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var pe = new System.Reflection.PortableExecutable.PEReader(stream);
+            var stamp = pe.PEHeaders.CoffHeader.TimeDateStamp;
+            if (stamp == 0) return null;
+            var year = DateTimeOffset.FromUnixTimeSeconds(stamp).Year;
+            return year >= 1995 && year <= DateTime.UtcNow.Year + 1 ? year : null;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or BadImageFormatException or InvalidOperationException or ArgumentException) { return null; }
     }
 
     /// <summary>The Steam apps whose store search matches the title, for the "Not the right game?" picker.</summary>

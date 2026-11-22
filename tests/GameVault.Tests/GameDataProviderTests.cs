@@ -357,17 +357,50 @@ public sealed class GameDataProviderTests : IAsyncLifetime
 
     // ---------- Steam: ambiguous titles ----------
     [Fact]
-    public async Task Steam_does_not_guess_when_a_sibling_title_only_adds_a_year_and_lists_candidates_for_the_picker()
+    public async Task Steam_picks_the_edition_that_fits_the_game_file_build_year_and_uses_the_plain_title_without_a_hint()
     {
         const string search = "{\"items\":[{\"type\":\"app\",\"name\":\"Dead Space\",\"id\":1693980,\"tiny_image\":\"https://cdn.test/a.jpg\"},{\"type\":\"app\",\"name\":\"Dead Space (2008)\",\"id\":17470},{\"type\":\"dlc\",\"name\":\"Dead Space DLC\",\"id\":5}]}";
-        using var provider = new SteamStoreProvider(new Handler(_ => Json(search)), minimumGap: TimeSpan.Zero);
-        Assert.Null(await provider.FindAppIdAsync("Dead Space", CancellationToken.None));
+        const string remake = "{\"1693980\":{\"success\":true,\"data\":{\"release_date\":{\"coming_soon\":false,\"date\":\"27 Jan, 2023\"}}}}";
+        var handler = new Handler(r => r.RequestUri!.AbsolutePath.Contains("storesearch") ? Json(search) : Json(remake));
+        using var provider = new SteamStoreProvider(handler, minimumGap: TimeSpan.Zero);
+        Assert.Equal("1693980", await provider.FindAppIdAsync("Dead Space", CancellationToken.None));                    // no hint: the plain title
+        Assert.Equal("17470", await provider.FindAppIdAsync("Dead Space", CancellationToken.None, 2008));                // built in 2008: the 2008 game
+        Assert.Equal("17470", await provider.FindAppIdAsync("Dead Space", CancellationToken.None, 2009));
+        Assert.Equal("1693980", await provider.FindAppIdAsync("Dead Space", CancellationToken.None, 2024));              // built in 2024: the 2023 remake
         var candidates = await provider.SearchAsync("Dead Space", CancellationToken.None);
         Assert.Equal(new[] { "1693980", "17470" }, candidates.Select(c => c.Id));
         Assert.Equal("https://cdn.test/a.jpg", candidates[0].ImageUrl);
         const string unique = "{\"items\":[{\"type\":\"app\",\"name\":\"TEKKEN\\u2122 8\",\"id\":1778820},{\"type\":\"app\",\"name\":\"TEKKEN 8 - Bob\",\"id\":4536140}]}";
         using var clear = new SteamStoreProvider(new Handler(_ => Json(unique)), minimumGap: TimeSpan.Zero);
-        Assert.Equal("1778820", await clear.FindAppIdAsync("Tekken 8", CancellationToken.None));
+        Assert.Equal("1778820", await clear.FindAppIdAsync("Tekken 8", CancellationToken.None, 2024));
+        const string twins = "{\"items\":[{\"type\":\"app\",\"name\":\"Twin\",\"id\":1},{\"type\":\"app\",\"name\":\"Twin\",\"id\":2}]}";
+        using var twin = new SteamStoreProvider(new Handler(_ => Json(twins)), minimumGap: TimeSpan.Zero);
+        Assert.Null(await twin.FindAppIdAsync("Twin", CancellationToken.None));                                              // identical titles are never guessed
+    }
+
+    [Fact]
+    public void The_build_year_comes_from_the_pe_header_and_is_ignored_when_it_is_not_believable()
+    {
+        Assert.Null(SteamStoreProvider.BuildYear(profile.ExecutablePath));                                                   // a plain file is not a program
+        Assert.Null(SteamStoreProvider.BuildYear(Path.Combine(root, "missing.exe")));
+        Assert.Null(SteamStoreProvider.BuildYear(null));
+        var self = typeof(SteamStoreProvider).Assembly.Location;
+        var year = SteamStoreProvider.BuildYear(self);                                                                       // a .NET assembly: deterministic builds may have no believable date
+        Assert.True(year is null || year >= 1995);
+    }
+
+    [Fact]
+    public void The_automatic_pass_retries_unmatched_games_after_a_week_but_never_picked_or_described_ones()
+    {
+        var now = DateTimeOffset.UtcNow;
+        GameMetadataDocument Doc(DateTimeOffset? at, GameIdentity? identity = null, bool description = false) =>
+            new(1, profile.Id, description ? new() { ["Description"] = new("steam", false, now, Text: "x") } : [], LastRefresh: at, Identity: identity);
+        Assert.True(GameMetadataService.NeedsAutomaticLookup(null));
+        Assert.True(GameMetadataService.NeedsAutomaticLookup(Doc(null)));
+        Assert.False(GameMetadataService.NeedsAutomaticLookup(Doc(now.AddDays(-1))));                                        // tried yesterday
+        Assert.True(GameMetadataService.NeedsAutomaticLookup(Doc(now.AddDays(-8))));                                         // unmatched, tried over a week ago
+        Assert.False(GameMetadataService.NeedsAutomaticLookup(Doc(now.AddDays(-30), description: true)));
+        Assert.False(GameMetadataService.NeedsAutomaticLookup(Doc(now.AddDays(-30), new GameIdentity(NoMatch: true, Source: "picked"))));
     }
 
     [Fact]

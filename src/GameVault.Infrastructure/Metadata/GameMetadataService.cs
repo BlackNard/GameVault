@@ -99,7 +99,7 @@ public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameM
                 progress?.Report((done, games.Count, name));
                 try
                 {
-                    if (onlyNeverLookedUp && (await store.LoadMetadataAsync(id).ConfigureAwait(false)).Value?.LastRefresh is not null) { done++; continue; }
+                    if (onlyNeverLookedUp && !NeedsAutomaticLookup((await store.LoadMetadataAsync(id).ConfigureAwait(false)).Value)) { done++; continue; }
                     var result = await RefreshAsync(id, false, cancellationToken).ConfigureAwait(false);
                     if (result.FieldsFilled > 0) updated++;
                     filled += result.FieldsFilled;
@@ -115,6 +115,17 @@ public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameM
         }
         progress?.Report((done, games.Count, ""));
         return new(games.Count, updated, filled, [.. problems.Take(20)], false);
+    }
+
+    /// <summary>
+    /// Whether the automatic pass should look this game up: it never was, or the last lookup found no description (and the owner has not chosen a match or said
+    /// none fits) and was more than a week ago, so a game that could not be matched yet is tried again after the sources or matching improve.
+    /// </summary>
+    public static bool NeedsAutomaticLookup(GameMetadataDocument? document, DateTimeOffset? now = null)
+    {
+        if (document?.LastRefresh is not { } last) return true;
+        if (document.Identity is { IsPicked: true } || document.Get(MetadataField.Description) is not null) return false;
+        return (now ?? DateTimeOffset.UtcNow) - last > TimeSpan.FromDays(7);
     }
 
     /// <summary>The Steam app id of the game (from its Steam install, or found earlier by exact title), or null. Used to fetch its cover.</summary>
