@@ -128,6 +128,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GAMEVAULT_DRAFT_RELEASE_ID: ${{ inputs.draft_release_id }}
+          # The owner made the repository public and authorized releases from it; the script still only reads an unpublished draft.
+          GAMEVAULT_PUBLIC_REPOSITORY_APPROVED: 'true'
         run: ./scripts/smoke-draft-release.ps1 -ReleaseId $env:GAMEVAULT_DRAFT_RELEASE_ID
       - name: Keep exact draft smoke evidence
         if: always()

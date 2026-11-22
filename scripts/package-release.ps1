@@ -30,7 +30,7 @@ Copy-Item -LiteralPath (Join-Path $verification.publishDirectory 'licenses/dotne
 Copy-Item -LiteralPath (Join-Path $verification.publishDirectory 'licenses/dotnet/THIRD-PARTY-NOTICES.txt') -Destination (Join-Path $directory 'DOTNET-THIRD-PARTY-NOTICES.txt')
 $public=[ordered]@{schemaVersion=1;version=$manifest.appVersion;architecture='win-x64';installerFile=$name;installerSha256=$manifest.sha256;
     sourceCommit=$source;headCommit=$env:GAMEVAULT_HEAD_SHA;buildRunId=$env:GITHUB_RUN_ID;verificationRunId=$verification.runId;
-    signed=$false;releaseApproved=$false;manualAcceptance='pending-owner-final-pass';projectLicense='source-available-all-rights-reserved';publicDistribution='not-authorized';
+    signed=$false;releaseApproved=$false;manualAcceptance='pending-owner-final-pass';projectLicense='source-available-all-rights-reserved';publicDistribution='authorized-by-owner-unsigned-preview';
     checks=@{appWorkflowsPassed=$true;installerLifecyclePassed=$true;sourceHistoryAuditPassed=$true};
     payload=@($manifest.payload|ForEach-Object{[ordered]@{path=$_.path;sha256=$_.sha256}})}
 $public|ConvertTo-Json -Depth 6|Set-Content -LiteralPath (Join-Path $directory 'RELEASE-MANIFEST.json') -Encoding utf8
