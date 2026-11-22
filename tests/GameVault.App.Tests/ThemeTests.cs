@@ -136,6 +136,19 @@ public sealed class ThemeTests
         foreach (var view in views) Assert.Contains(view.Name + " editor=>editor.CanLeaveAsync", host);
     }
 
+    [Fact]
+    public void Every_place_that_opens_a_drawer_view_releases_it_afterwards_so_quitting_still_works()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "GameVault.slnx"))) dir = dir.Parent;
+        var sources = Directory.GetFiles(Path.Combine(dir!.FullName, "src", "GameVault.App"), "MainWindow*.cs").Select(File.ReadAllText).ToArray();
+        static int Count(string text, string needle) => text.Split(needle).Length - 1;
+        var opened = sources.Sum(s => Count(s, "await ShowInlineEditorAsync("));
+        var released = sources.Sum(s => Count(s, "CompleteInlineEditor();"));
+        Assert.True(opened > 0);
+        Assert.True(released >= opened, $"{opened} drawer views are opened but only {released} releases exist; a stale session makes Quit refuse to exit.");
+    }
+
     private static List<Button> Buttons(DependencyObject root)
     {
         var found = new List<Button>();

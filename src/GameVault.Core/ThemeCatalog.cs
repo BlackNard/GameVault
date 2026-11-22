@@ -28,6 +28,27 @@ public static class ThemeCatalog
             Chrome: "#140828", Background: "#150a2e", Text: "#fff4fb", Muted: "#dcc0ea", Surface: "#26103f", Raised: "#3b1a5c",
             Line: "#8a43a6", Accent: "#ffb36b", Primary: "#ff4f9f", PrimaryText: "#1a0630", Warning: "#ffcf8a",
             BackgroundGradient: ["#150a2e", "#2c1050", "#5c1a62"]),
+        // The four game themes take their colours from the games' store cover art (dominant colours sampled from each cover).
+        new("Witcher 3", "Witcher 3", "Icy fog and steel on charcoal, with the blood-red of the Wild Hunt logo.",
+            Chrome: "#120b11", Background: "#150a13", Text: "#e9fbf5", Muted: "#b9c9c5", Surface: "#251b22", Raised: "#392b35",
+            Line: "#605e61", Accent: "#cfeee4", Primary: "#c3262e", PrimaryText: "#ffffff", Warning: "#ff9b52",
+            BackgroundGradient: ["#150a13", "#241a20", "#3d1e22"]),
+        new("Cyberpunk 2077", "Cyberpunk 2077", "Cover-art yellow over jacket black, with neon blue and red.",
+            Chrome: "#0d0708", Background: "#0e080a", Text: "#fffbe0", Muted: "#d3caa5", Surface: "#211815", Raised: "#35271f",
+            Line: "#6b5a30", Accent: "#62b6ff", Primary: "#fdf802", PrimaryText: "#150b0c", Warning: "#ff6a5a",
+            BackgroundGradient: ["#0e080a", "#241b18", "#443724"]),
+        new("Mass Effect", "Mass Effect", "The Legendary Edition cover: deep-space blue splitting into Reaper red.",
+            Chrome: "#070e23", Background: "#0b1430", Text: "#f3f6ff", Muted: "#bfcbe3", Surface: "#141b36", Raised: "#25395d",
+            Line: "#3d5a8f", Accent: "#5aa9ff", Primary: "#c31a1e", PrimaryText: "#ffffff", Warning: "#ff9a5a",
+            BackgroundGradient: ["#0b1430", "#2a1d3f", "#7a1727"]),
+        new("Silent Hill 2", "Silent Hill 2", "Fog greys with the sage green of James's jacket.",
+            Chrome: "#181918", Background: "#1b1c1b", Text: "#f2f1ee", Muted: "#c4c3bf", Surface: "#2a2b29", Raised: "#3a3b39",
+            Line: "#646360", Accent: "#e4e1de", Primary: "#8fa89a", PrimaryText: "#101312", Warning: "#d68a63",
+            BackgroundGradient: ["#1b1c1b", "#2c2d2b", "#434442"]),
+        new("Resident Evil 7", "Resident Evil 7", "Stained plaster and dark ink, with the sun-glow amber and the orange VII.",
+            Chrome: "#120b07", Background: "#150d09", Text: "#f4e9d6", Muted: "#d2bfa3", Surface: "#251912", Raised: "#3a281c",
+            Line: "#7f5c43", Accent: "#f0a64a", Primary: "#e8531f", PrimaryText: "#1a0b05", Warning: "#ffb060",
+            BackgroundGradient: ["#150d09", "#2a1b13", "#4a3022"]),
     ];
 
     public static bool IsKnown(string? id) => All.Any(t => t.Id == id);
