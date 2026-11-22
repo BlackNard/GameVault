@@ -254,9 +254,17 @@ public partial class MainWindow
                 if (await NavigateToAsync(NavRoute.Game(id, "Saves"))) BackUpNow(this, new RoutedEventArgs());
             }));
         }
-        yield return new PaletteEntry("Appearance", "Switch to Midnight theme", "", (Func<Task>)(() => { ThemeChoice.SelectedIndex = 0; return Task.CompletedTask; }));
-        yield return new PaletteEntry("Appearance", "Switch to Crimson theme", "", (Func<Task>)(() => { ThemeChoice.SelectedIndex = 1; return Task.CompletedTask; }));
-        yield return new PaletteEntry("Appearance", "Switch to Vice City theme", "", (Func<Task>)(() => { ThemeChoice.SelectedIndex = 2; return Task.CompletedTask; }));
+        yield return new PaletteEntry("Appearance", "Browse themes", "Preview every theme", (Func<Task>)OpenThemePickerAsync);
+        foreach (var theme in ThemeCatalog.All)
+        {
+            var id = theme.Id;
+            yield return new PaletteEntry("Appearance", "Switch to " + theme.Name + " theme", "", (Func<Task>)(async () =>
+            {
+                if (busy || editorOpen || settingsReadOnly) return;
+                var problem = await ApplyThemeAsync(id);
+                if (problem is not null) ShowToast("Could not change the theme", problem, true);
+            }));
+        }
     }
 
     private void RefreshPalette()

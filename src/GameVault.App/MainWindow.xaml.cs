@@ -66,7 +66,7 @@ public partial class MainWindow : Window
         CloseToTrayChoice.IsChecked=settings.CloseToTray;BackupNotificationsChoice.IsChecked=settings.NotifyBackupFailures;
         MinHeight = Math.Min(MinHeight, SystemParameters.WorkArea.Height);
         MinWidth = Math.Min(MinWidth, SystemParameters.WorkArea.Width);
-        ThemeChoice.SelectedIndex = ThemePalette.IndexOf(settings.Theme);
+        ThemeName.Text = ThemeCatalog.Find(settings.Theme).Name;
         ProfilesPath.Text = paths.Profiles;
         StorageNotice.Text = string.Join("\n", snapshot.Warnings.Distinct());
         initializing = false;
@@ -347,25 +347,38 @@ public partial class MainWindow : Window
         finally { EndOperation(); }
     }
 
-    private async void ThemeChanged(object sender, SelectionChangedEventArgs e)
+    private async void BrowseThemesClicked(object sender, RoutedEventArgs e) => await OpenThemePickerAsync();
+
+    private async Task OpenThemePickerAsync()
     {
-        if (initializing || busy || quitPreparing || stoppingObservation || settingsReadOnly || ThemeChoice.SelectedItem is not ComboBoxItem { Tag: string theme } || theme == settings.Theme) return;
-        busy = true; UpdateButtons();
+        if (busy || editorOpen || quitPreparing || stoppingObservation || settingsReadOnly || InlinePrompts.IsOpen(this)) return;
+        editorOpen = true; UpdateButtons();
+        try
+        {
+            var view = new ThemePickerView(settings.Theme, theme => ApplyThemeAsync(theme));
+            await ShowInlineEditorAsync(view, h => view.Completed += h, h => view.Completed -= h);
+        }
+        catch (Exception error) when (IsExpected(error)) { ShowToast("Could not open the themes", error.Message, true); }
+        finally { editorOpen = false; UpdateButtons(); ContinueDeferredQuit(); }
+    }
+
+    /// <summary>Saves and applies a theme. Returns null on success, otherwise a sentence saying why it did not work (the previous theme stays).</summary>
+    private async Task<string?> ApplyThemeAsync(string theme)
+    {
+        if (!ThemeCatalog.IsKnown(theme)) return "That theme is not available.";
+        if (settingsReadOnly) return "Settings are read-only, so the theme cannot be saved.";
         try
         {
             var updated = settings with { Theme = theme };
             await store.SaveSettingsAsync(updated);
             settings = updated;
             ThemePalette.Apply(this, theme);
-            if(captureOverlay is not null)ThemePalette.Apply(captureOverlay,theme);
+            if (captureOverlay is not null) ThemePalette.Apply(captureOverlay, theme);
+            ThemeName.Text = ThemeCatalog.Find(theme).Name;
             OperationNotice.Text = "Theme saved. It will be restored next time you open GameVault.";
+            return null;
         }
-        catch (Exception error) when (IsExpected(error))
-        {
-            initializing = true; ThemeChoice.SelectedIndex = ThemePalette.IndexOf(settings.Theme); initializing = false;
-            OperationNotice.Text = "Could not save the theme. " + error.Message;
-        }
-        finally { EndOperation(); }
+        catch (Exception error) when (IsExpected(error)) { return "Could not save the theme. " + error.Message; }
     }
 
     private async void NotesDataChanged(object? sender, EventArgs e)
@@ -507,7 +520,7 @@ public partial class MainWindow : Window
         NotesButton.IsEnabled = !busy && !editorOpen && !stoppingObservation && !quitPreparing && GameList.SelectedItem is LibraryItemView;
         AddButton.IsEnabled = !busy && !editorOpen && !settingsReadOnly && !quitPreparing && !stoppingObservation;
         StoreImportButton.IsEnabled = AddButton.IsEnabled;
-        ThemeChoice.IsEnabled = !busy && !editorOpen && !settingsReadOnly && !quitPreparing && !stoppingObservation;
+        BrowseThemesButton.IsEnabled = !busy && !editorOpen && !settingsReadOnly && !quitPreparing && !stoppingObservation;
         var selected = GameList.SelectedItem as LibraryItemView;
         var active = selected is not null && (launches.GetState(selected.Game.Id).IsActive||backups.IsWorking(selected.Game.Id));
         var editable = !busy && !editorOpen && !stoppingObservation && !quitPreparing && !active && selected is { Game.IsReadOnly: false, Game.Profile: not null };
