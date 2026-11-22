@@ -70,6 +70,13 @@ public static class ThemeCatalog
             Chrome: "#080c16", Background: "#0a1020", Text: "#f2f6ff", Muted: "#bcd0ee", Surface: "#121c33", Raised: "#1b2f5a",
             Line: "#3b6fc4", Accent: "#8fc8ff", Primary: "#f2b52a", PrimaryText: "#140c00", Warning: "#ff8a3a",
             BackgroundGradient: ["#0a1020", "#0c284d", "#064c9f"]),
+        // Two thank-you themes for the assistants that helped build GameVault, in their well-known colours (no cover art involved).
+        new("Claude", "Claude", "Warm charcoal and cream with the terracotta orange.",
+            Chrome: "#141413", Background: "#1f1e1d", Text: "#faf9f5", Muted: "#c2c0b6", Surface: "#262624", Raised: "#30302e",
+            Line: "#5e5d59", Accent: "#e8a07f", Primary: "#d97757", PrimaryText: "#141413", Warning: "#f0b27a"),
+        new("ChatGPT", "ChatGPT", "Neutral dark grey with the signature green.",
+            Chrome: "#171717", Background: "#212121", Text: "#ececec", Muted: "#b4b4b4", Surface: "#2a2a2a", Raised: "#343434",
+            Line: "#4d4d4d", Accent: "#3fcfa6", Primary: "#10a37f", PrimaryText: "#04120d", Warning: "#f0b86e"),
     ];
 
     public static bool IsKnown(string? id) => All.Any(t => t.Id == id);
