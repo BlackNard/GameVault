@@ -1,5 +1,7 @@
 Third-party components bundled with GameVault
 
+GameVault itself is licensed under the GameVault Source-Available License (all rights reserved), see LICENSE in the project repository. The components below belong to their own owners and are licensed under their own terms.
+
 PDFsharp 6.2.3
 https://github.com/empira/PDFsharp/tree/v6.2.3
 Pinned to this MIT-licensed release. License terms for later versions may differ.
