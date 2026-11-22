@@ -11,7 +11,7 @@ if([string]::IsNullOrWhiteSpace($env:GH_TOKEN) -or $env:GITHUB_REPOSITORY -cne '
 $headers=@{Authorization='Bearer '+$env:GH_TOKEN;Accept='application/vnd.github+json';'User-Agent'='GameVault-Draft-Smoke'}
 $api='https://api.github.com/repos/'+$env:GITHUB_REPOSITORY
 $repository=Invoke-RestMethod ($api) -Headers $headers
-if($repository.private -ne $true){throw 'Draft smoke requires the repository to remain private.'}
+if($repository.private -ne $true -and $env:GAMEVAULT_PUBLIC_REPOSITORY_APPROVED -cne 'true'){throw 'Draft smoke on a public repository needs GAMEVAULT_PUBLIC_REPOSITORY_APPROVED=true (set by the owner-approved workflow).'}
 $release=Invoke-RestMethod ($api+'/releases/'+$ReleaseId) -Headers $headers
 if($release.draft -ne $true -or $null -ne $release.published_at){throw 'Only unpublished draft releases can be tested by this workflow.'}
 $token=[guid]::NewGuid().ToString('N')

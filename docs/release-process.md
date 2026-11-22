@@ -1,6 +1,6 @@
 # Private draft release procedure
 
-GameVault development distribution stays private and unpublished until the owner authorizes a public channel. Packaging does not grant a project license, approve publication, buy a signing certificate, or change repository visibility.
+GameVault releases are prepared as **unpublished drafts** and published only by the owner. The repository is public and the license is the root `LICENSE` (source-available, all rights reserved). Packaging does not publish anything, buy a signing certificate or change repository visibility. Releases are unsigned previews until the owner decides on signing.
 
 ## Automated build and evidence
 
@@ -26,7 +26,7 @@ After CI succeeds, download the complete `private-draft-assets` artifact, extrac
 ./scripts/create-draft-release.ps1 -BundleDirectory '<verified bundle folder>'
 ```
 
-This tool checks that the repository is private, the manifest names a successful matching CI run and source commit, and the preview tag is new. Every candidate file must additionally match the named run's authenticated `private-draft-assets` artifact, including its GitHub-provided ZIP digest and expected workflow identity. An expired/missing origin artifact requires a fresh verified build; recomputed local checksums alone are insufficient. It creates **only a draft prerelease** (default `v<version>-preview.1`), uploads the nine checked assets, downloads them again and verifies their checksums. Existing releases are not replaced. A later preview can use `-Tag 'v<version>-preview.2'`. The result is recorded in ignored `artifacts/draft-release.json`; partial failures leave an unpublished draft for inspection, never a published release.
+This tool checks that the manifest names a successful matching CI run and source commit, and the preview tag is new. Every candidate file must additionally match the named run's authenticated `private-draft-assets` artifact, including its GitHub-provided ZIP digest and expected workflow identity. An expired/missing origin artifact requires a fresh verified build; recomputed local checksums alone are insufficient. On a public repository it also requires `GAMEVAULT_PUBLIC_REPOSITORY_APPROVED=true` in the environment, as the owner's confirmation (the draft smoke workflow sets it). It creates **only a draft prerelease** (default `v<version>-preview.1`), uploads the nine checked assets, downloads them again and verifies their checksums. Existing releases are not replaced. A later preview can use `-Tag 'v<version>-preview.2'`. The result is recorded in ignored `artifacts/draft-release.json`; partial failures leave an unpublished draft for inspection, never a published release.
 
 GitHub may display an untagged URL for a draft. This is normal; the tool does not explicitly push tags. Private draft downloads require repository access/push privileges. Signing checksums provide integrity checks, not publisher authentication.
 
