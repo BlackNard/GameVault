@@ -359,7 +359,7 @@ public partial class MainWindow : Window
             await ShowInlineEditorAsync(view, h => view.Completed += h, h => view.Completed -= h);
         }
         catch (Exception error) when (IsExpected(error)) { ShowToast("Could not open the themes", error.Message, true); }
-        finally { editorOpen = false; UpdateButtons(); ContinueDeferredQuit(); }
+        finally { editorOpen = false; CompleteInlineEditor(); UpdateButtons(); ContinueDeferredQuit(); }
     }
 
     /// <summary>Saves and applies a theme. Returns null on success, otherwise a sentence saying why it did not work (the previous theme stays).</summary>
