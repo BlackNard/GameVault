@@ -66,7 +66,7 @@ public partial class MainWindow : Window
         CloseToTrayChoice.IsChecked=settings.CloseToTray;BackupNotificationsChoice.IsChecked=settings.NotifyBackupFailures;
         MinHeight = Math.Min(MinHeight, SystemParameters.WorkArea.Height);
         MinWidth = Math.Min(MinWidth, SystemParameters.WorkArea.Width);
-        ThemeChoice.SelectedIndex = settings.Theme == "Crimson" ? 1 : 0;
+        ThemeChoice.SelectedIndex = ThemePalette.IndexOf(settings.Theme);
         ProfilesPath.Text = paths.Profiles;
         StorageNotice.Text = string.Join("\n", snapshot.Warnings.Distinct());
         initializing = false;
@@ -362,7 +362,7 @@ public partial class MainWindow : Window
         }
         catch (Exception error) when (IsExpected(error))
         {
-            initializing = true; ThemeChoice.SelectedIndex = settings.Theme == "Crimson" ? 1 : 0; initializing = false;
+            initializing = true; ThemeChoice.SelectedIndex = ThemePalette.IndexOf(settings.Theme); initializing = false;
             OperationNotice.Text = "Could not save the theme. " + error.Message;
         }
         finally { EndOperation(); }

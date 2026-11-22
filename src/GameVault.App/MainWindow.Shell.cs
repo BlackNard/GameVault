@@ -256,6 +256,7 @@ public partial class MainWindow
         }
         yield return new PaletteEntry("Appearance", "Switch to Midnight theme", "", (Func<Task>)(() => { ThemeChoice.SelectedIndex = 0; return Task.CompletedTask; }));
         yield return new PaletteEntry("Appearance", "Switch to Crimson theme", "", (Func<Task>)(() => { ThemeChoice.SelectedIndex = 1; return Task.CompletedTask; }));
+        yield return new PaletteEntry("Appearance", "Switch to Vice City theme", "", (Func<Task>)(() => { ThemeChoice.SelectedIndex = 2; return Task.CompletedTask; }));
     }
 
     private void RefreshPalette()

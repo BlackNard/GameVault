@@ -14,6 +14,7 @@ public sealed class NotesHeaderLayoutTests
     [Theory]
     [InlineData("Midnight", 720)]
     [InlineData("Crimson", 1200)]
+    [InlineData("Vice City", 900)]
     public void Header_actions_share_normal_height_and_statistics_stay_together(string theme, double width) => InSta(() =>
     {
         var header = LoadHeader(theme);

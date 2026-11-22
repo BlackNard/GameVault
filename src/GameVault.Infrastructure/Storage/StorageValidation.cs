@@ -5,7 +5,7 @@ namespace GameVault.Infrastructure.Storage;
 internal static class StorageValidation
 {
     public static bool Settings(AppSettings value) => value.SchemaVersion == 1 &&
-        value.Theme is "Midnight" or "Crimson" && value.DefaultBackupLimit > 0;
+        value.Theme is "Midnight" or "Crimson" or "Vice City" && value.DefaultBackupLimit > 0;
 
     public static bool Profile(GameProfile value, Guid expectedId) => value.SchemaVersion == 1 &&
         expectedId != Guid.Empty && value.Id == expectedId && !string.IsNullOrWhiteSpace(value.Name) &&
