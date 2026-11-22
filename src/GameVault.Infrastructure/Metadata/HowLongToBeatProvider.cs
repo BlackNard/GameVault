@@ -19,7 +19,7 @@ public sealed class HowLongToBeatProvider : IGameMetadataProvider, IDisposable
     public HowLongToBeatProvider(WikidataProvider wikidata, HttpMessageHandler? handler = null, TimeSpan? timeout = null, TimeSpan? minimumGap = null)
     {
         this.wikidata = wikidata;
-        http = new("HowLongToBeat", handler, timeout ?? TimeSpan.FromSeconds(20), minimumGap ?? TimeSpan.FromMilliseconds(1500));
+        http = new("HowLongToBeat", handler, timeout ?? TimeSpan.FromSeconds(20), minimumGap ?? TimeSpan.FromMilliseconds(1000));
     }
 
     public string Id => ProviderId;

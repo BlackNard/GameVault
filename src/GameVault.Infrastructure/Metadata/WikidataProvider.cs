@@ -20,7 +20,7 @@ public sealed class WikidataProvider : IMatchSearchProvider, IDisposable
     private readonly Dictionary<string, (DateTime At, ProviderData? Data)> cache = [];
 
     public WikidataProvider(HttpMessageHandler? handler = null, TimeSpan? timeout = null, TimeSpan? minimumGap = null) =>
-        http = new("Wikidata", handler, timeout ?? TimeSpan.FromSeconds(20), minimumGap ?? TimeSpan.FromMilliseconds(1000));
+        http = new("Wikidata", handler, timeout ?? TimeSpan.FromSeconds(20), minimumGap ?? TimeSpan.FromMilliseconds(800));
 
     public string Id => ProviderId;
     public string DisplayName => "Wikidata";

@@ -10,6 +10,8 @@ public partial class MainWindow
 {
     private CancellationTokenSource? autoInfo;
     private bool autoInfoRunning;
+    /// <summary>Games waiting for, or in the middle of, an automatic lookup (UI thread only). The page says so instead of "no description yet".</summary>
+    private readonly HashSet<Guid> lookupsInProgress = [];
     private readonly AutoLookupQueue lookupQueue = new();
     private SteamPortraitCoverCatalogue? coverCatalogue;
     private HeroImageDownloader? heroDownloader;
@@ -34,6 +36,8 @@ public partial class MainWindow
         var jobs = games.Select(g => new AutoLookupQueue.Job(g.Id, g.Name, OnlyNeverLookedUp: !urgent, Urgent: urgent)).ToArray();
         if (jobs.Length == 0 || Dispatcher.HasShutdownStarted) return;
         lookupQueue.Enqueue(jobs);
+        foreach (var job in jobs) lookupsInProgress.Add(job.Id);
+        if (GameList.SelectedItem is LibraryItemView shown && jobs.Any(j => j.Id == shown.Game.Id)) _ = RefreshAboutAsync(shown);
         if (urgent) ShowToast("Looking up game information", jobs.Length == 1 ? jobs[0].Name : $"{jobs.Length} new games");
         if (!autoInfoRunning) _ = RunAutoInfoAsync();
     }
@@ -53,7 +57,7 @@ public partial class MainWindow
                 MetadataSettings current;
                 try { current = await Metadata.LoadSettingsAsync(); }
                 catch (Exception error) when (IsExpected(error)) { continue; }
-                if (!current.AutoFetch) continue;
+                if (!current.AutoFetch) { lookupsInProgress.Remove(job.Id); continue; }
                 var one = new[] { (job.Id, job.Name) };
                 try
                 {
@@ -76,12 +80,18 @@ public partial class MainWindow
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception error) when (IsExpected(error)) { GameVault.Infrastructure.Diagnostics.AppLog.Warn("Automatic game information stopped for one game: " + error.Message); }
+                finally
+                {
+                    // This game is done (found or not): clear its "looking up" state and show the final page.
+                    lookupsInProgress.Remove(job.Id);
+                    if (GameList.SelectedItem is LibraryItemView finished && finished.Game.Id == job.Id) await RefreshAboutAsync(finished);
+                }
             }
             if (looked > 0 && lookupQueue.Count == 0 && coversAdded + heroesAdded + looked > 1)
                 ShowToast("Game information added", $"{looked} game(s) looked up" + (coversAdded > 0 ? $", {coversAdded} cover(s)" : "") + (heroesAdded > 0 ? $", {heroesAdded} background(s)." : "."));
         }
         catch (OperationCanceledException) { }
-        finally { autoInfoRunning = false; }
+        finally { autoInfoRunning = false; if (token.IsCancellationRequested) lookupsInProgress.Clear(); }
         // Something may have been queued while the last game was finishing.
         if (lookupQueue.Count > 0 && !Dispatcher.HasShutdownStarted && !token.IsCancellationRequested) _ = RunAutoInfoAsync();
     }

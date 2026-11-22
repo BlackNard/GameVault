@@ -27,7 +27,7 @@ public sealed class SteamStoreProvider : IMatchSearchProvider, IDisposable
         client = new HttpClient(handler ?? new SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false, UseProxy = true }) { Timeout = timeout ?? TimeSpan.FromSeconds(10) };
         client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("GameVault", "1"));
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        this.minimumGap = minimumGap ?? TimeSpan.FromMilliseconds(1500);
+        this.minimumGap = minimumGap ?? TimeSpan.FromMilliseconds(800);
     }
 
     public string Id => ProviderId;

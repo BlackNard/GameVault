@@ -64,7 +64,7 @@ public sealed record MetadataResolution(GameMetadataDocument Document, int Field
 public static class MetadataResolver
 {
     public static async Task<MetadataResolution> ResolveAsync(MetadataRequest request, IReadOnlyList<IGameMetadataProvider> providers, MetadataSettings settings,
-        GameMetadataDocument existing, CancellationToken cancellationToken, Func<IGameMetadataProvider, bool>? isNetworkProvider = null)
+        GameMetadataDocument existing, CancellationToken cancellationToken, Func<IGameMetadataProvider, bool>? isNetworkProvider = null, Func<GameMetadataDocument, Task>? progress = null)
     {
         var fields = new Dictionary<string, MetadataValue>(existing.Fields);
         var responses = new Dictionary<string, ProviderData?>(StringComparer.OrdinalIgnoreCase);
@@ -74,6 +74,9 @@ public static class MetadataResolver
         var sizeScanned = existing.LastSizeScan;
         var steamId = request.SteamAppId;
         var identity = request.Identity ?? existing.Identity ?? GameIdentity.Empty;
+        var reported = 0;
+        // The facts found so far, so the page can show them while slower sources are still being asked.
+        GameMetadataDocument Interim() => existing with { Fields = new(fields), LastSizeScan = sizeScanned, LastRefresh = DateTimeOffset.UtcNow, SteamAppId = steamId ?? existing.SteamAppId, Identity = identity == GameIdentity.Empty ? existing.Identity : identity };
         foreach (var field in Enum.GetValues<MetadataField>())
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -86,6 +89,13 @@ public static class MetadataResolver
                 var provider = capable.First(p => p.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
                 if (!responses.TryGetValue(provider.Id, out var data))
                 {
+                    // About to wait for another source: first let the caller show what the earlier ones already gave.
+                    if (progress is not null && filled > reported)
+                    {
+                        reported = filled;
+                        try { await progress(Interim()).ConfigureAwait(false); }
+                        catch (Exception error) when (error is IOException or ArgumentException or UnauthorizedAccessException) { }
+                    }
                     try
                     {
                         data = await provider.GetAsync(request with { SteamAppId = steamId, Identity = identity }, cancellationToken).ConfigureAwait(false);

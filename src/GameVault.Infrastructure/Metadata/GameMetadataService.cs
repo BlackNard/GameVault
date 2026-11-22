@@ -17,6 +17,9 @@ public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameM
 
     public IReadOnlyList<IGameMetadataProvider> Providers => providers;
 
+    /// <summary>Raised whenever new facts for a game have been saved, including partial results while the lookup is still running.</summary>
+    public event EventHandler<Guid>? FactsUpdated;
+
     public Task<StoredDocument<GameMetadataDocument>> LoadAsync(Guid id) => store.LoadMetadataAsync(id);
 
     public async Task<MetadataSettings> LoadSettingsAsync()
@@ -80,11 +83,17 @@ public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameM
         JsonDocuments.RequireWritable(stored);
         var existing = stored.Value ?? GameMetadataDocument.Empty(id);
         var request = await BuildRequestAsync(id, existing.LastSizeScan, settings.SizeOnDisk, replaceExisting, existing).ConfigureAwait(false);
-        var result = await MetadataResolver.ResolveAsync(request, providers, settings, existing, cancellationToken, p => p.Id == SteamStoreProvider.ProviderId).ConfigureAwait(false);
+        var result = await MetadataResolver.ResolveAsync(request, providers, settings, existing, cancellationToken, p => p.Id == SteamStoreProvider.ProviderId, async partial =>
+        {
+            // Keep the older lookup version until the whole lookup finished, so a lookup that was cut short is completed at the next start.
+            await store.SaveMetadataAsync(partial with { LookupVersion = existing.LookupVersion }).ConfigureAwait(false);
+            FactsUpdated?.Invoke(this, id);
+        }).ConfigureAwait(false);
         // A lookup that failed (offline, rate limited) must not mark the game as looked up, or the automatic pass would never retry it.
         var failedEmpty = result.FieldsFilled == 0 && result.Problems.Length > 0;
         if (!failedEmpty && (result.FieldsFilled > 0 || existing.LastRefresh is null || (existing.LookupVersion ?? 0) < CurrentLookupVersion))
             await store.SaveMetadataAsync(result.Document with { LookupVersion = CurrentLookupVersion }).ConfigureAwait(false);
+        FactsUpdated?.Invoke(this, id);
         return result;
     }
 

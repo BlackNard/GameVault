@@ -23,7 +23,7 @@ public sealed class PoliteHttp : IDisposable
         client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("GameVault", "1"));
         client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("(desktop game library)"));
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        this.minimumGap = minimumGap ?? TimeSpan.FromMilliseconds(1200);
+        this.minimumGap = minimumGap ?? TimeSpan.FromMilliseconds(800);
     }
 
     public string ServiceName { get; }

@@ -117,6 +117,8 @@ public sealed class MainWindowStartupTests
         var auto = Source("MainWindow.AutoInfo.cs");
         Assert.DoesNotContain("if (games.Count == 0 || autoInfoRunning", auto);                                                        // the old guard that silently dropped a request
         Assert.Contains("lookupQueue.Enqueue(jobs)", auto);
+        Assert.Contains("lookupsInProgress.Add(job.Id)", auto);                                                                         // the page says "looking up" instead of "no description yet"
+        Assert.Contains("service.FactsUpdated +=", Source("MainWindow.Metadata.cs"));                                                   // each stage of the lookup appears on the open page
     }
 
     [Fact]

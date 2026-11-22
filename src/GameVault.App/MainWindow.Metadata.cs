@@ -14,7 +14,18 @@ public partial class MainWindow
 
     // Order matters: it is the default order in which sources are asked. The store a game came from answers first, then the open databases, then the game file itself.
     private readonly WikidataProvider wikidata = new();
-    private GameMetadataService Metadata => metadataService ??= new(store, [new LocalInstallProvider(), new SteamStoreProvider(), new EpicStoreProvider(), new GogStoreProvider(), wikidata, new HowLongToBeatProvider(wikidata), new LocalFileProvider()]);
+    private GameMetadataService Metadata => metadataService ??= CreateMetadataService();
+    private GameMetadataService CreateMetadataService()
+    {
+        var service = new GameMetadataService(store, [new LocalInstallProvider(), new SteamStoreProvider(), new EpicStoreProvider(), new GogStoreProvider(), wikidata, new HowLongToBeatProvider(wikidata), new LocalFileProvider()]);
+        // Facts are saved in stages while a lookup runs; show each stage on the open game page as soon as it arrives.
+        service.FactsUpdated += (_, id) =>
+        {
+            if (Dispatcher.HasShutdownStarted) return;
+            _ = Dispatcher.InvokeAsync(() => { if (GameList.SelectedItem is LibraryItemView open && open.Game.Id == id) _ = RefreshAboutAsync(open); });
+        };
+        return service;
+    }
 
     private static string SizeText(long bytes) => bytes switch
     {
@@ -40,7 +51,9 @@ public partial class MainWindow
         if (aboutFor != id) return;
         AboutBlock.Visibility = Visibility.Visible;
         var description = document?.Get(MetadataField.Description);
-        AboutText.Text = description?.Text ?? (document?.Identity is { NoMatch: true } ? "You said no listed game matches, so nothing is looked up for this one. Write your own description, or choose Not the right game? to pick one." : "No description yet. Information is looked up automatically; if this game could not be matched (several games share its title), choose Not the right game? to pick the correct one, or write your own description.");
+        var lookingUp = lookupsInProgress.Contains(id);
+        AboutLookupBar.Visibility = lookingUp ? Visibility.Visible : Visibility.Collapsed;
+        AboutText.Text = description?.Text ?? (lookingUp ? "Looking up information about this game… the facts appear here as soon as they arrive." : document?.Identity is { NoMatch: true } ? "You said no listed game matches, so nothing is looked up for this one. Write your own description, or choose Not the right game? to pick one." : "No description yet. Information is looked up automatically; if this game could not be matched (several games share its title), choose Not the right game? to pick the correct one, or write your own description.");
         AboutFacts.Children.Clear();
         void Fact(string label, string? value)
         {
