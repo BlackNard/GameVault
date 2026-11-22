@@ -33,7 +33,9 @@ public sealed class SteamStoreProvider : IMatchSearchProvider, IDisposable
     public string Id => ProviderId;
     public string DisplayName => "Steam store";
     public IReadOnlySet<MetadataField> AvailableFields { get; } = new HashSet<MetadataField>
-        { MetadataField.Description, MetadataField.ReleaseDate, MetadataField.Developers, MetadataField.Publishers, MetadataField.Genres, MetadataField.Hero };
+        { MetadataField.Description, MetadataField.ReleaseDate, MetadataField.Developers, MetadataField.Publishers, MetadataField.Genres, MetadataField.Hero,
+          MetadataField.About, MetadataField.Tags, MetadataField.Features, MetadataField.Platforms, MetadataField.Languages, MetadataField.AgeRating, MetadataField.CriticScore,
+          MetadataField.CommunitySummary, MetadataField.Requirements, MetadataField.Links, MetadataField.AchievementCount, MetadataField.DlcCount, MetadataField.Screenshots };
 
     public async Task<ProviderData?> GetAsync(MetadataRequest request, CancellationToken cancellationToken)
     {
@@ -46,8 +48,23 @@ public sealed class SteamStoreProvider : IMatchSearchProvider, IDisposable
         }
         var json = await GetBytesAsync($"https://store.steampowered.com/api/appdetails?appids={appId}&l=english", cancellationToken).ConfigureAwait(false);
         var data = Parse(json, appId!);
+        if (data is null) return null;
+        // The store's hover card carries the community tags and the review summary. It is optional: a failure here never loses the rest.
+        string[]? tags = null;
+        string? summary = null;
+        try
+        {
+            var hover = System.Text.Encoding.UTF8.GetString(await GetBytesAsync($"https://store.steampowered.com/apphoverpublic/{appId}?l=english", cancellationToken).ConfigureAwait(false));
+            (tags, summary) = ParseHover(hover);
+        }
+        catch (Exception error) when (error is IOException or ArgumentException) { }
         // Steam's wide library banner for this app (a fixed address built from the id).
-        return data is null ? null : data with { SteamAppId = appId, HeroUrl = $"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{appId}/library_hero.jpg" };
+        return data with
+        {
+            SteamAppId = appId, HeroUrl = $"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{appId}/library_hero.jpg",
+            Tags = tags, CommunitySummary = summary,
+            Links = [.. (data.Links ?? []), $"Steam store page|https://store.steampowered.com/app/{appId}/"]
+        };
     }
 
     private static bool ValidId(string? id) => id is { Length: > 0 and <= 10 } && id.All(char.IsAsciiDigit);
@@ -191,18 +208,81 @@ public sealed class SteamStoreProvider : IMatchSearchProvider, IDisposable
                 date.TryGetProperty("date", out var text) && text.ValueKind == JsonValueKind.String) release = PartialDate.Parse(text.GetString());
             string[] genres = data.TryGetProperty("genres", out var g) && g.ValueKind == JsonValueKind.Array
                 ? [.. g.EnumerateArray().Where(e => e.ValueKind == JsonValueKind.Object && e.TryGetProperty("description", out var d) && d.ValueKind == JsonValueKind.String).Select(e => e.GetProperty("description").GetString()!).Take(GameMetadataDocument.MaxItems)] : [];
-            return new ProviderData(description, release, List("developers"), List("publishers"), genres);
+            var details = ExtraDetails(data);
+            return new ProviderData(description, release, List("developers"), List("publishers"), genres,
+                About: Clean(Text("about_the_game"), GameMetadataDocument.MaxAboutLength), Features: details.Features, Platforms: details.Platforms, Languages: details.Languages,
+                AgeRating: details.AgeRating, CriticScore: details.CriticScore, CriticUrl: details.CriticUrl, Requirements: details.Requirements, Links: details.Links,
+                AchievementCount: details.Achievements, DlcCount: details.Dlc, Screenshots: details.Screenshots);
         }
         catch (JsonException) { throw new IOException("Steam sent an answer GameVault could not read."); }
     }
 
-    private static string? Clean(string? html)
+    private sealed record Extra(string[]? Features, string[]? Platforms, string[]? Languages, string? AgeRating, int? CriticScore, string? CriticUrl, string? Requirements, string[]? Links, int? Achievements, int? Dlc, string[]? Screenshots);
+
+    private static Extra ExtraDetails(JsonElement data)
     {
-        if (string.IsNullOrWhiteSpace(html)) return null;
-        var text = WebUtility.HtmlDecode(Tags.Replace(html, " "));
-        text = string.Join(' ', text.Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries));
-        return text.Length == 0 ? null : text;
+        string? Text(JsonElement item, string name) => item.ValueKind == JsonValueKind.Object && item.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
+        string[]? Features = null, Platforms = null, Languages = null, Screenshots = null;
+        if (data.TryGetProperty("categories", out var categories) && categories.ValueKind == JsonValueKind.Array)
+            Features = [.. categories.EnumerateArray().Select(c => Text(c, "description")).OfType<string>().Take(GameMetadataDocument.MaxItems)];
+        if (data.TryGetProperty("platforms", out var platforms) && platforms.ValueKind == JsonValueKind.Object)
+            Platforms = [.. new[] { ("windows", "Windows"), ("mac", "macOS"), ("linux", "Linux") }.Where(p => platforms.TryGetProperty(p.Item1, out var v) && v.ValueKind == JsonValueKind.True).Select(p => p.Item2)];
+        if (Text(data, "supported_languages") is { } languages)
+        {
+            var list = languages.Split("<br>", 2)[0];
+            Languages = [.. WebUtility.HtmlDecode(Tags.Replace(list, "")).Split(',').Select(l => l.Replace("*", "").Trim()).Where(l => l.Length > 0 && l.Length <= 60).Take(GameMetadataDocument.MaxItems)];
+        }
+        string? age = null;
+        if (data.TryGetProperty("ratings", out var ratings) && ratings.ValueKind == JsonValueKind.Object)
+        {
+            var parts = new List<string>();
+            foreach (var (key, label) in new[] { ("pegi", "PEGI"), ("esrb", "ESRB"), ("usk", "USK"), ("cero", "CERO") })
+                if (ratings.TryGetProperty(key, out var r) && Text(r, "rating") is { Length: > 0 and <= 12 } value && value.All(c => char.IsLetterOrDigit(c) || c is '+' or '-')) parts.Add($"{label} {value.ToUpperInvariant()}");
+            age = parts.Count > 0 ? string.Join(" · ", parts.Take(2)) : null;
+        }
+        if (age is null && data.TryGetProperty("required_age", out var required))
+        {
+            var years = required.ValueKind == JsonValueKind.Number && required.TryGetInt32(out var n) ? n : required.ValueKind == JsonValueKind.String && int.TryParse(required.GetString(), out var m) ? m : 0;
+            if (years > 0) age = $"Age {years}+";
+        }
+        int? score = null;
+        string? scoreUrl = null;
+        if (data.TryGetProperty("metacritic", out var meta) && meta.ValueKind == JsonValueKind.Object)
+        {
+            if (meta.TryGetProperty("score", out var sc) && sc.ValueKind == JsonValueKind.Number && sc.TryGetInt32(out var value) && value is >= 0 and <= 100) score = value;
+            scoreUrl = Text(meta, "url");
+        }
+        string? requirements = null;
+        if (data.TryGetProperty("pc_requirements", out var requirementsElement) && requirementsElement.ValueKind == JsonValueKind.Object)
+        {
+            var minimum = PoliteHttp.PlainText(Text(requirementsElement, "minimum"));
+            var recommended = PoliteHttp.PlainText(Text(requirementsElement, "recommended"));
+            requirements = string.Join("\n\n", new[] { minimum, recommended }.Where(t => t is not null));
+            if (requirements.Length == 0) requirements = null;
+        }
+        var links = new List<string>();
+        if (Text(data, "website") is { } website && website.StartsWith("https://", StringComparison.Ordinal)) links.Add("Website|" + website.Trim());
+        if (data.TryGetProperty("support_info", out var support) && Text(support, "url") is { } supportUrl && supportUrl.StartsWith("https://", StringComparison.Ordinal)) links.Add("Support|" + supportUrl.Trim());
+        int? achievements = data.TryGetProperty("achievements", out var a) && a.ValueKind == JsonValueKind.Object && a.TryGetProperty("total", out var total) && total.TryGetInt32(out var count) && count >= 0 ? count : null;
+        int? dlc = data.TryGetProperty("dlc", out var d) && d.ValueKind == JsonValueKind.Array ? d.GetArrayLength() : null;
+        if (data.TryGetProperty("screenshots", out var shots) && shots.ValueKind == JsonValueKind.Array)
+            Screenshots = [.. shots.EnumerateArray().Select(x => Text(x, "path_thumbnail")).OfType<string>().Where(HeroImages.IsAllowedUrl).Take(GameMetadataDocument.MaxScreenshots)];
+        return new(Features, Platforms, Languages, age, score, scoreUrl, requirements, [.. links], achievements, dlc, Screenshots);
     }
+
+    private static readonly Regex TagDiv = new("<div class=\"app_tag\">(.*?)</div>", RegexOptions.Compiled | RegexOptions.Singleline);
+    private static readonly Regex Summary = new("<span class=\"game_review_summary[^\"]*\">(.*?)</span>\\s*\\(([\\d,]+) reviews?\\)", RegexOptions.Compiled | RegexOptions.Singleline);
+
+    /// <summary>User tags and the review summary from the store's hover card (HTML). Missing parts give null.</summary>
+    public static (string[]? Tags, string? Summary) ParseHover(string html)
+    {
+        if (string.IsNullOrWhiteSpace(html) || html.Length > 200_000) return (null, null);
+        var tags = TagDiv.Matches(html).Select(m => Clean(m.Groups[1].Value)).OfType<string>().Where(t => t.Length <= 60).Take(GameMetadataDocument.MaxItems).ToArray();
+        var summary = Summary.Match(html) is { Success: true } m && Clean(m.Groups[1].Value) is { } rating ? $"{rating} ({m.Groups[2].Value} reviews)" : null;
+        return (tags.Length > 0 ? tags : null, summary);
+    }
+
+    private static string? Clean(string? html, int max = GameMetadataDocument.MaxTextLength) => PoliteHttp.PlainText(html, max);
 
     public void Dispose() { if (ownsClient) client.Dispose(); gate.Dispose(); }
 }

@@ -64,13 +64,13 @@ public sealed class PoliteHttp : IDisposable
 
     // ---------- text helpers shared by the providers ----------
     private static readonly Regex Tags = new("<[^>]+>", RegexOptions.Compiled);
-    private static readonly Regex Breaks = new(@"<\s*(br|/p|/li|/h[1-6])\s*/?>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex Breaks = new(@"<\s*/?\s*(br|p|li|ul|ol|div|tr|h[1-6])\b[^>]*>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     /// <summary>Plain text from a small piece of store HTML or markdown: tags removed, entities decoded, line breaks kept, spaces collapsed.</summary>
     public static string? PlainText(string? html, int max = GameVault.Core.GameMetadataDocument.MaxTextLength)
     {
         if (string.IsNullOrWhiteSpace(html)) return null;
-        var text = WebUtility.HtmlDecode(Tags.Replace(Breaks.Replace(html, "\n"), " "));
+        var text = WebUtility.HtmlDecode(Tags.Replace(Breaks.Replace(html, "\n"), ""));
         text = text.Replace("\r", "");
         var lines = text.Split('\n').Select(l => string.Join(' ', l.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries))).Where(l => l.Length > 0);
         var joined = string.Join("\n", lines).Trim();

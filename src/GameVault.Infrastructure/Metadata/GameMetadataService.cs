@@ -9,6 +9,9 @@ public sealed record BulkMetadataResult(int Games, int GamesUpdated, int FieldsF
 /// <summary>Fetches and stores game information: builds the request from the profile, runs the resolver and saves the result (ticket #83).</summary>
 public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameMetadataProvider> providers, IStoreGameLauncher? launcher = null, string? epicManifests = null)
 {
+    /// <summary>Raised when the kinds of facts GameVault can fetch grow, so games looked up earlier are filled in again (only their missing facts).</summary>
+    public const int CurrentLookupVersion = 2;
+
     private readonly IStoreGameLauncher storeLauncher = launcher ?? new StoreGameLauncher();
     private readonly string? epicManifestFolder = epicManifests;
 
@@ -80,7 +83,8 @@ public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameM
         var result = await MetadataResolver.ResolveAsync(request, providers, settings, existing, cancellationToken, p => p.Id == SteamStoreProvider.ProviderId).ConfigureAwait(false);
         // A lookup that failed (offline, rate limited) must not mark the game as looked up, or the automatic pass would never retry it.
         var failedEmpty = result.FieldsFilled == 0 && result.Problems.Length > 0;
-        if (!failedEmpty && (result.FieldsFilled > 0 || existing.LastRefresh is null)) await store.SaveMetadataAsync(result.Document).ConfigureAwait(false);
+        if (!failedEmpty && (result.FieldsFilled > 0 || existing.LastRefresh is null || (existing.LookupVersion ?? 0) < CurrentLookupVersion))
+            await store.SaveMetadataAsync(result.Document with { LookupVersion = CurrentLookupVersion }).ConfigureAwait(false);
         return result;
     }
 
@@ -124,6 +128,7 @@ public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameM
     public static bool NeedsAutomaticLookup(GameMetadataDocument? document, DateTimeOffset? now = null)
     {
         if (document?.LastRefresh is not { } last) return true;
+        if ((document.LookupVersion ?? 0) < CurrentLookupVersion) return true;
         if (document.Identity is { IsPicked: true } || document.Get(MetadataField.Description) is not null) return false;
         return (now ?? DateTimeOffset.UtcNow) - last > TimeSpan.FromDays(7);
     }

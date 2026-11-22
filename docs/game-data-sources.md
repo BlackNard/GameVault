@@ -24,3 +24,25 @@ Each game remembers which game it is in each source (`metadata.json`, `identity`
 - Order: the game's own store first, then Wikidata, then the game file. The per-field order is editable in Settings → Game information.
 - Every provider has a timeout, a size limit, a minimum gap between requests, no cookies and no redirects. A failed or rate-limited lookup is reported quietly and retried on a later start; it never blocks anything.
 - Wikidata asks clients to be polite: the gap is one second and a "slow down" answer simply ends that lookup.
+
+## Rich data for store games (phase 2)
+
+Besides the basics, a game from a store gets everything the store publishes without an account. What each source supplies:
+
+| Fact | Steam | Epic | GOG |
+|---|---|---|---|
+| Long description | `about_the_game` | page description | product description |
+| Tags | user tags from the store hover card | – | catalog tags |
+| Features | categories (single-player, co-op, cloud saves, controller...) | – | features |
+| Platforms, languages | yes | platforms | yes |
+| Age rating | PEGI / ESRB / USK / CERO | ESRB | PEGI |
+| Metacritic score and page | yes | – | – |
+| Player reviews summary | hover card ("Mixed, 27,925 reviews") | – | – |
+| System requirements | minimum and recommended | Windows table | – |
+| Links | website, support, store page | store page | store page, support, forum |
+| Achievements and DLC counts | yes | – | – |
+| Screenshots | up to 10 thumbnails | – | up to 10 |
+| Background image | library banner | hero | Galaxy background |
+| Installed (local, no network) | build, last update, language, beta branch | installed version | – |
+
+Screenshots are only loaded from the store when you press **Show screenshots**. Links open in your browser only when you click them, and only HTTPS addresses are kept. The hover card is read as HTML and may change; if it fails nothing else is lost. Games that were looked up before these facts existed get the missing ones filled in once at startup (`LookupVersion`); nothing already stored or typed is changed.

@@ -181,7 +181,9 @@ public sealed class MetadataTests : IAsyncLifetime
         Assert.Equal("2011-04-18", data.ReleaseDate!.ToString());
         Assert.Equal(new[] { "Valve" }, data.Developers);
         Assert.Equal(new[] { "Action", "Adventure" }, data.Genres);
-        var url = Assert.Single(handler.Urls);
+        Assert.Equal(2, handler.Urls.Count);                                                                      // the details and the hover card, both addressed by the app id
+        var url = handler.Urls[0];
+        Assert.Equal("https://store.steampowered.com/apphoverpublic/620?l=english", handler.Urls[1]);
         Assert.Equal("https://store.steampowered.com/api/appdetails?appids=620&l=english", url);
         Assert.DoesNotContain("Private", url);
     }
@@ -382,7 +384,7 @@ public sealed class MetadataTests : IAsyncLifetime
         Assert.Equal("1778820", await service.SteamAppIdAsync(profile.Id));
         var before = calls;
         await service.RefreshAsync(profile.Id, true, CancellationToken.None);
-        Assert.Equal(before + 1, calls);                                                                         // one details request, no second search
+        Assert.Equal(before + 2, calls);                                                                         // one details request, no second search
     }
 
     private sealed class NoStore : IStoreGameLauncher

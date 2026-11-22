@@ -12,17 +12,46 @@ public sealed class LocalInstallProvider : IGameMetadataProvider
 
     public string Id => ProviderId;
     public string DisplayName => "This PC";
-    public IReadOnlySet<MetadataField> AvailableFields { get; } = new HashSet<MetadataField> { MetadataField.InstallSize };
+    public IReadOnlySet<MetadataField> AvailableFields { get; } = new HashSet<MetadataField> { MetadataField.InstallSize, MetadataField.Installed };
 
     public Task<ProviderData?> GetAsync(MetadataRequest request, CancellationToken cancellationToken) => Task.Run<ProviderData?>(() =>
     {
-        if (request.InstallRoot is not { } root || !Directory.Exists(root)) return null;
-        // An unchanged folder keeps its previous size (the caller keeps the old value when nothing is returned).
-        if (!request.ForceSizeScan && request.LastSizeScan is { } last && Directory.GetLastWriteTimeUtc(root) <= last.UtcDateTime) return null;
-        if (request.SteamAppId is { } id && request.SteamAppsFolder is { } steamapps && SteamSize(steamapps, id) is long steamSize) return new ProviderData(InstallSizeBytes: steamSize);
-        var size = Scan(root, request.SizeOnDisk, cancellationToken);
-        return size is null ? null : new ProviderData(InstallSizeBytes: size);
+        // What the launcher recorded about this install (build, last update, language, version). Cheap, so it is read every time.
+        var installed = InstalledInfo(request);
+        long? size = null;
+        if (request.InstallRoot is { } root && Directory.Exists(root))
+        {
+            // An unchanged folder keeps its previous size (the caller keeps the old value when nothing is returned).
+            if (!request.ForceSizeScan && request.LastSizeScan is { } last && Directory.GetLastWriteTimeUtc(root) <= last.UtcDateTime) { }
+            else if (request.SteamAppId is { } id && request.SteamAppsFolder is { } steamapps && SteamSize(steamapps, id) is long steamSize) size = steamSize;
+            else size = Scan(root, request.SizeOnDisk, cancellationToken);
+        }
+        return size is null && installed is null ? null : new ProviderData(InstallSizeBytes: size, Installed: installed);
     }, cancellationToken);
+
+    /// <summary>Steam: build, last update, language and beta branch from the app manifest. Epic: the installed version from its manifest. Null when there is nothing.</summary>
+    public static string[]? InstalledInfo(MetadataRequest request)
+    {
+        var lines = new List<string>();
+        try
+        {
+            if (request.SteamAppId is { } id && request.SteamAppsFolder is { } steamapps)
+            {
+                var file = Path.Combine(steamapps, $"appmanifest_{id}.acf");
+                if (File.Exists(file) && new FileInfo(file).Length <= 512 * 1024 && Vdf.Parse(File.ReadAllText(file))?.Child("AppState") is { } state)
+                {
+                    if (state.Text("buildid") is { Length: > 0 and <= 12 } build && build.All(char.IsAsciiDigit) && build != "0") lines.Add("Build " + build);
+                    if (state.Text("LastUpdated") is { } updated && long.TryParse(updated, out var seconds) && seconds > 0 && seconds < 4_102_444_800)
+                        lines.Add("Updated " + DateTimeOffset.FromUnixTimeSeconds(seconds).ToLocalTime().ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture));
+                    if (state.Child("UserConfig")?.Text("language") is { Length: > 0 and <= 30 } language && language.All(char.IsLetter)) lines.Add("Language: " + language);
+                    if (state.Child("UserConfig")?.Text("BetaKey") is { Length: > 0 and <= 40 } branch && branch.All(c => char.IsLetterOrDigit(c) || c is '_' or '-')) lines.Add("Branch: " + branch);
+                }
+            }
+            if (EpicLocalInfo.Find(request.ExecutablePath) is { Version: { Length: > 0 and <= 60 } version }) lines.Add("Epic version " + version);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or FormatException or ArgumentException) { }
+        return lines.Count > 0 ? [.. lines] : null;
+    }
 
     public static long? SteamSize(string steamappsFolder, string appId)
     {

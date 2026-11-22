@@ -56,6 +56,14 @@ public partial class MainWindow
         Fact("Publisher", Join(document?.Get(MetadataField.Publishers)?.Items));
         Fact("Genres", Join(document?.Get(MetadataField.Genres)?.Items));
         Fact("Install size", document?.Get(MetadataField.InstallSize)?.Bytes is long bytes ? SizeText(bytes) : null);
+        Fact("Rated", document?.Get(MetadataField.AgeRating)?.Text);
+        Fact("Platforms", Join(document?.Get(MetadataField.Platforms)?.Items));
+        Fact("Metacritic", document?.Get(MetadataField.CriticScore)?.Number is int score ? score.ToString(System.Globalization.CultureInfo.InvariantCulture) : null);
+        Fact("Player reviews", document?.Get(MetadataField.CommunitySummary)?.Text);
+        Fact("Achievements", document?.Get(MetadataField.AchievementCount)?.Number is int achievements ? achievements.ToString(System.Globalization.CultureInfo.InvariantCulture) : null);
+        Fact("DLC", document?.Get(MetadataField.DlcCount)?.Number is int dlc ? dlc.ToString(System.Globalization.CultureInfo.InvariantCulture) : null);
+        Fact("Installed", Join(document?.Get(MetadataField.Installed)?.Items?.Select(i => i).ToArray()));
+        RenderAboutDetails(document);
         var sources = document?.Fields.Values.Select(v => v.Provider).Distinct().Select(p => p switch { "steam" => "Steam store", "local" => "this PC", "you" => "you", var other => other }).ToArray();
         AboutSource.Text = sources is { Length: > 0 } ? "Information from " + string.Join(", ", sources) + "." : "";
         AboutNotice.Text = problem ?? "";
@@ -141,6 +149,9 @@ public partial class MainWindow
     [
         (MetadataField.Description, "Description"), (MetadataField.ReleaseDate, "Release date"), (MetadataField.Developers, "Developers"),
         (MetadataField.Publishers, "Publishers"), (MetadataField.Genres, "Genres"), (MetadataField.InstallSize, "Install size"), (MetadataField.Hero, "Background image"),
+        (MetadataField.About, "Long description"), (MetadataField.Tags, "Popular tags"), (MetadataField.Features, "Features"), (MetadataField.Platforms, "Platforms"), (MetadataField.Languages, "Languages"),
+        (MetadataField.AgeRating, "Age rating"), (MetadataField.CriticScore, "Metacritic score"), (MetadataField.CommunitySummary, "Player reviews"), (MetadataField.Requirements, "System requirements"),
+        (MetadataField.Links, "Links"), (MetadataField.AchievementCount, "Achievement count"), (MetadataField.DlcCount, "DLC count"), (MetadataField.Screenshots, "Screenshots"), (MetadataField.Installed, "Installed version info"),
     ];
 
     private async void RefreshMetadataSettingsUi()
