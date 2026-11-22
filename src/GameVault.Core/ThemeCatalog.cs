@@ -49,6 +49,18 @@ public static class ThemeCatalog
             Chrome: "#120b07", Background: "#150d09", Text: "#f4e9d6", Muted: "#d2bfa3", Surface: "#251912", Raised: "#3a281c",
             Line: "#7f5c43", Accent: "#f0a64a", Primary: "#e8531f", PrimaryText: "#1a0b05", Warning: "#ffb060",
             BackgroundGradient: ["#150d09", "#2a1b13", "#4a3022"]),
+        new("Bloodborne", "Bloodborne", "Yharnam fog and soot black, with a smear of blood red.",
+            Chrome: "#080707", Background: "#0a0909", Text: "#eceff1", Muted: "#bcc2c6", Surface: "#1a1919", Raised: "#2c2a2b",
+            Line: "#6a6e72", Accent: "#bdc4c8", Primary: "#a81f26", PrimaryText: "#ffffff", Warning: "#e58a78",
+            BackgroundGradient: ["#0a0909", "#1f1d1d", "#3f3d3f"]),
+        new("Disco Elysium", "Disco Elysium", "Painted ochre and brown, with a teal outline and orange sky.",
+            Chrome: "#16110a", Background: "#1e170e", Text: "#fbf3dc", Muted: "#d9cbab", Surface: "#2a2118", Raised: "#42301f",
+            Line: "#7a5a3a", Accent: "#3fd0b4", Primary: "#f08a2d", PrimaryText: "#1a0f05", Warning: "#ff7a5a",
+            BackgroundGradient: ["#1e170e", "#39271f", "#5f3a25"]),
+        new("Resident Evil 9", "Resident Evil 9", "Requiem: cold white-blue and graphite, with a red glow at the edge.",
+            Chrome: "#121015", Background: "#17141a", Text: "#f4f5f8", Muted: "#c3c5cc", Surface: "#24222a", Raised: "#3a3840",
+            Line: "#5c5e65", Accent: "#cfd8e6", Primary: "#e0463f", PrimaryText: "#1a0606", Warning: "#ff9a6a",
+            BackgroundGradient: ["#17141a", "#2b2c33", "#3c3940"]),
     ];
 
     public static bool IsKnown(string? id) => All.Any(t => t.Id == id);
