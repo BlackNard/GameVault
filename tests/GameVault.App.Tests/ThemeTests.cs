@@ -125,6 +125,17 @@ public sealed class ThemeTests
         Assert.Equal("Midnight", view.CurrentTheme);
     });
 
+    [Fact]
+    public void Every_inline_view_with_a_leave_guard_is_accepted_by_the_drawer_host()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "GameVault.slnx"))) dir = dir.Parent;
+        var host = File.ReadAllText(Path.Combine(dir!.FullName, "src", "GameVault.App", "MainWindow.Navigation.cs"));
+        var views = typeof(ThemePickerView).Assembly.GetTypes().Where(t => typeof(UserControl).IsAssignableFrom(t) && t.GetMethod("CanLeaveAsync") is not null && t.GetEvent("Completed") is not null).ToArray();
+        Assert.Contains(typeof(ThemePickerView), views);
+        foreach (var view in views) Assert.Contains(view.Name + " editor=>editor.CanLeaveAsync", host);
+    }
+
     private static List<Button> Buttons(DependencyObject root)
     {
         var found = new List<Button>();
