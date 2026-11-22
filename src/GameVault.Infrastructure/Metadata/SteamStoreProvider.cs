@@ -33,7 +33,7 @@ public sealed class SteamStoreProvider : IMatchSearchProvider, IDisposable
     public string Id => ProviderId;
     public string DisplayName => "Steam store";
     public IReadOnlySet<MetadataField> AvailableFields { get; } = new HashSet<MetadataField>
-        { MetadataField.Description, MetadataField.ReleaseDate, MetadataField.Developers, MetadataField.Publishers, MetadataField.Genres };
+        { MetadataField.Description, MetadataField.ReleaseDate, MetadataField.Developers, MetadataField.Publishers, MetadataField.Genres, MetadataField.Hero };
 
     public async Task<ProviderData?> GetAsync(MetadataRequest request, CancellationToken cancellationToken)
     {
@@ -46,7 +46,8 @@ public sealed class SteamStoreProvider : IMatchSearchProvider, IDisposable
         }
         var json = await GetBytesAsync($"https://store.steampowered.com/api/appdetails?appids={appId}&l=english", cancellationToken).ConfigureAwait(false);
         var data = Parse(json, appId!);
-        return data is null ? null : data with { SteamAppId = appId };
+        // Steam's wide library banner for this app (a fixed address built from the id).
+        return data is null ? null : data with { SteamAppId = appId, HeroUrl = $"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{appId}/library_hero.jpg" };
     }
 
     private static bool ValidId(string? id) => id is { Length: > 0 and <= 10 } && id.All(char.IsAsciiDigit);

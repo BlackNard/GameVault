@@ -3,7 +3,17 @@ using System.Globalization;
 namespace GameVault.Core;
 
 /// <summary>The facts GameVault can show for a game (ticket #83).</summary>
-public enum MetadataField { Description, ReleaseDate, Developers, Publishers, Genres, InstallSize }
+public enum MetadataField { Description, ReleaseDate, Developers, Publishers, Genres, InstallSize, Hero }
+
+/// <summary>Which web addresses a background image may come from: HTTPS on a store or game-asset network only, no user info, no port.</summary>
+public static class HeroImages
+{
+    private static readonly string[] Domains = ["steamstatic.com", "gog-statics.com", "gog.com", "unrealengine.com", "epicgames.com"];
+
+    public static bool IsAllowedUrl(string? url) =>
+        url is { Length: > 0 and <= 400 } && Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps && uri.IsDefaultPort &&
+        string.IsNullOrEmpty(uri.UserInfo) && string.IsNullOrEmpty(uri.Fragment) && Domains.Any(d => uri.Host.Equals(d, StringComparison.OrdinalIgnoreCase) || uri.Host.EndsWith("." + d, StringComparison.OrdinalIgnoreCase));
+}
 
 /// <summary>A date that may be only a year, a year and month, or complete. Stored as "2013", "2013-03" or "2013-03-21".</summary>
 public sealed record PartialDate(int Year, int? Month = null, int? Day = null)
@@ -88,6 +98,7 @@ public sealed record GameMetadataDocument(int SchemaVersion, Guid GameId, Dictio
             MetadataField.Description => value.Text is { Length: > 0 and <= MaxTextLength },
             MetadataField.ReleaseDate => PartialDate.Parse(value.Date) is { } d && d.ToString() == value.Date,
             MetadataField.InstallSize => value.Bytes is >= 0,
+            MetadataField.Hero => HeroImages.IsAllowedUrl(value.Text),
             _ => value.Items is { Length: > 0 and <= MaxItems } && value.Items.All(i => !string.IsNullOrWhiteSpace(i) && i.Length <= MaxItemLength)
         };
     }

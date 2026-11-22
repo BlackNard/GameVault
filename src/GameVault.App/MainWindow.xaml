@@ -116,6 +116,7 @@
      <StackPanel>
       <Border CornerRadius="16" ClipToBounds="True" BorderBrush="{DynamicResource AppLine}" BorderThickness="1" Background="{DynamicResource AppSurface}">
        <Grid Height="250">
+        <Image x:Name="GameHeroBanner" Stretch="UniformToFill" Opacity="0.7" VerticalAlignment="Center" Visibility="Collapsed"/>
         <Image x:Name="GameHeroBackdrop" Source="{Binding Source, ElementName=GameHeroCover}" Stretch="UniformToFill" Opacity="0.32" VerticalAlignment="Center"/>
         <Border><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#330E141D" Offset="0"/><GradientStop Color="#F20E141D" Offset="1"/></LinearGradientBrush></Border.Background></Border>
         <Grid Margin="26,24,26,22"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>

@@ -21,7 +21,7 @@ public sealed class EpicStoreProvider : IGameMetadataProvider, IDisposable
     public string Id => ProviderId;
     public string DisplayName => "Epic Games Store";
     public IReadOnlySet<MetadataField> AvailableFields { get; } = new HashSet<MetadataField>
-        { MetadataField.Description, MetadataField.ReleaseDate, MetadataField.Developers, MetadataField.Publishers };
+        { MetadataField.Description, MetadataField.ReleaseDate, MetadataField.Developers, MetadataField.Publishers, MetadataField.Hero };
 
     public async Task<ProviderData?> GetAsync(MetadataRequest request, CancellationToken cancellationToken)
     {
@@ -42,7 +42,7 @@ public sealed class EpicStoreProvider : IGameMetadataProvider, IDisposable
     public static IEnumerable<string> Slugs(string title)
     {
         var words = Regex.Matches((title ?? "").ToLowerInvariant().Replace("&", " and "), "[a-z0-9]+").Select(m => m.Value).ToArray();
-        for (var count = words.Length; count >= Math.Max(2, words.Length - 2) && count >= 1; count--)
+        for (var count = words.Length; count >= Math.Min(words.Length, Math.Max(2, words.Length - 2)) && count >= 1; count--)
         {
             var slug = string.Join('-', words.Take(count));
             if (slug.Length is >= 2 and <= 100) yield return slug;
@@ -64,8 +64,10 @@ public sealed class EpicStoreProvider : IGameMetadataProvider, IDisposable
             if (page.ValueKind != JsonValueKind.Object || !page.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Object) return null;
             string? description = null;
             string[]? developers = null, publishers = null;
+            string? hero = null;
             if (data.TryGetProperty("about", out var about) && about.ValueKind == JsonValueKind.Object)
             {
+                if (about.TryGetProperty("image", out var image) && Text(image, "src") is { } source) hero = source;
                 description = Markdown(Text(about, "description")) ?? Markdown(Text(about, "shortDescription"));
                 if (Text(about, "developerAttribution") is { Length: > 0 } dev) developers = [dev.Trim()];
                 if (Text(about, "publisherAttribution") is { Length: > 0 } pub) publishers = [pub.Trim()];
@@ -73,8 +75,8 @@ public sealed class EpicStoreProvider : IGameMetadataProvider, IDisposable
             PartialDate? date = null;
             if (data.TryGetProperty("meta", out var meta) && meta.ValueKind == JsonValueKind.Object && Text(meta, "releaseDate") is { Length: >= 10 } release)
                 date = PartialDate.Parse(release[..10]);
-            if (description is null && developers is null && publishers is null && date is null) return null;
-            return new ProviderData(description, date, developers, publishers, Identity: new GameIdentity(EpicSlug: slug, EpicNamespace: pageNamespace is { Length: <= 64 } ns && ns.All(char.IsLetterOrDigit) ? ns : null));
+            if (description is null && developers is null && publishers is null && date is null && hero is null) return null;
+            return new ProviderData(description, date, developers, publishers, Identity: new GameIdentity(EpicSlug: slug, EpicNamespace: pageNamespace is { Length: <= 64 } ns && ns.All(char.IsLetterOrDigit) ? ns : null), HeroUrl: hero);
         }
         catch (JsonException) { throw new IOException("Epic sent an answer GameVault could not read."); }
     }

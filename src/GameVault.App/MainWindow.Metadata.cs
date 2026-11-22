@@ -74,6 +74,7 @@ public partial class MainWindow
         {
             var result = await Task.Run(() => Metadata.RefreshAsync(id, true, CancellationToken.None));
             AboutNotice.Text = "";
+            if (await EnsureHeroesAsync([(id, item.Name)], CancellationToken.None) > 0) await RefreshLibrary(id);
             ShowToast(result.FieldsFilled > 0 ? "Game information updated" : "Nothing new found", result.Problems.Length > 0 ? string.Join(" ", result.Problems) : result.UsedNetwork ? "Steam store" : "Your PC", result.Problems.Length > 0);
         }
         catch (Exception error) when (IsExpected(error)) { ShowToast("Could not update the information", error.Message, true); }
@@ -100,6 +101,7 @@ public partial class MainWindow
         {
             var view = new MatchPickerView(settings.Theme, item.Name, (title, token) => Metadata.SearchMatchesAsync(title, token), async candidate =>
             {
+                await library.ClearHeroAsync(id);   // the old picture belongs to the game that was just ruled out
                 var result = await Task.Run(() => Metadata.ApplyMatchAsync(id, candidate, CancellationToken.None));
                 return candidate is null ? "Saved. Nothing will be looked up automatically for this game." : result.FieldsFilled > 0 ? $"Found {result.FieldsFilled} fact(s) for {candidate.Title}." : $"Saved {candidate.Title}. No facts were available for it yet.";
             });
@@ -109,7 +111,12 @@ public partial class MainWindow
         finally
         {
             editorOpen = false;
-            try { UpdateButtons(); ContinueDeferredQuit(); await RefreshAboutAsync(GameList.SelectedItem as LibraryItemView); }
+            try
+            {
+                UpdateButtons(); ContinueDeferredQuit();
+                if (await EnsureHeroesAsync([(id, item.Name)], CancellationToken.None) > 0 || libraryRows.TryGetValue(id, out var changed) && changed.Game.HeroFile is not null) await RefreshLibrary(id);
+                await RefreshAboutAsync(GameList.SelectedItem as LibraryItemView);
+            }
             finally { CompleteInlineEditor(); }
         }
     }
@@ -133,7 +140,7 @@ public partial class MainWindow
     private static readonly (MetadataField Field, string Label)[] FieldLabels =
     [
         (MetadataField.Description, "Description"), (MetadataField.ReleaseDate, "Release date"), (MetadataField.Developers, "Developers"),
-        (MetadataField.Publishers, "Publishers"), (MetadataField.Genres, "Genres"), (MetadataField.InstallSize, "Install size"),
+        (MetadataField.Publishers, "Publishers"), (MetadataField.Genres, "Genres"), (MetadataField.InstallSize, "Install size"), (MetadataField.Hero, "Background image"),
     ];
 
     private async void RefreshMetadataSettingsUi()

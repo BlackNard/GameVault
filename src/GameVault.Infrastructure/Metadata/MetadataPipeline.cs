@@ -6,7 +6,7 @@ namespace GameVault.Infrastructure.Metadata;
 public sealed record MetadataRequest(Guid GameId, string Name, string ExecutablePath, string? InstallRoot, string? SteamAppId, string? SteamAppsFolder, DateTimeOffset? LastSizeScan, bool SizeOnDisk, bool ForceSizeScan, GameIdentity? Identity = null);
 
 /// <summary>Everything one provider found. Fields it cannot supply stay null or empty.</summary>
-public sealed record ProviderData(string? Description = null, PartialDate? ReleaseDate = null, string[]? Developers = null, string[]? Publishers = null, string[]? Genres = null, long? InstallSizeBytes = null, string? SteamAppId = null, GameIdentity? Identity = null)
+public sealed record ProviderData(string? Description = null, PartialDate? ReleaseDate = null, string[]? Developers = null, string[]? Publishers = null, string[]? Genres = null, long? InstallSizeBytes = null, string? SteamAppId = null, GameIdentity? Identity = null, string? HeroUrl = null)
 {
     public bool Has(MetadataField field) => field switch
     {
@@ -16,6 +16,7 @@ public sealed record ProviderData(string? Description = null, PartialDate? Relea
         MetadataField.Publishers => Publishers is { Length: > 0 },
         MetadataField.Genres => Genres is { Length: > 0 },
         MetadataField.InstallSize => InstallSizeBytes is >= 0,
+        MetadataField.Hero => HeroImages.IsAllowedUrl(HeroUrl),
         _ => false
     };
 }
@@ -110,6 +111,7 @@ public static class MetadataResolver
             MetadataField.Publishers => new(provider, false, now, Items: Items(data.Publishers!)),
             MetadataField.Genres => new(provider, false, now, Items: Items(data.Genres!)),
             MetadataField.InstallSize => new(provider, false, now, Bytes: data.InstallSizeBytes),
+            MetadataField.Hero => new(provider, false, now, Text: data.HeroUrl),
             _ => null
         };
         return value;

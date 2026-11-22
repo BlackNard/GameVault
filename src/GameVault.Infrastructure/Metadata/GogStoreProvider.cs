@@ -18,9 +18,9 @@ public sealed class GogStoreProvider : IMatchSearchProvider, IDisposable
     public string Id => ProviderId;
     public string DisplayName => "GOG";
     public IReadOnlySet<MetadataField> AvailableFields { get; } = new HashSet<MetadataField>
-        { MetadataField.Description, MetadataField.ReleaseDate, MetadataField.Developers, MetadataField.Publishers, MetadataField.Genres };
+        { MetadataField.Description, MetadataField.ReleaseDate, MetadataField.Developers, MetadataField.Publishers, MetadataField.Genres, MetadataField.Hero };
 
-    private sealed record CatalogItem(string Id, string Title, string? Year, PartialDate? Date, string[] Developers, string[] Publishers, string[] Genres, string? Cover);
+    private sealed record CatalogItem(string Id, string Title, string? Year, PartialDate? Date, string[] Developers, string[] Publishers, string[] Genres, string? Cover, string? Background = null);
 
     public async Task<ProviderData?> GetAsync(MetadataRequest request, CancellationToken cancellationToken)
     {
@@ -49,7 +49,7 @@ public sealed class GogStoreProvider : IMatchSearchProvider, IDisposable
             date ??= details.Date;
         }
         catch (FileNotFoundException) when (item is not null) { }
-        return new ProviderData(description, date, Some(developers), Some(publishers), Some(item?.Genres), Identity: new GameIdentity(GogId: gogId));
+        return new ProviderData(description, date, Some(developers), Some(publishers), Some(item?.Genres), Identity: new GameIdentity(GogId: gogId), HeroUrl: item?.Background);
     }
 
     private static string[]? Some(string[]? values) => values is { Length: > 0 } ? values : null;
@@ -81,7 +81,7 @@ public sealed class GogStoreProvider : IMatchSearchProvider, IDisposable
                 if (id is null || title is null || id.Length > 16 || !id.All(char.IsAsciiDigit)) continue;
                 var release = Text(product, "releaseDate")?.Replace('.', '-');
                 var date = PartialDate.Parse(release);
-                result.Add(new(id, title, date?.Year.ToString(System.Globalization.CultureInfo.InvariantCulture), date, Names(product, "developers"), Names(product, "publishers"), Names(product, "genres"), Text(product, "coverVertical")));
+                result.Add(new(id, title, date?.Year.ToString(System.Globalization.CultureInfo.InvariantCulture), date, Names(product, "developers"), Names(product, "publishers"), Names(product, "genres"), Text(product, "coverVertical"), Text(product, "galaxyBackgroundImage")));
             }
         }
         catch (JsonException) { throw new IOException("GOG sent an answer GameVault could not read."); }
