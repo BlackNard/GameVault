@@ -107,6 +107,19 @@ public sealed class MainWindowStartupTests
     }
 
     [Fact]
+    public void A_new_or_imported_game_is_queued_for_an_immediate_lookup_and_is_never_skipped_because_another_lookup_runs()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !Directory.Exists(Path.Combine(root.FullName, "src", "GameVault.App"))) root = root.Parent;
+        string Source(string name) => File.ReadAllText(Path.Combine(root!.FullName, "src", "GameVault.App", name));
+        Assert.Contains("QueueAutoInfo([(result.Profile.Id, result.Profile.Name)], urgent: true)", Source("MainWindow.xaml.cs"));      // adding a game
+        Assert.Contains("urgent: true", Source("MainWindow.StoreImport.cs"));                                                          // importing from Steam / Epic
+        var auto = Source("MainWindow.AutoInfo.cs");
+        Assert.DoesNotContain("if (games.Count == 0 || autoInfoRunning", auto);                                                        // the old guard that silently dropped a request
+        Assert.Contains("lookupQueue.Enqueue(jobs)", auto);
+    }
+
+    [Fact]
     public void Settings_has_no_section_menu_and_editors_open_in_a_side_drawer()
     {
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
