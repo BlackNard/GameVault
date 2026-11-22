@@ -39,11 +39,35 @@ public sealed record PartialDate(int Year, int? Month = null, int? Day = null)
     }
 }
 
+/// <summary>
+/// Which game this is in the stores and databases, besides its Steam app id (kept as <see cref="GameMetadataDocument.SteamAppId"/>).
+/// <see cref="Source"/> is "detected" (found from the install or by exact title) or "picked" (chosen by the owner, never changed automatically).
+/// <see cref="NoMatch"/> means the owner said none of the candidates is right, so no title search is attempted.
+/// </summary>
+public sealed record GameIdentity(string? EpicSlug = null, string? EpicNamespace = null, string? GogId = null, string? WikidataId = null, string? HltbId = null, string Source = "detected", bool NoMatch = false)
+{
+    public static readonly GameIdentity Empty = new();
+    public bool IsPicked => Source == "picked";
+
+    /// <summary>Fills only the ids this identity lacks. A picked identity keeps every id it has.</summary>
+    public GameIdentity FillFrom(GameIdentity? other) => other is null ? this : this with
+    {
+        EpicSlug = EpicSlug ?? other.EpicSlug, EpicNamespace = EpicNamespace ?? other.EpicNamespace, GogId = GogId ?? other.GogId,
+        WikidataId = WikidataId ?? other.WikidataId, HltbId = HltbId ?? other.HltbId
+    };
+
+    private static bool Ok(string? id, int max = 80) => id is null || (id.Length is > 0 && id.Length <= max && id.All(c => char.IsLetterOrDigit(c) || c is '-' or '_' or '.'));
+    public static bool IsValid(GameIdentity? value) => value is null || (Ok(value.EpicSlug, 120) && Ok(value.EpicNamespace, 64) && Ok(value.GogId, 16) && Ok(value.WikidataId, 16) && Ok(value.HltbId, 12) && value.Source is "detected" or "picked");
+}
+
+/// <summary>A game a store or database offers for a title, shown in the "Not the right game?" picker.</summary>
+public sealed record MatchCandidate(string Source, string Id, string Title, string Detail, string? ImageUrl = null);
+
 /// <summary>One stored fact and where it came from. A value the owner typed (<see cref="UserEdited"/>) is never replaced by a provider.</summary>
 public sealed record MetadataValue(string Provider, bool UserEdited, DateTimeOffset At, string? Text = null, string[]? Items = null, long? Bytes = null, string? Date = null);
 
 /// <summary>Per-game metadata (Profiles/&lt;game&gt;/metadata.json).</summary>
-public sealed record GameMetadataDocument(int SchemaVersion, Guid GameId, Dictionary<string, MetadataValue> Fields, DateTimeOffset? LastSizeScan = null, DateTimeOffset? LastRefresh = null, string? SteamAppId = null)
+public sealed record GameMetadataDocument(int SchemaVersion, Guid GameId, Dictionary<string, MetadataValue> Fields, DateTimeOffset? LastSizeScan = null, DateTimeOffset? LastRefresh = null, string? SteamAppId = null, GameIdentity? Identity = null)
 {
     public const int MaxTextLength = 4000;
     public const int MaxItems = 24;
@@ -53,7 +77,7 @@ public sealed record GameMetadataDocument(int SchemaVersion, Guid GameId, Dictio
 
     public MetadataValue? Get(MetadataField field) => Fields.GetValueOrDefault(field.ToString());
 
-    public static bool IsValid(GameMetadataDocument? value, Guid gameId) => value is { SchemaVersion: 1, Fields: not null } && value.GameId == gameId && (value.SteamAppId is null || (value.SteamAppId.Length is > 0 and <= 10 && value.SteamAppId.All(char.IsAsciiDigit))) &&
+    public static bool IsValid(GameMetadataDocument? value, Guid gameId) => value is { SchemaVersion: 1, Fields: not null } && value.GameId == gameId && (value.SteamAppId is null || (value.SteamAppId.Length is > 0 and <= 10 && value.SteamAppId.All(char.IsAsciiDigit))) && GameIdentity.IsValid(value.Identity) &&
         value.Fields.All(pair => Enum.TryParse<MetadataField>(pair.Key, out var field) && IsValidValue(field, pair.Value));
 
     private static bool IsValidValue(MetadataField field, MetadataValue? value)

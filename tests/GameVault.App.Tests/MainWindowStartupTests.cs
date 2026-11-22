@@ -99,7 +99,7 @@ public sealed class MainWindowStartupTests
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
         var window = Root();
         var names = window.Descendants().Select(e => (string?)e.Attribute(x + "Name")).Where(n => n is not null).ToHashSet();
-        foreach (var name in new[] { "PlayMenuButton", "DownloadSaveDatabaseButton", "AboutBlock", "FetchAllInfoButton", "StoreImportButton", "TagsButton", "SortButton", "ChipsPanel", "TagsBlock", "TagsInput", "SavedViewsManager", "DataBackupBulky", "DiagnosticsGameNames" })
+        foreach (var name in new[] { "PlayMenuButton", "WrongGameButton", "DownloadSaveDatabaseButton", "AboutBlock", "FetchAllInfoButton", "StoreImportButton", "TagsButton", "SortButton", "ChipsPanel", "TagsBlock", "TagsInput", "SavedViewsManager", "DataBackupBulky", "DiagnosticsGameNames" })
             Assert.Contains(name, names);
         var clicks = window.Descendants().Select(e => (string?)e.Attribute("Click")).Where(n => n is not null).ToHashSet();
         foreach (var handler in new[] { "BackUpDataClicked", "RestoreDataClicked", "CreateDiagnosticsClicked", "EditTagsClicked", "SaveTagsClicked" })

@@ -10,7 +10,7 @@ namespace GameVault.Infrastructure.Metadata;
 /// Description, release date, developers, publishers and genres for Steam games from the public Steam store API (no key, no account).
 /// A Steam install is looked up by its numeric app id; any other game by an exact-title search of the Steam store. Requests have a timeout, a 1 MB response limit and a minimum gap between them.
 /// </summary>
-public sealed class SteamStoreProvider : IGameMetadataProvider, IDisposable
+public sealed class SteamStoreProvider : IMatchSearchProvider, IDisposable
 {
     public const string ProviderId = "steam";
     private const int MaxResponseBytes = 1024 * 1024;
@@ -66,17 +66,48 @@ public sealed class SteamStoreProvider : IGameMetadataProvider, IDisposable
         {
             using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 16 });
             if (document.RootElement.ValueKind != JsonValueKind.Object || !document.RootElement.TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array) return null;
+            string? match = null;
+            var ambiguous = false;
             foreach (var item in items.EnumerateArray().Take(50))
             {
                 if (item.ValueKind != JsonValueKind.Object) continue;
                 if (item.TryGetProperty("type", out var type) && !(type.ValueKind == JsonValueKind.String && type.GetString() == "app")) continue;
-                if (!item.TryGetProperty("name", out var itemName) || itemName.ValueKind != JsonValueKind.String || NormalizeTitle(itemName.GetString() ?? "") != wanted) continue;
+                if (!item.TryGetProperty("name", out var itemName) || itemName.ValueKind != JsonValueKind.String) continue;
+                var normalized = NormalizeTitle(itemName.GetString() ?? "");
+                // "Dead Space" and "Dead Space (2008)": a sibling whose title only adds a year means the title is not unique, so nothing is guessed.
+                if (normalized.Length == wanted.Length + 4 && normalized.StartsWith(wanted, StringComparison.Ordinal) && normalized[wanted.Length..] is var year && (year.StartsWith("19") || year.StartsWith("20")) && year.All(char.IsAsciiDigit)) { ambiguous = true; continue; }
+                if (normalized != wanted) continue;
+                if (match is not null) { ambiguous = true; continue; }
                 if (item.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number && id.TryGetInt64(out var number) && number > 0 && number <= 9_999_999_999)
-                    return number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    match = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
-            return null;
+            return ambiguous ? null : match;
         }
         catch (JsonException) { throw new IOException("Steam sent an answer GameVault could not read."); }
+    }
+
+    /// <summary>The Steam apps whose store search matches the title, for the "Not the right game?" picker.</summary>
+    public async Task<IReadOnlyList<MatchCandidate>> SearchAsync(string title, CancellationToken cancellationToken)
+    {
+        title = (title ?? "").Trim();
+        if (!PoliteHttp.SafeTitle(title)) return [];
+        var json = await GetBytesAsync("https://store.steampowered.com/api/storesearch/?term=" + Uri.EscapeDataString(title) + "&l=english&cc=US", cancellationToken).ConfigureAwait(false);
+        var result = new List<MatchCandidate>();
+        try
+        {
+            using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 16 });
+            if (document.RootElement.ValueKind != JsonValueKind.Object || !document.RootElement.TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array) return result;
+            foreach (var item in items.EnumerateArray().Take(30))
+            {
+                if (item.ValueKind != JsonValueKind.Object || !item.TryGetProperty("type", out var type) || type.ValueKind != JsonValueKind.String || type.GetString() != "app") continue;
+                if (!item.TryGetProperty("name", out var name) || name.ValueKind != JsonValueKind.String || !item.TryGetProperty("id", out var id) || id.ValueKind != JsonValueKind.Number || !id.TryGetInt64(out var number) || number <= 0 || number > 9_999_999_999) continue;
+                var image = item.TryGetProperty("tiny_image", out var img) && img.ValueKind == JsonValueKind.String && img.GetString() is { } u && u.StartsWith("https://", StringComparison.Ordinal) ? u : null;
+                result.Add(new("steam", number.ToString(System.Globalization.CultureInfo.InvariantCulture), (name.GetString() ?? "").Trim(), "Steam · app " + number, image));
+                if (result.Count == 8) break;
+            }
+        }
+        catch (JsonException) { throw new IOException("Steam sent an answer GameVault could not read."); }
+        return result;
     }
 
     private async Task<byte[]> GetBytesAsync(string url, CancellationToken cancellationToken)
