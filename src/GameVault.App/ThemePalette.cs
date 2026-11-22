@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media;
+using GameVault.Core;
 
 namespace GameVault.App;
 
@@ -22,34 +23,23 @@ internal static class ThemePalette
             element.Resources["AppWarning"] = SystemColors.WindowTextBrush;
             return;
         }
-        if (theme == "Vice City")
-        {
-            // Neon dusk: deep purple fading to magenta, with hot-pink and sunset-orange accents.
-            element.Resources["AppChrome"] = Brush("#140828");
-            element.Resources["AppBackground"] = Gradient("#150a2e", "#2c1050", "#5c1a62");
-            element.Resources["AppText"] = Brush("#fff4fb");
-            element.Resources["AppMuted"] = Brush("#dcc0ea");
-            element.Resources["AppSurface"] = Brush("#26103f");
-            element.Resources["AppRaised"] = Brush("#3b1a5c");
-            element.Resources["AppLine"] = Brush("#8a43a6");
-            element.Resources["AppAccent"] = Brush("#ffb36b");
-            element.Resources["AppPrimary"] = Brush("#ff4f9f");
-            element.Resources["AppPrimaryText"] = Brush("#1a0630");
-            element.Resources["AppWarning"] = Brush("#ffcf8a");
-            return;
-        }
-        var crimson = theme == "Crimson";
-        element.Resources["AppChrome"] = Brush(crimson ? "#160f14" : "#111822" );
-        element.Resources["AppBackground"] = Brush(crimson ? "#120e11" : "#131b26");
-        element.Resources["AppText"] = Brush(crimson ? "#f8eef2" : "#edf2f8");
-        element.Resources["AppMuted"] = Brush(crimson ? "#d0bbc5" : "#adbdcf");
-        element.Resources["AppSurface"] = Brush(crimson ? "#21171d" : "#1c2838");
-        element.Resources["AppRaised"] = Brush(crimson ? "#35232c" : "#26364a");
-        element.Resources["AppLine"] = Brush(crimson ? "#63404f" : "#48607d");
-        element.Resources["AppAccent"] = Brush(crimson ? "#ffb2c0" : "#b6ceff");
-        element.Resources["AppPrimary"] = Brush(crimson ? "#cb3c54" : "#b6ceff");
-        element.Resources["AppPrimaryText"] = Brush(crimson ? "#fff6f8" : "#131b26");
-        element.Resources["AppWarning"] = Brush(crimson ? "#ffc5aa" : "#ffc6ab");
+        ApplyDefinition(element, ThemeCatalog.Find(theme));
+    }
+
+    /// <summary>Puts one theme's colours into the element's resources. Also used by the theme picker to preview a theme inside a small card.</summary>
+    public static void ApplyDefinition(FrameworkElement element, ThemeDefinition t)
+    {
+        element.Resources["AppChrome"] = Brush(t.Chrome);
+        element.Resources["AppBackground"] = t.BackgroundGradient is { Count: 3 } g ? Gradient(g[0], g[1], g[2]) : Brush(t.Background);
+        element.Resources["AppText"] = Brush(t.Text);
+        element.Resources["AppMuted"] = Brush(t.Muted);
+        element.Resources["AppSurface"] = Brush(t.Surface);
+        element.Resources["AppRaised"] = Brush(t.Raised);
+        element.Resources["AppLine"] = Brush(t.Line);
+        element.Resources["AppAccent"] = Brush(t.Accent);
+        element.Resources["AppPrimary"] = Brush(t.Primary);
+        element.Resources["AppPrimaryText"] = Brush(t.PrimaryText);
+        element.Resources["AppWarning"] = Brush(t.Warning);
     }
 
     private static LinearGradientBrush Gradient(string top, string middle, string bottom)
@@ -63,9 +53,6 @@ internal static class ThemePalette
         brush.Freeze();
         return brush;
     }
-
-    /// <summary>Position of a saved theme name in the theme picker (Midnight, Crimson, Vice City).</summary>
-    public static int IndexOf(string theme) => theme switch { "Crimson" => 1, "Vice City" => 2, _ => 0 };
 
     private static SolidColorBrush Brush(string color)
     {

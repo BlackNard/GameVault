@@ -109,12 +109,13 @@ public partial class MainWindow
    NoteExportWindow editor=>editor.CanLeaveAsync,
    StoreImportView editor=>editor.CanLeaveAsync,
    MatchPickerView editor=>editor.CanLeaveAsync,
+   ThemePickerView editor=>editor.CanLeaveAsync,
    _=>throw new ArgumentException("The inline editor must provide a navigation guard.",nameof(view))
   });
   activeInlineEditor=session;
   void Completed(object? sender,bool saved)=>session.Complete(saved);
   subscribe(Completed);
-  SetDrawerFullWidth(view is GameEditor);DrawerLayer.Visibility=Visibility.Visible;ContentRoot.IsEnabled=false;
+  SetDrawerFullWidth(view is GameEditor or ThemePickerView);DrawerLayer.Visibility=Visibility.Visible;ContentRoot.IsEnabled=false;
   EditorHost.Content=view;EditorHost.Visibility=Visibility.Visible;
   try{return await session.Completion;}
   finally
