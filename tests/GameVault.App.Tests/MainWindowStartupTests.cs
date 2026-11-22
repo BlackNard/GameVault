@@ -99,11 +99,26 @@ public sealed class MainWindowStartupTests
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
         var window = Root();
         var names = window.Descendants().Select(e => (string?)e.Attribute(x + "Name")).Where(n => n is not null).ToHashSet();
-        foreach (var name in new[] { "PlayMenuButton", "GameHeroBanner", "WrongGameButton", "DownloadSaveDatabaseButton", "AboutBlock", "FetchAllInfoButton", "StoreImportButton", "TagsButton", "SortButton", "ChipsPanel", "TagsBlock", "TagsInput", "SavedViewsManager", "DataBackupBulky", "DiagnosticsGameNames" })
+        foreach (var name in new[] { "PlayMenuButton", "AboutDetails", "GameHeroBanner", "WrongGameButton", "DownloadSaveDatabaseButton", "AboutBlock", "FetchAllInfoButton", "StoreImportButton", "TagsButton", "SortButton", "ChipsPanel", "TagsBlock", "TagsInput", "SavedViewsManager", "DataBackupBulky", "DiagnosticsGameNames" })
             Assert.Contains(name, names);
         var clicks = window.Descendants().Select(e => (string?)e.Attribute("Click")).Where(n => n is not null).ToHashSet();
         foreach (var handler in new[] { "BackUpDataClicked", "RestoreDataClicked", "CreateDiagnosticsClicked", "EditTagsClicked", "SaveTagsClicked" })
             Assert.Contains(handler, clicks);
+    }
+
+    [Fact]
+    public void A_new_or_imported_game_is_queued_for_an_immediate_lookup_and_is_never_skipped_because_another_lookup_runs()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !Directory.Exists(Path.Combine(root.FullName, "src", "GameVault.App"))) root = root.Parent;
+        string Source(string name) => File.ReadAllText(Path.Combine(root!.FullName, "src", "GameVault.App", name));
+        Assert.Contains("QueueAutoInfo([(result.Profile.Id, result.Profile.Name)], urgent: true)", Source("MainWindow.xaml.cs"));      // adding a game
+        Assert.Contains("urgent: true", Source("MainWindow.StoreImport.cs"));                                                          // importing from Steam / Epic
+        var auto = Source("MainWindow.AutoInfo.cs");
+        Assert.DoesNotContain("if (games.Count == 0 || autoInfoRunning", auto);                                                        // the old guard that silently dropped a request
+        Assert.Contains("lookupQueue.Enqueue(jobs)", auto);
+        Assert.Contains("lookupsInProgress.Add(job.Id)", auto);                                                                         // the page says "looking up" instead of "no description yet"
+        Assert.Contains("service.FactsUpdated +=", Source("MainWindow.Metadata.cs"));                                                   // each stage of the lookup appears on the open page
     }
 
     [Fact]

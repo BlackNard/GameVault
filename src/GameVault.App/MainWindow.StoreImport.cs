@@ -44,7 +44,7 @@ public partial class MainWindow
                 initializing = false;
                 foreach (var id in changed) await discovery.ScanAsync(id);
                 await RefreshLibrary(changed[^1]);
-                _ = AutoInfoAsync([.. changed.Where(libraryRows.ContainsKey).Select(id => (id, libraryRows[id].Name))], false);
+                QueueAutoInfo(changed.Where(libraryRows.ContainsKey).Select(id => (id, libraryRows[id].Name)).ToArray(), urgent: true);
                 ShowToast($"{changed.Count} game(s) added", "Check each game's save locations on its Saves tab.");
             }
         }

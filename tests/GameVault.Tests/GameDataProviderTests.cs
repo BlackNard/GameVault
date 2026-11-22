@@ -200,7 +200,8 @@ public sealed class GameDataProviderTests : IAsyncLifetime
         Assert.Equal("Rockstar North", data.Developers![0]);
         Assert.Equal("Rockstar Games", data.Publishers![0]);
         Assert.Equal("2013-09-17", data.ReleaseDate!.ToString());
-        Assert.Equal("Welcome to Los Santos\nA big city.", data.Description);
+        Assert.Equal("Short", data.Description);                                                                  // the short text is the description, the long one is "about"
+        Assert.Equal("Welcome to Los Santos\nA big city.", data.About);
         Assert.Equal("grand-theft-auto-v", data.Identity!.EpicSlug);
         Assert.Equal(2, handler.Urls.Count);                                                                      // the full title 404s, the shorter slug is verified by namespace
 
@@ -394,13 +395,14 @@ public sealed class GameDataProviderTests : IAsyncLifetime
     {
         var now = DateTimeOffset.UtcNow;
         GameMetadataDocument Doc(DateTimeOffset? at, GameIdentity? identity = null, bool description = false) =>
-            new(1, profile.Id, description ? new() { ["Description"] = new("steam", false, now, Text: "x") } : [], LastRefresh: at, Identity: identity);
+            new(1, profile.Id, description ? new() { ["Description"] = new("steam", false, now, Text: "x") } : [], LastRefresh: at, Identity: identity, LookupVersion: GameMetadataService.CurrentLookupVersion);
         Assert.True(GameMetadataService.NeedsAutomaticLookup(null));
         Assert.True(GameMetadataService.NeedsAutomaticLookup(Doc(null)));
         Assert.False(GameMetadataService.NeedsAutomaticLookup(Doc(now.AddDays(-1))));                                        // tried yesterday
         Assert.True(GameMetadataService.NeedsAutomaticLookup(Doc(now.AddDays(-8))));                                         // unmatched, tried over a week ago
         Assert.False(GameMetadataService.NeedsAutomaticLookup(Doc(now.AddDays(-30), description: true)));
         Assert.False(GameMetadataService.NeedsAutomaticLookup(Doc(now.AddDays(-30), new GameIdentity(NoMatch: true, Source: "picked"))));
+        Assert.True(GameMetadataService.NeedsAutomaticLookup(Doc(now.AddDays(-1), description: true) with { LookupVersion = null }));      // looked up before newer kinds of facts existed: fill the missing ones in
     }
 
     [Fact]

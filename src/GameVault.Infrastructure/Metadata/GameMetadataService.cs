@@ -9,10 +9,16 @@ public sealed record BulkMetadataResult(int Games, int GamesUpdated, int FieldsF
 /// <summary>Fetches and stores game information: builds the request from the profile, runs the resolver and saves the result (ticket #83).</summary>
 public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameMetadataProvider> providers, IStoreGameLauncher? launcher = null, string? epicManifests = null)
 {
+    /// <summary>Raised when the kinds of facts GameVault can fetch grow, so games looked up earlier are filled in again (only their missing facts).</summary>
+    public const int CurrentLookupVersion = 3;
+
     private readonly IStoreGameLauncher storeLauncher = launcher ?? new StoreGameLauncher();
     private readonly string? epicManifestFolder = epicManifests;
 
     public IReadOnlyList<IGameMetadataProvider> Providers => providers;
+
+    /// <summary>Raised whenever new facts for a game have been saved, including partial results while the lookup is still running.</summary>
+    public event EventHandler<Guid>? FactsUpdated;
 
     public Task<StoredDocument<GameMetadataDocument>> LoadAsync(Guid id) => store.LoadMetadataAsync(id);
 
@@ -77,10 +83,17 @@ public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameM
         JsonDocuments.RequireWritable(stored);
         var existing = stored.Value ?? GameMetadataDocument.Empty(id);
         var request = await BuildRequestAsync(id, existing.LastSizeScan, settings.SizeOnDisk, replaceExisting, existing).ConfigureAwait(false);
-        var result = await MetadataResolver.ResolveAsync(request, providers, settings, existing, cancellationToken, p => p.Id == SteamStoreProvider.ProviderId).ConfigureAwait(false);
+        var result = await MetadataResolver.ResolveAsync(request, providers, settings, existing, cancellationToken, p => p.Id == SteamStoreProvider.ProviderId, async partial =>
+        {
+            // Keep the older lookup version until the whole lookup finished, so a lookup that was cut short is completed at the next start.
+            await store.SaveMetadataAsync(partial with { LookupVersion = existing.LookupVersion }).ConfigureAwait(false);
+            FactsUpdated?.Invoke(this, id);
+        }).ConfigureAwait(false);
         // A lookup that failed (offline, rate limited) must not mark the game as looked up, or the automatic pass would never retry it.
         var failedEmpty = result.FieldsFilled == 0 && result.Problems.Length > 0;
-        if (!failedEmpty && (result.FieldsFilled > 0 || existing.LastRefresh is null)) await store.SaveMetadataAsync(result.Document).ConfigureAwait(false);
+        if (!failedEmpty && (result.FieldsFilled > 0 || existing.LastRefresh is null || (existing.LookupVersion ?? 0) < CurrentLookupVersion))
+            await store.SaveMetadataAsync(result.Document with { LookupVersion = CurrentLookupVersion }).ConfigureAwait(false);
+        FactsUpdated?.Invoke(this, id);
         return result;
     }
 
@@ -124,6 +137,9 @@ public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameM
     public static bool NeedsAutomaticLookup(GameMetadataDocument? document, DateTimeOffset? now = null)
     {
         if (document?.LastRefresh is not { } last) return true;
+        if ((document.LookupVersion ?? 0) < CurrentLookupVersion) return true;
+        // A game HowLongToBeat knows (its id is stored) but whose times could not be read is tried again after a week.
+        if (document.Identity?.HltbId is not null && document.Get(MetadataField.TimeToBeat) is null && (now ?? DateTimeOffset.UtcNow) - last > TimeSpan.FromDays(7)) return true;
         if (document.Identity is { IsPicked: true } || document.Get(MetadataField.Description) is not null) return false;
         return (now ?? DateTimeOffset.UtcNow) - last > TimeSpan.FromDays(7);
     }

@@ -310,7 +310,7 @@ public partial class MainWindow : Window
                 }
                 if (!editor.WasRestored) await discovery.ScanAsync(result.Profile.Id);
                 await RefreshLibrary(result.Profile.Id);
-                if(profile is null){ShowGamePage();ShowGameSection("Overview");_ = AutoInfoAsync([(result.Profile.Id, result.Profile.Name)], false);}
+                if(profile is null){ShowGamePage();ShowGameSection("Overview");QueueAutoInfo([(result.Profile.Id, result.Profile.Name)], urgent: true);}
                 OperationNotice.Text = result.Warning ?? (editor.WasRestored ? $"{result.Profile.Name} restored with its saved configuration and history." : $"{result.Profile.Name} saved.");
             }
         }

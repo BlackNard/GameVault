@@ -3,7 +3,41 @@ using System.Globalization;
 namespace GameVault.Core;
 
 /// <summary>The facts GameVault can show for a game (ticket #83).</summary>
-public enum MetadataField { Description, ReleaseDate, Developers, Publishers, Genres, InstallSize, Hero }
+public enum MetadataField
+{
+    Description, ReleaseDate, Developers, Publishers, Genres, InstallSize, Hero,
+    /// <summary>The store's long "about" text.</summary>
+    About,
+    Tags, Features, Platforms, Languages,
+    /// <summary>For example "PEGI 16 · ESRB M".</summary>
+    AgeRating,
+    /// <summary>Metacritic score (0-100) with its page.</summary>
+    CriticScore,
+    /// <summary>For example "Mixed (27,925 reviews)".</summary>
+    CommunitySummary,
+    /// <summary>Minimum and recommended system requirements as plain text.</summary>
+    Requirements,
+    /// <summary>"Label|https://address" entries (website, support, store page).</summary>
+    Links,
+    AchievementCount, DlcCount,
+    /// <summary>Screenshot thumbnails (addresses on store image networks).</summary>
+    Screenshots,
+    /// <summary>What the launcher recorded locally: build, last update, language, version.</summary>
+    Installed,
+    /// <summary>Average hours to finish the game (main story, with extras, completionist) from HowLongToBeat.</summary>
+    TimeToBeat
+}
+
+/// <summary>Average time to beat a game, in seconds. A value is null when HowLongToBeat has none for that style of play.</summary>
+/// <param name="Url">The game's HowLongToBeat page.</param>
+public sealed record BeatTimes(int? MainSeconds, int? PlusSeconds, int? CompleteSeconds, int? AllSeconds, string? Url)
+{
+    public const int MaxSeconds = 3_600_000;
+    public bool HasAny => new[] { MainSeconds, PlusSeconds, CompleteSeconds, AllSeconds }.Any(v => v is > 0);
+    public static bool IsValid(BeatTimes? value) => value is not null && value.HasAny &&
+        new[] { value.MainSeconds, value.PlusSeconds, value.CompleteSeconds, value.AllSeconds }.All(v => v is null or (>= 0 and <= MaxSeconds)) &&
+        (value.Url is null || (GameMetadataDocument.SafeLink(value.Url) && new Uri(value.Url).Host is "howlongtobeat.com" or "www.howlongtobeat.com"));
+}
 
 /// <summary>Which web addresses a background image may come from: HTTPS on a store or game-asset network only, no user info, no port.</summary>
 public static class HeroImages
@@ -74,20 +108,37 @@ public sealed record GameIdentity(string? EpicSlug = null, string? EpicNamespace
 public sealed record MatchCandidate(string Source, string Id, string Title, string Detail, string? ImageUrl = null);
 
 /// <summary>One stored fact and where it came from. A value the owner typed (<see cref="UserEdited"/>) is never replaced by a provider.</summary>
-public sealed record MetadataValue(string Provider, bool UserEdited, DateTimeOffset At, string? Text = null, string[]? Items = null, long? Bytes = null, string? Date = null);
+public sealed record MetadataValue(string Provider, bool UserEdited, DateTimeOffset At, string? Text = null, string[]? Items = null, long? Bytes = null, string? Date = null, int? Number = null, string? Url = null, BeatTimes? Times = null);
 
 /// <summary>Per-game metadata (Profiles/&lt;game&gt;/metadata.json).</summary>
-public sealed record GameMetadataDocument(int SchemaVersion, Guid GameId, Dictionary<string, MetadataValue> Fields, DateTimeOffset? LastSizeScan = null, DateTimeOffset? LastRefresh = null, string? SteamAppId = null, GameIdentity? Identity = null)
+public sealed record GameMetadataDocument(int SchemaVersion, Guid GameId, Dictionary<string, MetadataValue> Fields, DateTimeOffset? LastSizeScan = null, DateTimeOffset? LastRefresh = null, string? SteamAppId = null, GameIdentity? Identity = null, int? LookupVersion = null)
 {
     public const int MaxTextLength = 4000;
     public const int MaxItems = 24;
     public const int MaxItemLength = 80;
+    public const int MaxAboutLength = 8000;
+    public const int MaxScreenshots = 10;
+    public const int MaxLinks = 8;
+
+    /// <summary>A web address the owner may open from the app: HTTPS only, no user info.</summary>
+    public static bool SafeLink(string? url) => url is { Length: > 0 and <= 400 } && Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps && string.IsNullOrEmpty(uri.UserInfo) && !url.Any(char.IsControl);
+
+    /// <summary>Splits a stored "Label|https://address" entry, or null when it is not a safe link.</summary>
+    public static (string Label, string Url)? ParseLink(string? entry)
+    {
+        if (entry is null) return null;
+        var bar = entry.IndexOf('|');
+        if (bar < 1 || bar > 40) return null;
+        var label = entry[..bar].Trim();
+        var url = entry[(bar + 1)..].Trim();
+        return label.Length > 0 && SafeLink(url) ? (label, url) : null;
+    }
 
     public static GameMetadataDocument Empty(Guid gameId) => new(1, gameId, []);
 
     public MetadataValue? Get(MetadataField field) => Fields.GetValueOrDefault(field.ToString());
 
-    public static bool IsValid(GameMetadataDocument? value, Guid gameId) => value is { SchemaVersion: 1, Fields: not null } && value.GameId == gameId && (value.SteamAppId is null || (value.SteamAppId.Length is > 0 and <= 10 && value.SteamAppId.All(char.IsAsciiDigit))) && GameIdentity.IsValid(value.Identity) &&
+    public static bool IsValid(GameMetadataDocument? value, Guid gameId) => value is { SchemaVersion: 1, Fields: not null } && value.GameId == gameId && (value.LookupVersion is null or (>= 0 and <= 1000)) && (value.SteamAppId is null || (value.SteamAppId.Length is > 0 and <= 10 && value.SteamAppId.All(char.IsAsciiDigit))) && GameIdentity.IsValid(value.Identity) &&
         value.Fields.All(pair => Enum.TryParse<MetadataField>(pair.Key, out var field) && IsValidValue(field, pair.Value));
 
     private static bool IsValidValue(MetadataField field, MetadataValue? value)
@@ -99,6 +150,14 @@ public sealed record GameMetadataDocument(int SchemaVersion, Guid GameId, Dictio
             MetadataField.ReleaseDate => PartialDate.Parse(value.Date) is { } d && d.ToString() == value.Date,
             MetadataField.InstallSize => value.Bytes is >= 0,
             MetadataField.Hero => HeroImages.IsAllowedUrl(value.Text),
+            MetadataField.TimeToBeat => BeatTimes.IsValid(value.Times),
+            MetadataField.About => value.Text is { Length: > 0 and <= MaxAboutLength },
+            MetadataField.AgeRating or MetadataField.CommunitySummary => value.Text is { Length: > 0 and <= 200 },
+            MetadataField.Requirements => value.Text is { Length: > 0 and <= MaxTextLength },
+            MetadataField.CriticScore => value.Number is >= 0 and <= 100 && (value.Url is null || SafeLink(value.Url)),
+            MetadataField.AchievementCount or MetadataField.DlcCount => value.Number is >= 0 and <= 100_000,
+            MetadataField.Screenshots => value.Items is { Length: > 0 and <= MaxScreenshots } && value.Items.All(HeroImages.IsAllowedUrl),
+            MetadataField.Links => value.Items is { Length: > 0 and <= MaxLinks } && value.Items.All(i => ParseLink(i) is not null),
             _ => value.Items is { Length: > 0 and <= MaxItems } && value.Items.All(i => !string.IsNullOrWhiteSpace(i) && i.Length <= MaxItemLength)
         };
     }

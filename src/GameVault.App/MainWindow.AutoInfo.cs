@@ -10,47 +10,90 @@ public partial class MainWindow
 {
     private CancellationTokenSource? autoInfo;
     private bool autoInfoRunning;
+    /// <summary>Games waiting for, or in the middle of, an automatic lookup (UI thread only). The page says so instead of "no description yet".</summary>
+    private readonly HashSet<Guid> lookupsInProgress = [];
+    private readonly AutoLookupQueue lookupQueue = new();
     private SteamPortraitCoverCatalogue? coverCatalogue;
     private HeroImageDownloader? heroDownloader;
 
-    private void StopAutoInfo() { try { autoInfo?.Cancel(); } catch (ObjectDisposedException) { } }
+    private void StopAutoInfo() { try { autoInfo?.Cancel(); } catch (ObjectDisposedException) { } lookupQueue.Clear(); }
 
-    /// <summary>After the library has loaded: look up every game that has never been looked up. Runs quietly in the background.</summary>
+    /// <summary>After the library has loaded: look up every game that has never been looked up. Runs quietly in the background, one game at a time.</summary>
     private async Task StartupInfoAsync()
     {
         try { await Task.Delay(TimeSpan.FromSeconds(4)); }
         catch (OperationCanceledException) { return; }
         if (Dispatcher.HasShutdownStarted) return;
-        var games = items.Where(i => i.Game.Profile is { IsArchived: false } && !i.Game.IsReadOnly).Select(i => (i.Game.Id, i.Name)).ToArray();
-        await AutoInfoAsync(games, true);
+        QueueAutoInfo(items.Where(i => i.Game.Profile is { IsArchived: false } && !i.Game.IsReadOnly).Select(i => (i.Game.Id, i.Name)), urgent: false);
     }
 
-    private async Task AutoInfoAsync(IReadOnlyList<(Guid Id, string Name)> games, bool onlyNeverLookedUp)
+    /// <summary>
+    /// Puts games in line for their automatic lookup. A game you just added or imported is urgent: it goes to the front and is looked up right away,
+    /// even while the background pass over the library is still running. Nothing is dropped because something else is busy.
+    /// </summary>
+    private void QueueAutoInfo(IEnumerable<(Guid Id, string Name)> games, bool urgent)
     {
-        if (games.Count == 0 || autoInfoRunning || bulkInfo is not null || Dispatcher.HasShutdownStarted) return;
-        MetadataSettings current;
-        try { current = await Metadata.LoadSettingsAsync(); }
-        catch (Exception error) when (IsExpected(error)) { return; }
-        if (!current.AutoFetch) return;
+        var jobs = games.Select(g => new AutoLookupQueue.Job(g.Id, g.Name, OnlyNeverLookedUp: !urgent, Urgent: urgent)).ToArray();
+        if (jobs.Length == 0 || Dispatcher.HasShutdownStarted) return;
+        lookupQueue.Enqueue(jobs);
+        foreach (var job in jobs) lookupsInProgress.Add(job.Id);
+        if (GameList.SelectedItem is LibraryItemView shown && jobs.Any(j => j.Id == shown.Game.Id)) _ = RefreshAboutAsync(shown);
+        if (urgent) ShowToast("Looking up game information", jobs.Length == 1 ? jobs[0].Name : $"{jobs.Length} new games");
+        if (!autoInfoRunning) _ = RunAutoInfoAsync();
+    }
+
+    private async Task RunAutoInfoAsync()
+    {
+        if (autoInfoRunning || Dispatcher.HasShutdownStarted) return;
         autoInfoRunning = true;
         autoInfo ??= new CancellationTokenSource();
         var token = autoInfo.Token;
+        int looked = 0, coversAdded = 0, heroesAdded = 0;
         try
         {
-            var result = await Task.Run(() => Metadata.FetchMissingAsync(games, null, token, onlyNeverLookedUp), token);
-            var covers = await AutoCoversAsync(games, token);
-            var heroes = await EnsureHeroesAsync(games, token);
-            if (result.GamesUpdated > 0 || covers > 0 || heroes > 0)
+            while (lookupQueue.TryDequeue(out var job))
             {
-                var selected = (GameList.SelectedItem as LibraryItemView)?.Game.Id;
-                if (covers > 0 || heroes > 0) await RefreshLibrary(selected);
-                if (GameList.SelectedItem is LibraryItemView item) await RefreshAboutAsync(item);
-                ShowToast("Game information added", $"{result.GamesUpdated} game(s) looked up" + (covers > 0 ? $", {covers} cover(s) added" : "") + (heroes > 0 ? $", {heroes} background(s) added." : "."));
+                token.ThrowIfCancellationRequested();
+                MetadataSettings current;
+                try { current = await Metadata.LoadSettingsAsync(); }
+                catch (Exception error) when (IsExpected(error)) { continue; }
+                if (!current.AutoFetch) { lookupsInProgress.Remove(job.Id); continue; }
+                var one = new[] { (job.Id, job.Name) };
+                try
+                {
+                    var result = await Task.Run(() => Metadata.FetchMissingAsync(one, null, token, job.OnlyNeverLookedUp), token);
+                    var covers = await AutoCoversAsync(one, token);
+                    var heroes = await EnsureHeroesAsync(one, token);
+                    looked += result.GamesUpdated;
+                    coversAdded += covers;
+                    heroesAdded += heroes;
+                    if (result.GamesUpdated > 0 || covers > 0 || heroes > 0)
+                    {
+                        // Show what was found right away if that game is open, without waiting for the rest of the queue.
+                        var selected = (GameList.SelectedItem as LibraryItemView)?.Game.Id;
+                        if (covers > 0 || heroes > 0) await RefreshLibrary(selected);
+                        if (GameList.SelectedItem is LibraryItemView open && open.Game.Id == job.Id) await RefreshAboutAsync(open);
+                        if (job.Urgent) ShowToast("Game information added", job.Name);
+                    }
+                    else if (job.Urgent && result.Problems.Length > 0)
+                        ShowToast("Could not look up " + job.Name, "Check your connection, or use Refresh info later. " + result.Problems[0], true);
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception error) when (IsExpected(error)) { GameVault.Infrastructure.Diagnostics.AppLog.Warn("Automatic game information stopped for one game: " + error.Message); }
+                finally
+                {
+                    // This game is done (found or not): clear its "looking up" state and show the final page.
+                    lookupsInProgress.Remove(job.Id);
+                    if (GameList.SelectedItem is LibraryItemView finished && finished.Game.Id == job.Id) await RefreshAboutAsync(finished);
+                }
             }
+            if (looked > 0 && lookupQueue.Count == 0 && coversAdded + heroesAdded + looked > 1)
+                ShowToast("Game information added", $"{looked} game(s) looked up" + (coversAdded > 0 ? $", {coversAdded} cover(s)" : "") + (heroesAdded > 0 ? $", {heroesAdded} background(s)." : "."));
         }
         catch (OperationCanceledException) { }
-        catch (Exception error) when (IsExpected(error)) { GameVault.Infrastructure.Diagnostics.AppLog.Warn("Automatic game information stopped: " + error.Message); }
-        finally { autoInfoRunning = false; }
+        finally { autoInfoRunning = false; if (token.IsCancellationRequested) lookupsInProgress.Clear(); }
+        // Something may have been queued while the last game was finishing.
+        if (lookupQueue.Count > 0 && !Dispatcher.HasShutdownStarted && !token.IsCancellationRequested) _ = RunAutoInfoAsync();
     }
 
     /// <summary>A game that has no background image gets the wide banner its store provides. A Steam game whose id is known needs no new lookup.</summary>

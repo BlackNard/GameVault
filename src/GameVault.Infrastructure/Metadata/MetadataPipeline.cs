@@ -6,7 +6,10 @@ namespace GameVault.Infrastructure.Metadata;
 public sealed record MetadataRequest(Guid GameId, string Name, string ExecutablePath, string? InstallRoot, string? SteamAppId, string? SteamAppsFolder, DateTimeOffset? LastSizeScan, bool SizeOnDisk, bool ForceSizeScan, GameIdentity? Identity = null);
 
 /// <summary>Everything one provider found. Fields it cannot supply stay null or empty.</summary>
-public sealed record ProviderData(string? Description = null, PartialDate? ReleaseDate = null, string[]? Developers = null, string[]? Publishers = null, string[]? Genres = null, long? InstallSizeBytes = null, string? SteamAppId = null, GameIdentity? Identity = null, string? HeroUrl = null)
+public sealed record ProviderData(string? Description = null, PartialDate? ReleaseDate = null, string[]? Developers = null, string[]? Publishers = null, string[]? Genres = null, long? InstallSizeBytes = null, string? SteamAppId = null, GameIdentity? Identity = null, string? HeroUrl = null,
+    string? About = null, string[]? Tags = null, string[]? Features = null, string[]? Platforms = null, string[]? Languages = null, string? AgeRating = null,
+    int? CriticScore = null, string? CriticUrl = null, string? CommunitySummary = null, string? Requirements = null, string[]? Links = null,
+    int? AchievementCount = null, int? DlcCount = null, string[]? Screenshots = null, string[]? Installed = null, BeatTimes? Times = null)
 {
     public bool Has(MetadataField field) => field switch
     {
@@ -17,6 +20,21 @@ public sealed record ProviderData(string? Description = null, PartialDate? Relea
         MetadataField.Genres => Genres is { Length: > 0 },
         MetadataField.InstallSize => InstallSizeBytes is >= 0,
         MetadataField.Hero => HeroImages.IsAllowedUrl(HeroUrl),
+        MetadataField.About => !string.IsNullOrWhiteSpace(About),
+        MetadataField.Tags => Tags is { Length: > 0 },
+        MetadataField.Features => Features is { Length: > 0 },
+        MetadataField.Platforms => Platforms is { Length: > 0 },
+        MetadataField.Languages => Languages is { Length: > 0 },
+        MetadataField.AgeRating => !string.IsNullOrWhiteSpace(AgeRating),
+        MetadataField.CriticScore => CriticScore is >= 0 and <= 100,
+        MetadataField.CommunitySummary => !string.IsNullOrWhiteSpace(CommunitySummary),
+        MetadataField.Requirements => !string.IsNullOrWhiteSpace(Requirements),
+        MetadataField.Links => Links is not null && Links.Any(l => GameMetadataDocument.ParseLink(l) is not null),
+        MetadataField.AchievementCount => AchievementCount is >= 0,
+        MetadataField.DlcCount => DlcCount is >= 0,
+        MetadataField.Screenshots => Screenshots is not null && Screenshots.Any(HeroImages.IsAllowedUrl),
+        MetadataField.Installed => Installed is { Length: > 0 },
+        MetadataField.TimeToBeat => BeatTimes.IsValid(Times),
         _ => false
     };
 }
@@ -46,7 +64,7 @@ public sealed record MetadataResolution(GameMetadataDocument Document, int Field
 public static class MetadataResolver
 {
     public static async Task<MetadataResolution> ResolveAsync(MetadataRequest request, IReadOnlyList<IGameMetadataProvider> providers, MetadataSettings settings,
-        GameMetadataDocument existing, CancellationToken cancellationToken, Func<IGameMetadataProvider, bool>? isNetworkProvider = null)
+        GameMetadataDocument existing, CancellationToken cancellationToken, Func<IGameMetadataProvider, bool>? isNetworkProvider = null, Func<GameMetadataDocument, Task>? progress = null)
     {
         var fields = new Dictionary<string, MetadataValue>(existing.Fields);
         var responses = new Dictionary<string, ProviderData?>(StringComparer.OrdinalIgnoreCase);
@@ -56,6 +74,9 @@ public static class MetadataResolver
         var sizeScanned = existing.LastSizeScan;
         var steamId = request.SteamAppId;
         var identity = request.Identity ?? existing.Identity ?? GameIdentity.Empty;
+        var reported = 0;
+        // The facts found so far, so the page can show them while slower sources are still being asked.
+        GameMetadataDocument Interim() => existing with { Fields = new(fields), LastSizeScan = sizeScanned, LastRefresh = DateTimeOffset.UtcNow, SteamAppId = steamId ?? existing.SteamAppId, Identity = identity == GameIdentity.Empty ? existing.Identity : identity };
         foreach (var field in Enum.GetValues<MetadataField>())
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -68,6 +89,13 @@ public static class MetadataResolver
                 var provider = capable.First(p => p.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
                 if (!responses.TryGetValue(provider.Id, out var data))
                 {
+                    // About to wait for another source: first let the caller show what the earlier ones already gave.
+                    if (progress is not null && filled > reported)
+                    {
+                        reported = filled;
+                        try { await progress(Interim()).ConfigureAwait(false); }
+                        catch (Exception error) when (error is IOException or ArgumentException or UnauthorizedAccessException) { }
+                    }
                     try
                     {
                         data = await provider.GetAsync(request with { SteamAppId = steamId, Identity = identity }, cancellationToken).ConfigureAwait(false);
@@ -112,6 +140,21 @@ public static class MetadataResolver
             MetadataField.Genres => new(provider, false, now, Items: Items(data.Genres!)),
             MetadataField.InstallSize => new(provider, false, now, Bytes: data.InstallSizeBytes),
             MetadataField.Hero => new(provider, false, now, Text: data.HeroUrl),
+            MetadataField.About => new(provider, false, now, Text: Clip(data.About!.Trim(), GameMetadataDocument.MaxAboutLength)),
+            MetadataField.Tags => new(provider, false, now, Items: Items(data.Tags!)),
+            MetadataField.Features => new(provider, false, now, Items: Items(data.Features!)),
+            MetadataField.Platforms => new(provider, false, now, Items: Items(data.Platforms!)),
+            MetadataField.Languages => new(provider, false, now, Items: Items(data.Languages!)),
+            MetadataField.AgeRating => new(provider, false, now, Text: Clip(data.AgeRating!.Trim(), 200)),
+            MetadataField.CriticScore => new(provider, false, now, Number: data.CriticScore, Url: GameMetadataDocument.SafeLink(data.CriticUrl) ? data.CriticUrl : null),
+            MetadataField.CommunitySummary => new(provider, false, now, Text: Clip(data.CommunitySummary!.Trim(), 200)),
+            MetadataField.Requirements => new(provider, false, now, Text: Clip(data.Requirements!.Trim(), GameMetadataDocument.MaxTextLength)),
+            MetadataField.Links => new(provider, false, now, Items: [.. data.Links!.Where(l => GameMetadataDocument.ParseLink(l) is not null).Distinct(StringComparer.OrdinalIgnoreCase).Take(GameMetadataDocument.MaxLinks)]),
+            MetadataField.AchievementCount => new(provider, false, now, Number: data.AchievementCount),
+            MetadataField.DlcCount => new(provider, false, now, Number: data.DlcCount),
+            MetadataField.Screenshots => new(provider, false, now, Items: [.. data.Screenshots!.Where(HeroImages.IsAllowedUrl).Distinct(StringComparer.OrdinalIgnoreCase).Take(GameMetadataDocument.MaxScreenshots)]),
+            MetadataField.Installed => new(provider, false, now, Items: Items(data.Installed!)),
+            MetadataField.TimeToBeat => new(provider, false, now, Times: data.Times),
             _ => null
         };
         return value;

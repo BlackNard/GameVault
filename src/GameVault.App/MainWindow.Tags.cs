@@ -85,7 +85,7 @@ public partial class MainWindow
         if (item?.Game.Profile is null) { TagsBlock.Visibility = Visibility.Collapsed; return; }
         TagsBlock.Visibility = Visibility.Visible;
         var tags = TagsOf(item.Game.Id);
-        TagsText.Text = tags.Length == 0 ? "No tags yet. Add tags or categories such as RPG, Co-op or Finish soon, then filter the library by them." : string.Join("  ·  ", tags);
+        TagsText.Text = tags.Length == 0 ? "You have not added any tags. Add your own, such as RPG, Co-op, Finish soon or Replaying, then filter the library by them." : string.Join("  ·  ", tags);
         EditTagsButton.IsEnabled = !tagsReadOnly;
     }
 
@@ -108,7 +108,7 @@ public partial class MainWindow
         TagsEditor.Visibility = Visibility.Collapsed;
         await PersistTagsAsync();
         ApplyFilters(item.Game.Id);
-        ShowToast("Tags saved", tags.Length == 0 ? "No tags" : string.Join(", ", tags));
+        ShowToast("Your tags were saved", tags.Length == 0 ? "No tags" : string.Join(", ", tags));
     }
 
     private void TagsInputKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
