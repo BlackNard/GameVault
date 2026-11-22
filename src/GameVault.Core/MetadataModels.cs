@@ -23,7 +23,20 @@ public enum MetadataField
     /// <summary>Screenshot thumbnails (addresses on store image networks).</summary>
     Screenshots,
     /// <summary>What the launcher recorded locally: build, last update, language, version.</summary>
-    Installed
+    Installed,
+    /// <summary>Average hours to finish the game (main story, with extras, completionist) from HowLongToBeat.</summary>
+    TimeToBeat
+}
+
+/// <summary>Average time to beat a game, in seconds. A value is null when HowLongToBeat has none for that style of play.</summary>
+/// <param name="Url">The game's HowLongToBeat page.</param>
+public sealed record BeatTimes(int? MainSeconds, int? PlusSeconds, int? CompleteSeconds, int? AllSeconds, string? Url)
+{
+    public const int MaxSeconds = 3_600_000;
+    public bool HasAny => new[] { MainSeconds, PlusSeconds, CompleteSeconds, AllSeconds }.Any(v => v is > 0);
+    public static bool IsValid(BeatTimes? value) => value is not null && value.HasAny &&
+        new[] { value.MainSeconds, value.PlusSeconds, value.CompleteSeconds, value.AllSeconds }.All(v => v is null or (>= 0 and <= MaxSeconds)) &&
+        (value.Url is null || (GameMetadataDocument.SafeLink(value.Url) && new Uri(value.Url).Host is "howlongtobeat.com" or "www.howlongtobeat.com"));
 }
 
 /// <summary>Which web addresses a background image may come from: HTTPS on a store or game-asset network only, no user info, no port.</summary>
@@ -95,7 +108,7 @@ public sealed record GameIdentity(string? EpicSlug = null, string? EpicNamespace
 public sealed record MatchCandidate(string Source, string Id, string Title, string Detail, string? ImageUrl = null);
 
 /// <summary>One stored fact and where it came from. A value the owner typed (<see cref="UserEdited"/>) is never replaced by a provider.</summary>
-public sealed record MetadataValue(string Provider, bool UserEdited, DateTimeOffset At, string? Text = null, string[]? Items = null, long? Bytes = null, string? Date = null, int? Number = null, string? Url = null);
+public sealed record MetadataValue(string Provider, bool UserEdited, DateTimeOffset At, string? Text = null, string[]? Items = null, long? Bytes = null, string? Date = null, int? Number = null, string? Url = null, BeatTimes? Times = null);
 
 /// <summary>Per-game metadata (Profiles/&lt;game&gt;/metadata.json).</summary>
 public sealed record GameMetadataDocument(int SchemaVersion, Guid GameId, Dictionary<string, MetadataValue> Fields, DateTimeOffset? LastSizeScan = null, DateTimeOffset? LastRefresh = null, string? SteamAppId = null, GameIdentity? Identity = null, int? LookupVersion = null)
@@ -137,6 +150,7 @@ public sealed record GameMetadataDocument(int SchemaVersion, Guid GameId, Dictio
             MetadataField.ReleaseDate => PartialDate.Parse(value.Date) is { } d && d.ToString() == value.Date,
             MetadataField.InstallSize => value.Bytes is >= 0,
             MetadataField.Hero => HeroImages.IsAllowedUrl(value.Text),
+            MetadataField.TimeToBeat => BeatTimes.IsValid(value.Times),
             MetadataField.About => value.Text is { Length: > 0 and <= MaxAboutLength },
             MetadataField.AgeRating or MetadataField.CommunitySummary => value.Text is { Length: > 0 and <= 200 },
             MetadataField.Requirements => value.Text is { Length: > 0 and <= MaxTextLength },

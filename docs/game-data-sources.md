@@ -46,3 +46,9 @@ Besides the basics, a game from a store gets everything the store publishes with
 | Installed (local, no network) | build, last update, language, beta branch | installed version | – |
 
 Screenshots are only loaded from the store when you press **Show screenshots**. Links open in your browser only when you click them, and only HTTPS addresses are kept. The hover card is read as HTML and may change; if it fails nothing else is lost. Games that were looked up before these facts existed get the missing ones filled in once at startup (`LookupVersion`); nothing already stored or typed is changed.
+
+## How long to beat (phase 3)
+
+Average time other players needed (main story, main story with extras, completionist, all play styles) comes from the game's **HowLongToBeat** page. HowLongToBeat has no public API and its search is closed to programs, so GameVault reads the game page by **id only**. The id comes from Wikidata (the Steam, GOG or title match above) or an earlier lookup, and is stored with the game. One request per game, a 1.5 second gap, a timeout and a size cap, no cookies, no redirects, and the client says plainly that it is GameVault. The data is unofficial and the page can change: any problem is a quiet "no times" and never affects anything else; a game whose id is known but whose times could not be read is tried again after a week. The times are shown as "average time other players needed", never mixed up with your own playtime.
+
+Checked live on 2026-11-22: TEKKEN 8 (4.2 h main, 17.5 h completionist), Resident Evil 2 (8.9 h) and Dead Space (12.2 h), each found through its Steam id.

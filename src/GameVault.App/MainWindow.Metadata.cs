@@ -13,7 +13,8 @@ public partial class MainWindow
     private CancellationTokenSource? bulkInfo;
 
     // Order matters: it is the default order in which sources are asked. The store a game came from answers first, then the open databases, then the game file itself.
-    private GameMetadataService Metadata => metadataService ??= new(store, [new LocalInstallProvider(), new SteamStoreProvider(), new EpicStoreProvider(), new GogStoreProvider(), new WikidataProvider(), new LocalFileProvider()]);
+    private readonly WikidataProvider wikidata = new();
+    private GameMetadataService Metadata => metadataService ??= new(store, [new LocalInstallProvider(), new SteamStoreProvider(), new EpicStoreProvider(), new GogStoreProvider(), wikidata, new HowLongToBeatProvider(wikidata), new LocalFileProvider()]);
 
     private static string SizeText(long bytes) => bytes switch
     {
@@ -151,7 +152,7 @@ public partial class MainWindow
         (MetadataField.Publishers, "Publishers"), (MetadataField.Genres, "Genres"), (MetadataField.InstallSize, "Install size"), (MetadataField.Hero, "Background image"),
         (MetadataField.About, "Long description"), (MetadataField.Tags, "Popular tags"), (MetadataField.Features, "Features"), (MetadataField.Platforms, "Platforms"), (MetadataField.Languages, "Languages"),
         (MetadataField.AgeRating, "Age rating"), (MetadataField.CriticScore, "Metacritic score"), (MetadataField.CommunitySummary, "Player reviews"), (MetadataField.Requirements, "System requirements"),
-        (MetadataField.Links, "Links"), (MetadataField.AchievementCount, "Achievement count"), (MetadataField.DlcCount, "DLC count"), (MetadataField.Screenshots, "Screenshots"), (MetadataField.Installed, "Installed version info"),
+        (MetadataField.Links, "Links"), (MetadataField.AchievementCount, "Achievement count"), (MetadataField.DlcCount, "DLC count"), (MetadataField.Screenshots, "Screenshots"), (MetadataField.Installed, "Installed version info"), (MetadataField.TimeToBeat, "How long to beat"),
     ];
 
     private async void RefreshMetadataSettingsUi()

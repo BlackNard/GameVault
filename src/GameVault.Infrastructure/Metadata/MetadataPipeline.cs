@@ -9,7 +9,7 @@ public sealed record MetadataRequest(Guid GameId, string Name, string Executable
 public sealed record ProviderData(string? Description = null, PartialDate? ReleaseDate = null, string[]? Developers = null, string[]? Publishers = null, string[]? Genres = null, long? InstallSizeBytes = null, string? SteamAppId = null, GameIdentity? Identity = null, string? HeroUrl = null,
     string? About = null, string[]? Tags = null, string[]? Features = null, string[]? Platforms = null, string[]? Languages = null, string? AgeRating = null,
     int? CriticScore = null, string? CriticUrl = null, string? CommunitySummary = null, string? Requirements = null, string[]? Links = null,
-    int? AchievementCount = null, int? DlcCount = null, string[]? Screenshots = null, string[]? Installed = null)
+    int? AchievementCount = null, int? DlcCount = null, string[]? Screenshots = null, string[]? Installed = null, BeatTimes? Times = null)
 {
     public bool Has(MetadataField field) => field switch
     {
@@ -34,6 +34,7 @@ public sealed record ProviderData(string? Description = null, PartialDate? Relea
         MetadataField.DlcCount => DlcCount is >= 0,
         MetadataField.Screenshots => Screenshots is not null && Screenshots.Any(HeroImages.IsAllowedUrl),
         MetadataField.Installed => Installed is { Length: > 0 },
+        MetadataField.TimeToBeat => BeatTimes.IsValid(Times),
         _ => false
     };
 }
@@ -143,6 +144,7 @@ public static class MetadataResolver
             MetadataField.DlcCount => new(provider, false, now, Number: data.DlcCount),
             MetadataField.Screenshots => new(provider, false, now, Items: [.. data.Screenshots!.Where(HeroImages.IsAllowedUrl).Distinct(StringComparer.OrdinalIgnoreCase).Take(GameMetadataDocument.MaxScreenshots)]),
             MetadataField.Installed => new(provider, false, now, Items: Items(data.Installed!)),
+            MetadataField.TimeToBeat => new(provider, false, now, Times: data.Times),
             _ => null
         };
         return value;

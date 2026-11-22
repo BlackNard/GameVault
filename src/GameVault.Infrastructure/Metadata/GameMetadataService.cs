@@ -10,7 +10,7 @@ public sealed record BulkMetadataResult(int Games, int GamesUpdated, int FieldsF
 public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameMetadataProvider> providers, IStoreGameLauncher? launcher = null, string? epicManifests = null)
 {
     /// <summary>Raised when the kinds of facts GameVault can fetch grow, so games looked up earlier are filled in again (only their missing facts).</summary>
-    public const int CurrentLookupVersion = 2;
+    public const int CurrentLookupVersion = 3;
 
     private readonly IStoreGameLauncher storeLauncher = launcher ?? new StoreGameLauncher();
     private readonly string? epicManifestFolder = epicManifests;
@@ -129,6 +129,8 @@ public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameM
     {
         if (document?.LastRefresh is not { } last) return true;
         if ((document.LookupVersion ?? 0) < CurrentLookupVersion) return true;
+        // A game HowLongToBeat knows (its id is stored) but whose times could not be read is tried again after a week.
+        if (document.Identity?.HltbId is not null && document.Get(MetadataField.TimeToBeat) is null && (now ?? DateTimeOffset.UtcNow) - last > TimeSpan.FromDays(7)) return true;
         if (document.Identity is { IsPicked: true } || document.Get(MetadataField.Description) is not null) return false;
         return (now ?? DateTimeOffset.UtcNow) - last > TimeSpan.FromDays(7);
     }

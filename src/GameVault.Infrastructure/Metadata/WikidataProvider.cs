@@ -16,6 +16,8 @@ public sealed class WikidataProvider : IMatchSearchProvider, IDisposable
     private const string Api = "https://www.wikidata.org/w/api.php";
     private const int EntityLimit = 2 * 1024 * 1024;
     private readonly PoliteHttp http;
+    private readonly object cacheGate = new();
+    private readonly Dictionary<string, (DateTime At, ProviderData? Data)> cache = [];
 
     public WikidataProvider(HttpMessageHandler? handler = null, TimeSpan? timeout = null, TimeSpan? minimumGap = null) =>
         http = new("Wikidata", handler, timeout ?? TimeSpan.FromSeconds(20), minimumGap ?? TimeSpan.FromMilliseconds(1000));
@@ -26,6 +28,17 @@ public sealed class WikidataProvider : IMatchSearchProvider, IDisposable
         { MetadataField.Description, MetadataField.ReleaseDate, MetadataField.Developers, MetadataField.Publishers, MetadataField.Genres };
 
     public async Task<ProviderData?> GetAsync(MetadataRequest request, CancellationToken cancellationToken)
+    {
+        // The same game is asked about by several providers in one run (HowLongToBeat needs the id Wikidata knows), so recent answers are reused.
+        var identity0 = request.Identity ?? GameIdentity.Empty;
+        var key = $"{identity0.WikidataId}|{request.SteamAppId}|{identity0.GogId}|{identity0.NoMatch}|{PoliteHttp.NormalizeTitle(request.Name)}";
+        lock (cacheGate) if (cache.TryGetValue(key, out var hit) && DateTime.UtcNow - hit.At < TimeSpan.FromMinutes(10)) return hit.Data;
+        var data = await LookUpAsync(request, cancellationToken).ConfigureAwait(false);
+        lock (cacheGate) cache[key] = (DateTime.UtcNow, data);
+        return data;
+    }
+
+    private async Task<ProviderData?> LookUpAsync(MetadataRequest request, CancellationToken cancellationToken)
     {
         var identity = request.Identity ?? GameIdentity.Empty;
         var item = identity.WikidataId;
