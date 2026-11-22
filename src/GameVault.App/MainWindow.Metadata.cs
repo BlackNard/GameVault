@@ -12,7 +12,8 @@ public partial class MainWindow
     private Guid aboutFor;
     private CancellationTokenSource? bulkInfo;
 
-    private GameMetadataService Metadata => metadataService ??= new(store, [new LocalInstallProvider(), new SteamStoreProvider()]);
+    // Order matters: it is the default order in which sources are asked. The store a game came from answers first, then the open databases, then the game file itself.
+    private GameMetadataService Metadata => metadataService ??= new(store, [new LocalInstallProvider(), new SteamStoreProvider(), new EpicStoreProvider(), new GogStoreProvider(), new WikidataProvider(), new LocalFileProvider()]);
 
     private static string SizeText(long bytes) => bytes switch
     {
@@ -38,7 +39,7 @@ public partial class MainWindow
         if (aboutFor != id) return;
         AboutBlock.Visibility = Visibility.Visible;
         var description = document?.Get(MetadataField.Description);
-        AboutText.Text = description?.Text ?? "No description yet. Choose Refresh info to look it up, or write your own with Edit description.";
+        AboutText.Text = description?.Text ?? (document?.Identity is { NoMatch: true } ? "You said no listed game matches, so nothing is looked up for this one. Write your own description, or choose Not the right game? to pick one." : "No description yet. Information is looked up automatically; if this game could not be matched (several games share its title), choose Not the right game? to pick the correct one, or write your own description.");
         AboutFacts.Children.Clear();
         void Fact(string label, string? value)
         {
@@ -58,7 +59,7 @@ public partial class MainWindow
         var sources = document?.Fields.Values.Select(v => v.Provider).Distinct().Select(p => p switch { "steam" => "Steam store", "local" => "this PC", "you" => "you", var other => other }).ToArray();
         AboutSource.Text = sources is { Length: > 0 } ? "Information from " + string.Join(", ", sources) + "." : "";
         AboutNotice.Text = problem ?? "";
-        RefreshInfoButton.IsEnabled = EditDescriptionButton.IsEnabled = problem is null && !item.Game.IsReadOnly;
+        RefreshInfoButton.IsEnabled = EditDescriptionButton.IsEnabled = WrongGameButton.IsEnabled = problem is null && !item.Game.IsReadOnly;
     }
 
     private static string? Join(string[]? items) => items is { Length: > 0 } ? string.Join(", ", items) : null;
@@ -73,6 +74,7 @@ public partial class MainWindow
         {
             var result = await Task.Run(() => Metadata.RefreshAsync(id, true, CancellationToken.None));
             AboutNotice.Text = "";
+            if (await EnsureHeroesAsync([(id, item.Name)], CancellationToken.None) > 0) await RefreshLibrary(id);
             ShowToast(result.FieldsFilled > 0 ? "Game information updated" : "Nothing new found", result.Problems.Length > 0 ? string.Join(" ", result.Problems) : result.UsedNetwork ? "Steam store" : "Your PC", result.Problems.Length > 0);
         }
         catch (Exception error) when (IsExpected(error)) { ShowToast("Could not update the information", error.Message, true); }
@@ -86,6 +88,37 @@ public partial class MainWindow
         DescriptionInput.Text = stored.Value?.Get(MetadataField.Description)?.Text ?? "";
         DescriptionEditor.Visibility = Visibility.Visible;
         DescriptionInput.Focus();
+    }
+
+    private async void WrongGameClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy || editorOpen || quitPreparing || stoppingObservation || InlinePrompts.IsOpen(this) || bulkInfo is not null || autoInfoRunning) { ShowToast("GameVault is busy", "Wait for the current lookup to finish, then try again.", true); return; }
+        if (GameList.SelectedItem is not LibraryItemView { Game.Profile: { IsArchived: false } } item) return;
+        var id = item.Game.Id;
+        editorOpen = true;
+        UpdateButtons();
+        try
+        {
+            var view = new MatchPickerView(settings.Theme, item.Name, (title, token) => Metadata.SearchMatchesAsync(title, token), async candidate =>
+            {
+                await library.ClearHeroAsync(id);   // the old picture belongs to the game that was just ruled out
+                var result = await Task.Run(() => Metadata.ApplyMatchAsync(id, candidate, CancellationToken.None));
+                return candidate is null ? "Saved. Nothing will be looked up automatically for this game." : result.FieldsFilled > 0 ? $"Found {result.FieldsFilled} fact(s) for {candidate.Title}." : $"Saved {candidate.Title}. No facts were available for it yet.";
+            });
+            await ShowInlineEditorAsync(view, h => view.Completed += h, h => view.Completed -= h);
+        }
+        catch (Exception error) when (IsExpected(error)) { ShowToast("Could not change the match", error.Message, true); }
+        finally
+        {
+            editorOpen = false;
+            try
+            {
+                UpdateButtons(); ContinueDeferredQuit();
+                if (await EnsureHeroesAsync([(id, item.Name)], CancellationToken.None) > 0 || libraryRows.TryGetValue(id, out var changed) && changed.Game.HeroFile is not null) await RefreshLibrary(id);
+                await RefreshAboutAsync(GameList.SelectedItem as LibraryItemView);
+            }
+            finally { CompleteInlineEditor(); }
+        }
     }
 
     private void CancelDescriptionClicked(object sender, RoutedEventArgs e) => DescriptionEditor.Visibility = Visibility.Collapsed;
@@ -107,7 +140,7 @@ public partial class MainWindow
     private static readonly (MetadataField Field, string Label)[] FieldLabels =
     [
         (MetadataField.Description, "Description"), (MetadataField.ReleaseDate, "Release date"), (MetadataField.Developers, "Developers"),
-        (MetadataField.Publishers, "Publishers"), (MetadataField.Genres, "Genres"), (MetadataField.InstallSize, "Install size"),
+        (MetadataField.Publishers, "Publishers"), (MetadataField.Genres, "Genres"), (MetadataField.InstallSize, "Install size"), (MetadataField.Hero, "Background image"),
     ];
 
     private async void RefreshMetadataSettingsUi()

@@ -37,8 +37,9 @@ public sealed class LibraryService
                 statistics.Sessions.Aggregate(0L, (total, session) => checked(total + session.DurationSeconds)),
                 (total, adjustment) => checked(total + adjustment.Seconds));
             DateTimeOffset? lastPlayed = statistics is { Sessions.Length: > 0 } ? statistics.Sessions.Max(session => session.EndedAt ?? session.StartedAt) : null;
+            var hero = HeroFileOf(game.Id);
             return new LibraryGame(game.Id, game.Profile.Value, game.Profile.IsReadOnly || game.Profile.Value is null,
-                game.Profile.Value is not null && !File.Exists(game.Profile.Value.ExecutablePath), cover, played, warning, lastPlayed);
+                game.Profile.Value is not null && !File.Exists(game.Profile.Value.ExecutablePath), cover, played, warning, lastPlayed, hero);
         }).OrderBy(g => g.Profile?.Name, StringComparer.OrdinalIgnoreCase).ThenBy(g => g.Id).ToArray();
         return new LibrarySnapshot(items, snapshot.Warnings);
     });
@@ -173,9 +174,59 @@ public sealed class LibraryService
 
     private static bool SamePath(string first, string second) => string.Equals(Canonical(first), Canonical(second), StringComparison.OrdinalIgnoreCase);
 
-    private void WriteCover(Guid id, byte[] png)
+    private static readonly string[] HeroNames = ["hero.jpg", "hero.png"];
+
+    private string? HeroFileOf(Guid id)
     {
-        var file = Path.Combine(ProfileFolders.Resolve(paths, id), "cover.png");
+        try
+        {
+            var folder = ProfileFolders.Resolve(paths, id);
+            foreach (var name in HeroNames)
+            {
+                var file = Path.Combine(folder, name);
+                managed.Check(file);
+                if (File.Exists(file)) return file;
+            }
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+        return null;
+    }
+
+    /// <summary>Saves the wide background image of a game (JPEG or PNG, at most 8 MB) only when it has none. Returns whether it was written.</summary>
+    public async Task<bool> SetHeroIfMissingAsync(Guid id, byte[] image)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+        var jpeg = image.Length > 3 && image[0] == 0xFF && image[1] == 0xD8 && image[2] == 0xFF;
+        var png = image.Length > 8 && image.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 });
+        if (image.Length > 8 * 1024 * 1024 || !(jpeg || png)) throw new ArgumentException("The background must be a JPEG or PNG image of at most 8 MB.");
+        await gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var game = await store.LoadProfileAsync(id).ConfigureAwait(false);
+            if (game.Profile.IsReadOnly || game.Profile.Value is not { IsArchived: false } || HeroFileOf(id) is not null) return false;
+            WriteProfileFile(id, jpeg ? "hero.jpg" : "hero.png", image);
+            return true;
+        }
+        finally { gate.Release(); }
+    }
+
+    /// <summary>Removes the background image, for example because the owner chose a different game and the old picture belongs to the wrong one.</summary>
+    public async Task ClearHeroAsync(Guid id)
+    {
+        await gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (HeroFileOf(id) is { } file) File.Delete(file);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+        finally { gate.Release(); }
+    }
+
+    private void WriteCover(Guid id, byte[] png) => WriteProfileFile(id, "cover.png", png);
+
+    private void WriteProfileFile(Guid id, string name, byte[] png)
+    {
+        var file = Path.Combine(ProfileFolders.Resolve(paths, id), name);
         managed.Check(file); managed.Check(file + ".bak");
         var temporary = file + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try

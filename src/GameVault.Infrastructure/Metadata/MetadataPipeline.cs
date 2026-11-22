@@ -3,10 +3,10 @@ using GameVault.Core;
 namespace GameVault.Infrastructure.Metadata;
 
 /// <summary>What a provider is told about a game. Providers must send nothing but the store app id (or nothing at all) over the network.</summary>
-public sealed record MetadataRequest(Guid GameId, string Name, string ExecutablePath, string? InstallRoot, string? SteamAppId, string? SteamAppsFolder, DateTimeOffset? LastSizeScan, bool SizeOnDisk, bool ForceSizeScan);
+public sealed record MetadataRequest(Guid GameId, string Name, string ExecutablePath, string? InstallRoot, string? SteamAppId, string? SteamAppsFolder, DateTimeOffset? LastSizeScan, bool SizeOnDisk, bool ForceSizeScan, GameIdentity? Identity = null);
 
 /// <summary>Everything one provider found. Fields it cannot supply stay null or empty.</summary>
-public sealed record ProviderData(string? Description = null, PartialDate? ReleaseDate = null, string[]? Developers = null, string[]? Publishers = null, string[]? Genres = null, long? InstallSizeBytes = null, string? SteamAppId = null)
+public sealed record ProviderData(string? Description = null, PartialDate? ReleaseDate = null, string[]? Developers = null, string[]? Publishers = null, string[]? Genres = null, long? InstallSizeBytes = null, string? SteamAppId = null, GameIdentity? Identity = null, string? HeroUrl = null)
 {
     public bool Has(MetadataField field) => field switch
     {
@@ -16,6 +16,7 @@ public sealed record ProviderData(string? Description = null, PartialDate? Relea
         MetadataField.Publishers => Publishers is { Length: > 0 },
         MetadataField.Genres => Genres is { Length: > 0 },
         MetadataField.InstallSize => InstallSizeBytes is >= 0,
+        MetadataField.Hero => HeroImages.IsAllowedUrl(HeroUrl),
         _ => false
     };
 }
@@ -27,6 +28,12 @@ public interface IGameMetadataProvider
     IReadOnlySet<MetadataField> AvailableFields { get; }
     /// <summary>Returns null when it has nothing for this game. Throwing is allowed: the resolver treats it as "skip this provider".</summary>
     Task<ProviderData?> GetAsync(MetadataRequest request, CancellationToken cancellationToken);
+}
+
+/// <summary>A provider that can list games for a title, so the owner can pick the right one.</summary>
+public interface IMatchSearchProvider : IGameMetadataProvider
+{
+    Task<IReadOnlyList<MatchCandidate>> SearchAsync(string title, CancellationToken cancellationToken);
 }
 
 public sealed record MetadataResolution(GameMetadataDocument Document, int FieldsFilled, string[] Problems, bool UsedNetwork);
@@ -47,6 +54,8 @@ public static class MetadataResolver
         var filled = 0;
         var usedNetwork = false;
         var sizeScanned = existing.LastSizeScan;
+        var steamId = request.SteamAppId;
+        var identity = request.Identity ?? existing.Identity ?? GameIdentity.Empty;
         foreach (var field in Enum.GetValues<MetadataField>())
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -61,7 +70,7 @@ public static class MetadataResolver
                 {
                     try
                     {
-                        data = await provider.GetAsync(request, cancellationToken).ConfigureAwait(false);
+                        data = await provider.GetAsync(request with { SteamAppId = steamId, Identity = identity }, cancellationToken).ConfigureAwait(false);
                         if (isNetworkProvider?.Invoke(provider) == true) usedNetwork = true;
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
@@ -71,6 +80,9 @@ public static class MetadataResolver
                         problems.Add($"{provider.DisplayName}: {error.Message}");
                     }
                     responses[provider.Id] = data;
+                    // What this provider learned (for example a Wikidata item that names the GOG and Steam ids) helps the providers asked after it.
+                    if (data?.SteamAppId is { } learnedSteam && steamId is null) steamId = learnedSteam;
+                    if (data?.Identity is { } learned) identity = identity.FillFrom(learned);
                 }
                 if (data is null || !data.Has(field)) continue;
                 var value = ToValue(field, provider.Id, data);
@@ -82,8 +94,9 @@ public static class MetadataResolver
             }
         }
         // Remember which Steam game this is, so covers and later lookups do not search again.
-        var resolvedId = responses.Values.Select(r => r?.SteamAppId).FirstOrDefault(id => id is not null) ?? existing.SteamAppId;
-        var document = existing with { Fields = fields, LastSizeScan = sizeScanned, LastRefresh = DateTimeOffset.UtcNow, SteamAppId = resolvedId };
+        var resolvedId = steamId ?? existing.SteamAppId;
+        var storedIdentity = identity == GameIdentity.Empty ? existing.Identity : identity;
+        var document = existing with { Fields = fields, LastSizeScan = sizeScanned, LastRefresh = DateTimeOffset.UtcNow, SteamAppId = resolvedId, Identity = storedIdentity };
         return new(document, filled, [.. problems.Distinct()], usedNetwork);
     }
 
@@ -98,6 +111,7 @@ public static class MetadataResolver
             MetadataField.Publishers => new(provider, false, now, Items: Items(data.Publishers!)),
             MetadataField.Genres => new(provider, false, now, Items: Items(data.Genres!)),
             MetadataField.InstallSize => new(provider, false, now, Bytes: data.InstallSizeBytes),
+            MetadataField.Hero => new(provider, false, now, Text: data.HeroUrl),
             _ => null
         };
         return value;

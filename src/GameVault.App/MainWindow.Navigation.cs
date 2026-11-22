@@ -39,7 +39,16 @@ public partial class MainWindow
  private async Task RefreshHeroCoverAsync(LibraryItemView item)
  {
   if(ReferenceEquals(heroCoverGame,item.Game))return;
-  heroCoverGame=item.Game;heroCoverRequest?.Cancel();heroCoverRequest?.Dispose();heroCoverRequest=new();var token=heroCoverRequest.Token;GameHeroCover.Source=null;
+  heroCoverGame=item.Game;heroCoverRequest?.Cancel();heroCoverRequest?.Dispose();heroCoverRequest=new();var token=heroCoverRequest.Token;GameHeroCover.Source=null;GameHeroBanner.Source=null;GameHeroBanner.Visibility=Visibility.Collapsed;GameHeroBackdrop.Visibility=Visibility.Visible;
+  if(item.Game.HeroFile is string heroFile)
+  {
+   try
+   {
+    var banner=await Task.Run(()=>CoverImages.Load(heroFile,1600),token);
+    if(!token.IsCancellationRequested&&GameList.SelectedItem is LibraryItemView current&&current.Game.Id==item.Game.Id){GameHeroBanner.Source=banner;GameHeroBanner.Visibility=Visibility.Visible;GameHeroBackdrop.Visibility=Visibility.Collapsed;}
+   }
+   catch(Exception error)when(error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException or OperationCanceledException or System.Runtime.InteropServices.COMException){ }
+  }
   if(item.Game.CoverFile is not string file)return;
   try{var image=await CoverImages.LoadThumbnailAsync(file,token);if(!token.IsCancellationRequested&&GameList.SelectedItem is LibraryItemView selected&&selected.Game.Id==item.Game.Id)GameHeroCover.Source=image;}
   catch(Exception error)when(error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException or OperationCanceledException or System.Runtime.InteropServices.COMException){ }
@@ -99,6 +108,7 @@ public partial class MainWindow
    LaunchSettingsWindow editor=>editor.CanLeaveAsync,
    NoteExportWindow editor=>editor.CanLeaveAsync,
    StoreImportView editor=>editor.CanLeaveAsync,
+   MatchPickerView editor=>editor.CanLeaveAsync,
    _=>throw new ArgumentException("The inline editor must provide a navigation guard.",nameof(view))
   });
   activeInlineEditor=session;
