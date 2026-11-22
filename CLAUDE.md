@@ -4,7 +4,7 @@ Guidance for Claude Code when working in this repository.
 
 ## Project
 
-GameVault is a Windows desktop game launcher (C#/WPF, .NET 10, win-x64 self-contained) for manually added games: it tracks playtime, auto-discovers save locations, keeps dated local backups and session notes, and handles screenshots/recordings. No cloud sync. The repository is private; the owner approves/merges PRs and owns release publication.
+GameVault is a Windows desktop game launcher (C#/WPF, .NET 10, win-x64 self-contained) for manually added games: it tracks playtime, auto-discovers save locations, keeps dated local backups and session notes, and handles screenshots/recordings. No cloud sync. The repository is public (source-available, all rights reserved: see `LICENSE`); the owner approves/merges PRs and owns release publication. A private archive of the earlier history exists; only this repository is used for work.
 
 ## Commands
 
@@ -22,7 +22,7 @@ dotnet test tests/GameVault.App.Tests --filter "FullyQualifiedName~Notes"
 pwsh -NoProfile -File ./scripts/verify.ps1              # the real acceptance gate
 ```
 
-`verify.ps1` does a locked restore, Release build, full tests (plus two workflow-evidence JSON files), a fresh self-contained publish to `artifacts/publish-<guid>`, a runtime-file check, and a check that the output contains no `Data`/`Profiles`. A stale `artifacts/verification.json` is not evidence; re-run. Run one build/test/publish at a time. Installer/release scripts (`test-installer`, `test-capture-packaging`, `test-release`, `audit-release-source`, `build-installer`, `package-release`, `create-draft-release`, `smoke-draft-release`) are only for release work and need the owner's direction. CI (`.github/workflows/build.yml`) runs `verify.ps1` for PRs to `main` and pushes to `main`/`feature/**`; other branch names do not trigger it by themselves.
+`verify.ps1` does a locked restore, Release build, full tests (plus two workflow-evidence JSON files), a fresh self-contained publish to `artifacts/publish-<guid>`, a runtime-file check, and a check that the output contains no `Data`/`Profiles`. A stale `artifacts/verification.json` is not evidence; re-run. Run one build/test/publish at a time. Installer/release scripts (`test-installer`, `test-capture-packaging`, `test-release`, `audit-release-source`, `build-installer`, `package-release`, `create-draft-release`, `smoke-draft-release`) are only for release work and need the owner's direction. CI (`.github/workflows/build.yml`, GitHub Actions on `windows-latest`, about 20 minutes) runs `verify.ps1` for PRs to `main` and pushes to `main`/`feature/**`, then the installer boundary checks, the source-history audit, a compile of the setup wizard and a real silent install/upgrade/uninstall on the disposable runner; it uploads the `private-draft-assets` release bundle. Other branch names do not trigger it by themselves. Check results with `gh run list` / the PR checks page instead of polling in loops. A test that only fails on CI is probably timing-dependent: look for hard-coded short timeouts in the test before suspecting the app.
 
 Dependencies use exact versions with committed `packages.lock.json`; change them only deliberately (`dotnet restore GameVault.slnx --force-evaluate`) and review the lock diff.
 
@@ -31,6 +31,8 @@ Dependencies use exact versions with committed `packages.lock.json`; change them
 - `GameVault.Core`: plain models/contracts, no WPF.
 - `GameVault.Infrastructure`: `Storage/` (versioned JSON repository `AppDataStore*`, `ProfileFolders`, `ManagedPaths`), `Library/`, `Launching/`, `Playtime/`, `Saves/` (discovery, backup, restore, destinations), `Notes/`, `Artwork/`, `Capture/` (`CaptureCoordinator`, `CaptureMediaStore`, `NvidiaApp`, `NvidiaCaptureImporter`), `ApplicationWorkspace` (exclusive `.gamevault.lock` handle).
 - `GameVault.App`: WPF shell; `MainWindow` partials (`.Navigation`, `.Tray`, `.Capture`, `.Performance`, `.Shell` for title-bar history, command palette, toasts and the now-playing chip; its logic is in `GameVault.Core/ShellModels.cs`, see `docs/ui-shell.md`); same-window views (`NotesView`, `BackupsView`, `RestoreView`, `SaveSourcesView`, cover search, `GameEditor`). A type named `*Window` may be hosted inline: check its base type. Capture UI in `Capture/`.
+- Game information (`GameVault.Core/MetadataModels.cs`, `GameVault.Infrastructure/Metadata/`, `docs/game-data-sources.md`): `IGameMetadataProvider` per source (Steam store, Epic store page, GOG, Wikidata, HowLongToBeat, local file/launcher info), `MetadataResolver` (per-field provider order, first valid value wins, failures skipped, partial results reported), `GameMetadataService` (builds the request, identity, "Not the right game?" picker, saves per-game `metadata.json`), `AutoLookupQueue` (lookups for new games jump the queue; nothing is dropped while another lookup runs). New providers go through `PoliteHttp` (timeout, size cap, gap, no cookies/redirects, fixed HTTPS hosts; only a title or an id is ever sent). No accounts or API keys; IGDB/RAWG/SteamGridDB and PCGamingWiki data (CC BY-NC-SA) are deliberately not used. Values the owner typed or chose (description, cover, picked match) are never replaced by a lookup.
+- Other feature areas: play actions and before/after hooks (`LaunchSettings` in `launch.json`, `ProcessHookRunner`), tags/categories and saved views (`TagRules`, `SavedViewList`, `library-tags.json`, `library-views.json`), Steam/Epic import (`StoreLibraryScanner`), whole-library backup/restore zip (`DataArchive`), diagnostics package and rolling log (`DiagnosticsPackage`, `AppLog`, `Logs/gamevault.log`), optional save-location database from the Ludusavi manifest (downloaded on request into `Cache/`, never bundled: `docs/save-location-database.md`). Window code is split into `MainWindow.*.cs` partials per feature (`.Metadata`, `.AutoInfo`, `.AboutDetails`, `.Tags`, `.PlayActions`, `.StoreImport`, `.DataBackup`, `.Diagnostics`, `.Overview`, `.Overhaul`); source-contract tests in `MainWindowStartupTests` check the XAML names and key wiring.
 - `GameVault.Capture`: lazy native capture backend (ScreenRecorderLib 7.0.1). Missing prerequisites must degrade gracefully and never block startup.
 
 ### Persistence
@@ -39,9 +41,10 @@ The data root is always `AppContext.BaseDirectory` (never the working directory 
 
 ```
 GameVault.exe
-Data/settings.json  Data/backup-destinations.json  Data/capture-preferences.json
+Data/settings.json  Data/backup-destinations.json  Data/capture-preferences.json  Data/library-views.json  Data/library-tags.json  Data/metadata-settings.json
+Cache/ (downloaded save-location manifest)  Logs/gamevault.log
 Profiles/<game name>/          (older GUID-named folders are renamed once at startup; the ID lives in profile.json and .gamevault-id)
-  profile.json  statistics.json  launch.json?  save-discovery.json  capture-source.json?  cover.png
+  profile.json  statistics.json  launch.json?  save-discovery.json  capture-source.json?  metadata.json?  cover.png  hero.jpg|png?
   Sessions/  Corrections/  Notes/Sessions/  Notes/review.json  Media/<session-id>/  Backups/<dated-backup>/
 ```
 
@@ -61,10 +64,13 @@ xUnit throughout. `tests/GameVault.Tests` (real filesystem, process fixtures), `
 
 ## Working conventions
 
-- A person verifies UI, native dialogs, real games and installers. Do not launch the owner's apps, stores, games, browsers or installers to "test", and never kill a GameVault or game process. A green `verify.ps1` does not close the manual-acceptance issues (#1, #3, #14, #16, #17, #18).
+- A person verifies UI, native dialogs, real games and installers. Do not launch the owner's apps, stores, games, browsers or installers to "test", and never kill a GameVault or game process. A green `verify.ps1` does not close the manual-acceptance issues (roadmap #1, screens #2, play-and-restore workflow #3, performance #4); the owner closes them.
+- Commit identity: use the GitHub no-reply address for this repository (`git config user.email`), never a personal address. The history was rewritten once to remove a personal address; do not push any old branch or clone from before that, and never `git push --all` from an old checkout.
+- Pull requests: one topic per PR, assigned to the person you work for. A local green `verify.ps1` plus the source audit (`scripts/audit-release-source.ps1`) is the minimum before opening one; merge only when CI is green and the owner agrees.
 - Never commit real saves, profiles, credentials, installers or published binaries (`.gitignore` excludes `/Data/`, `/Profiles/`, `**/Backups/`, `artifacts/`, `work/`, `outputs/`). Never print or store tokens.
-- GameVault is source-available, all rights reserved (see `LICENSE`; not an open-source licence) and installers are unsigned; never infer release authorisation. The owner approves merges and owns releases, repository settings and collaborator changes.
+- GameVault is source-available, all rights reserved (see `LICENSE`; not an open-source licence) and installers are unsigned (signing was deliberately skipped); never infer release authorisation. The owner approves merges and owns releases, repository settings and collaborator changes.
 - `licenses/windows-sdk/LICENSE.rtf` must stay byte-for-byte as shipped (`.gitattributes`).
+- Releases: only the owner publishes. `scripts/create-draft-release.ps1` creates an **unpublished** draft from the verified CI bundle (it needs `GH_TOKEN` and, on this public repository, `GAMEVAULT_PUBLIC_REPOSITORY_APPROVED=true`); the draft smoke is a manual `workflow_dispatch` of `build.yml` with `draft_release_id`. The draft is built from the commit whose CI passed; see `docs/release-process.md`. The published app folder is trimmed (English-only framework resources, no `.pdb`): keep it that way.
 - Keep the same-window UI direction and Midnight/Crimson themes; resolve routine implementation choices yourself and ask only when a decision is load-bearing.
 - For a reported bug: record exact build/steps/expected/actual, find the failing boundary, add a meaningful regression, fix narrowly, run focused tests, then one full `verify.ps1` for the proposed revision.
 - Start from `README.md`, `docs/development.md`, `docs/persistence.md`, `docs/store-game-launching.md`, `docs/portrait-cover-search.md`, `docs/nvidia-app-capture.md`; read other `docs/*` only as needed (some describe superseded milestones).
@@ -72,4 +78,5 @@ xUnit throughout. `tests/GameVault.Tests` (real filesystem, process fixtures), `
 ## Collaboration rules (two people, two Claudes)
 
 - This file is shared: the owner's Claude and the collaborator's Claude both read it and both update it (through a PR, like any change). Keep it free of tokens, personal data and machine-specific paths; keep personal quirks in a git-ignored local file instead.
+- Issue numbers restarted in this repository (the earlier private archive has the old numbers).
 - Ownership: each person works on their own issues and PRs. Any issue a Claude creates is assigned to the person it is working for. A Claude may read the other person's issues and PRs but must not edit, comment on, retarget, close or merge them. If the other person's item needs action, tell your own person instead.
