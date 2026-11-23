@@ -9,7 +9,7 @@ Assert-ReleaseBundle $BundleDirectory
 $root=Split-Path $PSScriptRoot -Parent
 $manifest=Get-Content -LiteralPath (Join-Path $BundleDirectory 'RELEASE-MANIFEST.json') -Raw|ConvertFrom-Json
 if([string]::IsNullOrWhiteSpace($env:GH_TOKEN)){throw 'Set GH_TOKEN for authorized draft access.'}
-$repository='Zaid-Alhmouz/GameVault'
+$repository='BlackNard/GameVault'
 $api='https://api.github.com/repos/'+$repository
 $headers=@{Authorization='Bearer '+$env:GH_TOKEN;Accept='application/vnd.github+json';'User-Agent'='GameVault-Private-Draft'}
 $repo=Invoke-RestMethod $api -Headers $headers

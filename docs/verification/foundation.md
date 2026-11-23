@@ -22,8 +22,8 @@ On the test machine (Windows build 26300, AMD Ryzen 9 9900X3D, 24 logical proces
 
 ## Remote verification
 
-- [Windows foundation CI](https://github.com/Zaid-Alhmouz/GameVault/actions/runs/42911923448) passed for implementation commit `7b8225c`: the remote Windows runner restored locked dependencies, built the solution, passed the tests, and verified the self-contained publish.
-- [Pull request #19](https://github.com/Zaid-Alhmouz/GameVault/pull/19) holds the change for review. Check its current checks for any subsequent documentation-only commits. No merge or release has been performed.
+- [Windows foundation CI](https://github.com/BlackNard/GameVault-archive/actions/runs/42911923448) passed for implementation commit `7b8225c`: the remote Windows runner restored locked dependencies, built the solution, passed the tests, and verified the self-contained publish.
+- [Pull request #19](https://github.com/BlackNard/GameVault-archive/pull/19) holds the change for review. Check its current checks for any subsequent documentation-only commits. No merge or release has been performed.
 
 ## Scope and limitations
 

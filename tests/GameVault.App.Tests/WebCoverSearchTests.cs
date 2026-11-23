@@ -44,7 +44,7 @@ public sealed class WebCoverSearchTests
         using var service = new WebCoverImageDownload(new Handler((request, _) =>
         {
             requests++;
-            Assert.Equal("GameVault/0.1 (+https://github.com/Zaid-Alhmouz/GameVault)", request.Headers.UserAgent.ToString());
+            Assert.Equal("GameVault/0.1 (+https://github.com/BlackNard/GameVault)", request.Headers.UserAgent.ToString());
             Assert.Equal(["image/png", "image/jpeg"], request.Headers.Accept.Select(value => value.MediaType));
             Assert.Null(request.Headers.Authorization);
             Assert.Null(request.Headers.Referrer);

@@ -8,7 +8,7 @@ The Windows app supports a local game library, native executable browsing, key-f
 
 Play automatically requests Windows administrator approval when a game requires elevation. GameVault's main window stays at normal permissions; a one-shot helper starts the game and transfers observation handles. Cancelling approval leaves the game unstarted and allows retry.
 
-See [cover search and its limits](docs/portrait-cover-search.md), [development instructions](docs/development.md), [foundation verification](docs/verification/foundation.md), and the [issue roadmap](https://github.com/Zaid-Alhmouz/GameVault/issues/1).
+See [cover search and its limits](docs/portrait-cover-search.md), [development instructions](docs/development.md), [foundation verification](docs/verification/foundation.md), and the [issue roadmap](https://github.com/BlackNard/GameVault/issues/1).
 
 See [persistence and recovery behavior](docs/persistence.md) for the schema, write safeguards, and owner manual checks.
 

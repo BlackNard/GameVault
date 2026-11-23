@@ -78,11 +78,11 @@ function Assert-ReleaseMatchesOrigin([string]$Candidate,[string]$Origin) {
 }
 function Assert-ReleaseOrigin([string]$BundleDirectory,[string]$Api,[hashtable]$Headers) {
     Assert-ReleaseBundle $BundleDirectory
-    if($Api -cne 'https://api.github.com/repos/Zaid-Alhmouz/GameVault'){throw 'Unexpected release origin API.'}
+    if($Api -cne 'https://api.github.com/repos/BlackNard/GameVault'){throw 'Unexpected release origin API.'}
     $manifest=Get-Content -LiteralPath (Join-Path $BundleDirectory 'RELEASE-MANIFEST.json') -Raw|ConvertFrom-Json
     $run=Invoke-RestMethod ($Api+'/actions/runs/'+$manifest.buildRunId) -Headers $Headers
     if($run.status -cne 'completed' -or $run.conclusion -cne 'success' -or $run.head_sha -cne $manifest.headCommit -or
-        $run.path -cne '.github/workflows/build.yml' -or $run.repository.full_name -cne 'Zaid-Alhmouz/GameVault'){throw 'Origin is not the successful expected CI workflow and commit.'}
+        $run.path -cne '.github/workflows/build.yml' -or $run.repository.full_name -cne 'BlackNard/GameVault'){throw 'Origin is not the successful expected CI workflow and commit.'}
     $catalog=Invoke-RestMethod ($Api+'/actions/runs/'+$manifest.buildRunId+'/artifacts?name=private-draft-assets&per_page=100') -Headers $Headers
     $matchingArtifacts=@($catalog.artifacts|Where-Object name -ceq 'private-draft-assets')
     if($matchingArtifacts.Count -ne 1 -or $matchingArtifacts[0].expired -ne $false -or $matchingArtifacts[0].size_in_bytes -gt 400MB){throw 'A unique unexpired originating CI artifact is required.'}

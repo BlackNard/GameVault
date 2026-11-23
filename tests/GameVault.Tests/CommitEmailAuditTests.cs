@@ -64,11 +64,11 @@ public sealed class CommitEmailAuditTests : IDisposable
     [Fact]
     public void GitHub_no_reply_addresses_bots_and_the_assistant_trailer_pass()
     {
-        Commit("142729322+Zaid-Alhmouz@users.noreply.github.com");
+        Commit("142729322+BlackNard@users.noreply.github.com");
         Commit("friend@users.noreply.github.com");
         Commit("49699333+dependabot[bot]@users.noreply.github.com");
-        Commit("142729322+Zaid-Alhmouz@users.noreply.github.com", "noreply@github.com");
-        Commit("142729322+Zaid-Alhmouz@users.noreply.github.com", message: "Add a thing\n\nCo-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>");
+        Commit("142729322+BlackNard@users.noreply.github.com", "noreply@github.com");
+        Commit("142729322+BlackNard@users.noreply.github.com", message: "Add a thing\n\nCo-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>");
         var (code, output) = Audit();
         Assert.True(code == 0, output);
         Assert.Contains("passed", output);
@@ -77,7 +77,7 @@ public sealed class CommitEmailAuditTests : IDisposable
     [Fact]
     public void A_personal_author_address_fails_and_the_address_is_never_printed()
     {
-        Commit("142729322+Zaid-Alhmouz@users.noreply.github.com");
+        Commit("142729322+BlackNard@users.noreply.github.com");
         var bad = Commit(Personal);
         var (code, output) = Audit();
         Assert.Equal(1, code);
@@ -90,7 +90,7 @@ public sealed class CommitEmailAuditTests : IDisposable
     [Fact]
     public void A_personal_committer_address_alone_fails()
     {
-        Commit("142729322+Zaid-Alhmouz@users.noreply.github.com", Personal);
+        Commit("142729322+BlackNard@users.noreply.github.com", Personal);
         var (code, output) = Audit();
         Assert.Equal(1, code);
         Assert.Contains("committer", output);
@@ -100,7 +100,7 @@ public sealed class CommitEmailAuditTests : IDisposable
     [Fact]
     public void A_personal_address_in_a_co_author_trailer_fails()
     {
-        Commit("142729322+Zaid-Alhmouz@users.noreply.github.com", message: "Pair work\n\nCo-authored-by: Pat <" + Personal + ">");
+        Commit("142729322+BlackNard@users.noreply.github.com", message: "Pair work\n\nCo-authored-by: Pat <" + Personal + ">");
         var (code, output) = Audit();
         Assert.Equal(1, code);
         Assert.Contains("Co-authored-by", output);
@@ -111,7 +111,7 @@ public sealed class CommitEmailAuditTests : IDisposable
     public void Only_the_commits_in_the_range_are_checked()
     {
         Commit(Personal);
-        var good = Commit("142729322+Zaid-Alhmouz@users.noreply.github.com");
+        var good = Commit("142729322+BlackNard@users.noreply.github.com");
         var firstOnly = Audit("HEAD~1..HEAD");
         Assert.True(firstOnly.Code == 0, firstOnly.Output);
         Assert.Contains("1 commit", firstOnly.Output);
@@ -122,7 +122,7 @@ public sealed class CommitEmailAuditTests : IDisposable
     [Fact]
     public void A_bad_range_is_an_error_not_a_pass()
     {
-        Commit("142729322+Zaid-Alhmouz@users.noreply.github.com");
+        Commit("142729322+BlackNard@users.noreply.github.com");
         Assert.NotEqual(0, Audit("does-not-exist..HEAD").Code);
     }
 }

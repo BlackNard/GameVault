@@ -131,7 +131,7 @@ internal sealed class WebCoverImageDownload : IDisposable
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, current);
             // Identify this app honestly. Rebuild headers for every manually validated redirect.
-            request.Headers.UserAgent.ParseAdd("GameVault/0.1 (+https://github.com/Zaid-Alhmouz/GameVault)");
+            request.Headers.UserAgent.ParseAdd("GameVault/0.1 (+https://github.com/BlackNard/GameVault)");
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("image/png"));
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("image/jpeg"));
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
