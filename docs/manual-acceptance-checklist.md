@@ -94,6 +94,17 @@ Settings → **Save-location database**
 - [ ] Add game / Edit game open as a side drawer; the cover search takes the whole window.
 - [ ] Add game button hover is readable (no black text).
 
+## 8b. First-run welcome (issue #26)
+
+Use a clean copy of the app (extract the clean ZIP from `outputs/Archives` into a new folder) so the library is empty.
+
+- [ ] On first start the library shows "Welcome to GameVault" with four actions: Add a game, Import from Steam, Epic or GOG, Choose a theme, Get save locations (optional).
+- [ ] Each action opens the right screen (add-game form, store import, theme picker) or starts the download.
+- [ ] Tab/Enter reach every button; the focus ring is visible; it looks right in two or three themes.
+- [ ] **Skip for now** hides it; restart the app: it stays hidden. Settings still load.
+- [ ] Add a game: the welcome disappears; remove it again: the welcome does not come back (the library has had a game).
+- [ ] With your own library: Ctrl+K, "Show the welcome" opens it as a drawer; Close works and an action runs after it closes.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

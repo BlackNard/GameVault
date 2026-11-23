@@ -254,6 +254,7 @@ public partial class MainWindow
                 if (await NavigateToAsync(NavRoute.Game(id, "Saves"))) BackUpNow(this, new RoutedEventArgs());
             }));
         }
+        yield return new PaletteEntry("Action", "Show the welcome", "Ways to add your first games", (Func<Task>)ShowWelcomeDrawerAsync);
         yield return new PaletteEntry("Appearance", "Browse themes", "Preview every theme", (Func<Task>)OpenThemePickerAsync);
         foreach (var theme in ThemeCatalog.All)
         {
