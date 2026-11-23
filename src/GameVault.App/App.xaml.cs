@@ -36,6 +36,7 @@ public partial class App : Application
             workspace = await Task.Run(() => ApplicationWorkspace.Open(paths));
             var store = new AppDataStore(paths);
             var snapshot = await store.InitializeAsync();
+            Loc.SetLanguage(snapshot.Settings.Value?.Language);
             MainWindow = new MainWindow(paths, store, snapshot);
             ShutdownMode = ShutdownMode.OnMainWindowClose;
             MainWindow.Show();
