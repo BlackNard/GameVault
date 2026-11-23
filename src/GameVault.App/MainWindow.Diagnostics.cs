@@ -38,6 +38,14 @@ public partial class MainWindow
             GraphicsSummary(), nvidia.Installed, capture is not null, settingsJson, items.Length, played, [.. items.Select(i => i.Game.Profile?.Name ?? "").Where(n => n.Length > 0)], log, includeNames);
     }
 
+    private void ShowPreviousRunNotice(object sender, RoutedEventArgs e)
+    {
+        Loaded -= ShowPreviousRunNotice;
+        if (App.PreviousRun is not { PreviousRunEndedUnexpectedly: true }) return;
+        ShowToast("GameVault did not close normally last time", "If something went wrong, save a diagnostics package to attach to a bug report.", true,
+            "Save diagnostics", () => CreateDiagnosticsClicked(this, new RoutedEventArgs()));
+    }
+
     private async void CreateDiagnosticsClicked(object sender, RoutedEventArgs e)
     {
         if (busy || editorOpen || quitPreparing || InlinePrompts.IsOpen(this)) { ShowToast("GameVault is busy", "Finish what you are doing first, then try again.", true); return; }

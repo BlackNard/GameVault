@@ -12,6 +12,10 @@ namespace GameVault.App;
 public partial class App : Application
 {
     private ApplicationWorkspace? workspace;
+    private string? markerRoot;
+
+    /// <summary>What the previous run left behind (set once the application folder is ours); the main window reads it to show a notice.</summary>
+    internal static CrashMarkerResult? PreviousRun { get; private set; }
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -31,9 +35,14 @@ public partial class App : Application
         AppLog.Initialize(paths.Root);
         DispatcherUnhandledException += (_, args) => AppLog.Error("Unhandled UI error", args.Exception);
         AppDomain.CurrentDomain.UnhandledException += (_, args) => AppLog.Error("Unhandled error", args.ExceptionObject as Exception);
+        TaskScheduler.UnobservedTaskException += (_, args) => { AppLog.Error("Unobserved background task error", args.Exception); args.SetObserved(); };
         try
         {
             workspace = await Task.Run(() => ApplicationWorkspace.Open(paths));
+            // Only now is this process the owner of the folder, so only now may it read or write the "running" marker.
+            PreviousRun = CrashMarker.Begin(paths.Root, typeof(App).Assembly.GetName().Version?.ToString() ?? "unknown", DateTimeOffset.Now);
+            markerRoot = paths.Root;
+            if (PreviousRun.PreviousRunEndedUnexpectedly) AppLog.Warn("The previous run did not end normally" + (PreviousRun.PreviousStartedAt is { } at ? $" (it started {at:yyyy-MM-dd HH:mm})" : ""));
             var store = new AppDataStore(paths);
             var snapshot = await store.InitializeAsync();
             MainWindow = new MainWindow(paths, store, snapshot);
@@ -55,6 +64,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         if(MainWindow is MainWindow window){window.DisposeCaptureFeatures();window.DisposeTrayOnApplicationExit();}
+        if (markerRoot is not null) CrashMarker.EndCleanly(markerRoot);
         workspace?.Dispose();
         base.OnExit(e);
     }

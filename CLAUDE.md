@@ -42,7 +42,7 @@ The data root is always `AppContext.BaseDirectory` (never the working directory 
 ```
 GameVault.exe
 Data/settings.json  Data/backup-destinations.json  Data/capture-preferences.json  Data/library-views.json  Data/library-tags.json  Data/metadata-settings.json
-Cache/ (downloaded save-location manifest)  Logs/gamevault.log
+Cache/ (downloaded save-location manifest)  Logs/gamevault.log  Logs/running.marker (exists while the app runs; a leftover means the last run ended unexpectedly)
 Profiles/<game name>/          (older GUID-named folders are renamed once at startup; the ID lives in profile.json and .gamevault-id)
   profile.json  statistics.json  launch.json?  save-discovery.json  capture-source.json?  metadata.json?  cover.png  hero.jpg|png?
   Sessions/  Corrections/  Notes/Sessions/  Notes/review.json  Media/<session-id>/  Backups/<dated-backup>/
