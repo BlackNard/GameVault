@@ -2,7 +2,7 @@
 
 Status: approved by the owner on 2026-11-10. Implementation and verification are still required to close issue #2.
 
-Scope: [foundation issue #2](https://github.com/Zaid-Alhmouz/GameVault/issues/2), with architectural boundaries for the agreed first version.
+Scope: [foundation issue #2](https://github.com/BlackNard/GameVault-archive/issues/2), with architectural boundaries for the agreed first version.
 
 ## Purpose and agreed requirements
 

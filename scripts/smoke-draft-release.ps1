@@ -7,7 +7,7 @@ Import-Module (Join-Path $PSScriptRoot 'InstallerLifecycle.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'ReleasePackaging.psm1') -Force
 Assert-DisposableInstallerRunner
 $root=Split-Path $PSScriptRoot -Parent
-if([string]::IsNullOrWhiteSpace($env:GH_TOKEN) -or $env:GITHUB_REPOSITORY -cne 'Zaid-Alhmouz/GameVault'){throw 'Authorized GameVault draft access is required.'}
+if([string]::IsNullOrWhiteSpace($env:GH_TOKEN) -or $env:GITHUB_REPOSITORY -cne 'BlackNard/GameVault'){throw 'Authorized GameVault draft access is required.'}
 $headers=@{Authorization='Bearer '+$env:GH_TOKEN;Accept='application/vnd.github+json';'User-Agent'='GameVault-Draft-Smoke'}
 $api='https://api.github.com/repos/'+$env:GITHUB_REPOSITORY
 $repository=Invoke-RestMethod ($api) -Headers $headers
