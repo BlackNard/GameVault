@@ -122,7 +122,7 @@ try {
     Invoke-Build @('publish',(Join-Path $repository 'src/GameVault.App/GameVault.App.csproj'),'-c','Release','-r','win-x64','--self-contained','true','--no-restore','-p:Version=0.0.1','-o',$priorPublish)
     & (Join-Path $PSScriptRoot 'copy-runtime-notices.ps1') -PublishDirectory $priorPublish
     & (Join-Path $PSScriptRoot 'copy-capture-prerequisites.ps1') -PublishDirectory $priorPublish
-    & (Join-Path $PSScriptRoot 'build-installer.ps1') -PublishDirectory $priorPublish
+    & (Join-Path $PSScriptRoot 'build-installer.ps1') -PublishDirectory $priorPublish -AllowDifferentVersion
     $prior=Get-Content -LiteralPath $installerState -Raw | ConvertFrom-Json
     $priorManifest=Get-Content -LiteralPath $prior.manifest -Raw | ConvertFrom-Json
     Invoke-Build @('publish',(Join-Path $repository 'tests/Fixtures/GameProcessFixture/GameProcessFixture.csproj'),'-c','Release','-r','win-x64','--self-contained','true','--no-restore','-p:Version=0.0.1','-o',$probePublish)
