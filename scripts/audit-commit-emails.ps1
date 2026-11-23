@@ -2,7 +2,7 @@
 <#
 Fails when a commit exposes a personal e-mail address. Every author and committer address, and every
 Co-authored-by / Signed-off-by trailer, must be a GitHub no-reply address (or GitHub's own noreply@github.com,
-or noreply@anthropic.com for the assistant's co-author line).
+noreply@anthropic.com for the assistant's co-author line, or support@github.com, the public address in Dependabot's Signed-off-by line).
 
 The offending address itself is never printed (CI logs of a public repository are public); only the
 commit, the field and the fix are shown.
@@ -21,7 +21,8 @@ $allowed = @(
     '^[0-9]+\+[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\[bot\])?@users\.noreply\.github\.com$',
     '^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\[bot\])?@users\.noreply\.github\.com$',
     '^noreply@github\.com$',
-    '^noreply@anthropic\.com$'
+    '^noreply@anthropic\.com$',
+    '^support@github\.com$'
 )
 function Test-Allowed([string]$email) {
     $value = $email.Trim()
