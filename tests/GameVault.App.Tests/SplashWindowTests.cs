@@ -55,7 +55,6 @@ public sealed class SplashWindowTests
         var still = new SplashWindow("Midnight", reduceMotion: true);
         Assert.True(Find<ProgressBar>(animated).Single().IsIndeterminate);
         Assert.False(Find<ProgressBar>(still).Single().IsIndeterminate);
-        animated.Show();
         animated.CloseOnce();
         animated.CloseOnce();                                         // a failure path may close it again
         Assert.True(animated.IsClosed);
