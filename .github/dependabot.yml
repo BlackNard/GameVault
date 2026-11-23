@@ -16,6 +16,11 @@ updates:
     groups:
       nuget-weekly:
         patterns: ['*']
+    ignore:
+      # PDFsharp is pinned at 6.2.3, the last release checked to be MIT-licensed. 6.5.0 is dual-licensed
+      # AGPL-3.0 / commercial, which would conflict with GameVault's source-available licence.
+      # Do not bump it without the owner's licence decision (THIRD-PARTY-NOTICES.txt, CLAUDE.md).
+      - dependency-name: PDFsharp
   # Actions are pinned by commit SHA with a version comment; Dependabot keeps both in step.
   - package-ecosystem: github-actions
     directory: /
