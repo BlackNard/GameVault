@@ -4,9 +4,9 @@
     "net10.0-windows10.0.17763": {
       "Microsoft.Web.WebView2": {
         "type": "Direct",
-        "requested": "[1.0.4314.35, )",
-        "resolved": "1.0.4314.35",
-        "contentHash": "x5MFf2W03xueU1mMNvivXfHSsQ+ODo7vJ36qw/dLtU5Gs+8d7+7N7zzmNNDoT3ffosmcvZNBtUnlzyiDUuBkSQ=="
+        "requested": "[1.0.4370.26, )",
+        "resolved": "1.0.4370.26",
+        "contentHash": "fCmdjhw8Gg+cbvEkyF+ygObcByFk35WVxTUmLkjSwjhDuLg4V9P7EVPn3rj3g9M2I3WHes/efHS2tIpGX/NCEA=="
       },
       "PDFsharp": {
         "type": "Direct",
@@ -70,7 +70,7 @@
       "gamevault.capture": {
         "type": "Project",
         "dependencies": {
-          "GameVault.Infrastructure": "[1.0.0, )",
+          "GameVault.Infrastructure": "[0.1.0, )",
           "ScreenRecorderLib": "[7.0.1, 7.0.1]"
         }
       },
@@ -80,16 +80,16 @@
       "gamevault.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "GameVault.Core": "[1.0.0, )"
+          "GameVault.Core": "[0.1.0, )"
         }
       }
     },
     "net10.0-windows10.0.17763/win-x64": {
       "Microsoft.Web.WebView2": {
         "type": "Direct",
-        "requested": "[1.0.4314.35, )",
-        "resolved": "1.0.4314.35",
-        "contentHash": "x5MFf2W03xueU1mMNvivXfHSsQ+ODo7vJ36qw/dLtU5Gs+8d7+7N7zzmNNDoT3ffosmcvZNBtUnlzyiDUuBkSQ=="
+        "requested": "[1.0.4370.26, )",
+        "resolved": "1.0.4370.26",
+        "contentHash": "fCmdjhw8Gg+cbvEkyF+ygObcByFk35WVxTUmLkjSwjhDuLg4V9P7EVPn3rj3g9M2I3WHes/efHS2tIpGX/NCEA=="
       }
     }
   }
