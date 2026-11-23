@@ -28,6 +28,37 @@ public sealed class PersistenceTests : IDisposable
         var legacy=await store.InitializeAsync();Assert.True(legacy.Settings.Value!.CloseToTray);Assert.True(legacy.Settings.Value.NotifyBackupFailures);
         await store.SaveSettingsAsync(legacy.Settings.Value! with{CloseToTray=false,NotifyBackupFailures=false});var reopened=await new AppDataStore(paths).InitializeAsync();Assert.False(reopened.Settings.Value!.CloseToTray);Assert.False(reopened.Settings.Value.NotifyBackupFailures);Assert.Equal("Crimson",reopened.Settings.Value!.Theme);
     }
+    [Fact] public async Task SettingsWithoutLanguageLoadAsSystemAndKeepTheirOtherValues()
+    {
+        Directory.CreateDirectory(paths.Data);
+        File.WriteAllText(SettingsFile, "{\"schemaVersion\":1,\"theme\":\"Crimson\",\"defaultBackupLimit\":7,\"keepAllBackups\":false,\"reduceMotion\":true}");
+        var loaded = await store.InitializeAsync();
+        Assert.Equal(DocumentState.Ready, loaded.Settings.State);
+        Assert.Equal(LanguageChoice.System, loaded.Settings.Value!.Language);
+        Assert.Equal("Crimson", loaded.Settings.Value.Theme);
+        Assert.Equal(7, loaded.Settings.Value.DefaultBackupLimit);
+    }
+
+    [Theory] [InlineData("en")] [InlineData("ar")] [InlineData("System")]
+    public async Task LanguageChoiceSurvivesSaveAndReopen(string language)
+    {
+        await store.InitializeAsync();
+        await store.SaveSettingsAsync(AppSettings.Default with { Language = language });
+        var reopened = await new AppDataStore(paths).InitializeAsync();
+        Assert.Equal(language, reopened.Settings.Value!.Language);
+        Assert.Contains("\"language\"", File.ReadAllText(SettingsFile), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact] public async Task UnknownLanguageIsRejectedWithoutResettingTheFile()
+    {
+        Directory.CreateDirectory(paths.Data);
+        var text = "{\"schemaVersion\":1,\"theme\":\"Crimson\",\"defaultBackupLimit\":20,\"keepAllBackups\":false,\"reduceMotion\":false,\"language\":\"xx\"}";
+        File.WriteAllText(SettingsFile, text);
+        var loaded = await store.InitializeAsync();
+        Assert.True(loaded.Settings.IsReadOnly);
+        Assert.Equal(text, File.ReadAllText(SettingsFile));
+    }
+
     [Fact]
     public async Task FirstRunCreatesLocalDirectoriesAndMidnightDefaults()
     {

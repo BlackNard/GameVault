@@ -16,7 +16,7 @@ public sealed class ThemePickerView : UserControl
     private readonly Func<string, Task<string?>> apply;
     private readonly WrapPanel cards = new();
     private readonly TextBlock status = new() { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12) };
-    private readonly Button closeButton = new() { Content = "Close", MinWidth = 100 };
+    private readonly Button closeButton = new() { Content = Loc.T("ThemePicker.Close"), MinWidth = 100 };
     private string current;
     private bool busy;
     private bool changed;
@@ -37,8 +37,8 @@ public sealed class ThemePickerView : UserControl
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         var header = new StackPanel();
-        header.Children.Add(new TextBlock { Text = "Themes", FontSize = 26, FontWeight = FontWeights.SemiBold });
-        var explain = new TextBlock { Text = "Each preview is drawn with that theme's own colours. Choose Use this theme and the whole app changes at once; GameVault remembers it next time.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 14) };
+        header.Children.Add(new TextBlock { Text = Loc.T("ThemePicker.Title"), FontSize = 26, FontWeight = FontWeights.SemiBold });
+        var explain = new TextBlock { Text = Loc.T("ThemePicker.Explain"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 14) };
         explain.SetResourceReference(TextBlock.ForegroundProperty, "AppMuted");
         header.Children.Add(explain);
         status.SetResourceReference(TextBlock.ForegroundProperty, "AppMuted");
@@ -74,13 +74,13 @@ public sealed class ThemePickerView : UserControl
         card.SetResourceReference(Border.BorderBrushProperty, isCurrent ? "AppAccent" : "AppLine");
         var stack = new StackPanel();
         stack.Children.Add(Preview(theme));
-        var name = new TextBlock { Text = theme.Name, FontSize = 18, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 0) };
+        var name = new TextBlock { Text = Loc.ThemeName(theme), FontSize = 18, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 0) };
         stack.Children.Add(name);
-        var tagline = new TextBlock { Text = theme.Tagline, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 10), MinHeight = 38 };
+        var tagline = new TextBlock { Text = Loc.ThemeTagline(theme), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 10), MinHeight = 38 };
         tagline.SetResourceReference(TextBlock.ForegroundProperty, "AppMuted");
         stack.Children.Add(tagline);
-        var choose = new Button { Content = isCurrent ? "Current theme" : "Use this theme", IsEnabled = !isCurrent && !busy, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 140 };
-        AutomationProperties.SetName(choose, (isCurrent ? "Current theme: " : "Use theme ") + theme.Name);
+        var choose = new Button { Content = Loc.T(isCurrent ? "ThemePicker.Current" : "ThemePicker.Use"), IsEnabled = !isCurrent && !busy, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 140 };
+        AutomationProperties.SetName(choose, Loc.T(isCurrent ? "ThemePicker.CurrentAutomation" : "ThemePicker.UseAutomation", Loc.ThemeName(theme)));
         choose.Click += async (_, _) => await ChooseAsync(theme);
         stack.Children.Add(choose);
         card.Child = stack;
@@ -127,13 +127,13 @@ public sealed class ThemePickerView : UserControl
         body.Children.Add(line);
         var button = new Border { Height = 20, Width = 70, CornerRadius = new CornerRadius(10), HorizontalAlignment = HorizontalAlignment.Left };
         button.SetResourceReference(Border.BackgroundProperty, "AppPrimary");
-        var label = new TextBlock { Text = "Play", FontSize = 11, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        var label = new TextBlock { Text = Loc.T("ThemePicker.Play"), FontSize = 11, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         label.SetResourceReference(TextBlock.ForegroundProperty, "AppPrimaryText");
         button.Child = label;
         body.Children.Add(button);
         grid.Children.Add(body);
         frame.Child = grid;
-        AutomationProperties.SetName(frame, theme.Name + " preview");
+        AutomationProperties.SetName(frame, Loc.T("ThemePicker.PreviewAutomation", Loc.ThemeName(theme)));
         return frame;
     }
 
@@ -142,7 +142,7 @@ public sealed class ThemePickerView : UserControl
         if (busy || theme.Id == current) return;
         busy = true;
         closeButton.IsEnabled = false;
-        status.Text = "Saving…";
+        status.Text = Loc.T("ThemePicker.Saving");
         try
         {
             var problem = await apply(theme.Id);
@@ -151,11 +151,11 @@ public sealed class ThemePickerView : UserControl
                 current = theme.Id;
                 changed = true;
                 ThemePalette.Apply(this, current);
-                status.Text = theme.Name + " is now your theme.";
+                status.Text = Loc.T("ThemePicker.Applied", Loc.ThemeName(theme));
             }
             else status.Text = problem;
         }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException) { status.Text = "Could not save the theme. " + error.Message; }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException) { status.Text = Loc.T("Theme.SaveFailed", error.Message); }
         finally
         {
             busy = false;

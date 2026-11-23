@@ -12,8 +12,8 @@
     <ApplicationIcon>Assets/GameVault.ico</ApplicationIcon>
     <Product>GameVault</Product>
     <Description>GameVault foundation development build</Description>
-    <!-- The app is in English: do not ship 13 folders of translated framework resources (about 220 files). -->
-    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- English and Arabic only: do not ship 13 folders of translated framework resources (about 220 files). GameVault's own Arabic strings are the one extra ar/ folder. -->
+    <SatelliteResourceLanguages>en;ar</SatelliteResourceLanguages>
   </PropertyGroup>
 
   <!-- Debug symbols are for developers, not for the installed app. -->

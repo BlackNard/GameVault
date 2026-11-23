@@ -63,10 +63,12 @@ public partial class MainWindow : Window
         InitializeComponent();
         lifetime=new(Hide,RestoreWindow,PrepareToQuitAsync,QuitRuntimeAsync);
         ThemePalette.Apply(this, settings.Theme);
+        SelectLanguageChoice(settings.Language);
+        ApplyLanguageLayout();
         CloseToTrayChoice.IsChecked=settings.CloseToTray;BackupNotificationsChoice.IsChecked=settings.NotifyBackupFailures;
         MinHeight = Math.Min(MinHeight, SystemParameters.WorkArea.Height);
         MinWidth = Math.Min(MinWidth, SystemParameters.WorkArea.Width);
-        ThemeName.Text = ThemeCatalog.Find(settings.Theme).Name;
+        ThemeName.Text = Loc.ThemeName(ThemeCatalog.Find(settings.Theme));
         ProfilesPath.Text = paths.Profiles;
         StorageNotice.Text = string.Join("\n", snapshot.Warnings.Distinct());
         initializing = false;
@@ -359,15 +361,15 @@ public partial class MainWindow : Window
             var view = new ThemePickerView(settings.Theme, theme => ApplyThemeAsync(theme));
             await ShowInlineEditorAsync(view, h => view.Completed += h, h => view.Completed -= h);
         }
-        catch (Exception error) when (IsExpected(error)) { ShowToast("Could not open the themes", error.Message, true); }
+        catch (Exception error) when (IsExpected(error)) { ShowToast(Loc.T("Theme.OpenFailed"), error.Message, true); }
         finally { editorOpen = false; CompleteInlineEditor(); UpdateButtons(); ContinueDeferredQuit(); }
     }
 
     /// <summary>Saves and applies a theme. Returns null on success, otherwise a sentence saying why it did not work (the previous theme stays).</summary>
     private async Task<string?> ApplyThemeAsync(string theme)
     {
-        if (!ThemeCatalog.IsKnown(theme)) return "That theme is not available.";
-        if (settingsReadOnly) return "Settings are read-only, so the theme cannot be saved.";
+        if (!ThemeCatalog.IsKnown(theme)) return Loc.T("Theme.Unavailable");
+        if (settingsReadOnly) return Loc.T("Theme.ReadOnly");
         try
         {
             var updated = settings with { Theme = theme };
@@ -375,11 +377,49 @@ public partial class MainWindow : Window
             settings = updated;
             ThemePalette.Apply(this, theme);
             if (captureOverlay is not null) ThemePalette.Apply(captureOverlay, theme);
-            ThemeName.Text = ThemeCatalog.Find(theme).Name;
-            OperationNotice.Text = "Theme saved. It will be restored next time you open GameVault.";
+            ThemeName.Text = Loc.ThemeName(ThemeCatalog.Find(theme));
+            OperationNotice.Text = Loc.T("Theme.Saved");
             return null;
         }
-        catch (Exception error) when (IsExpected(error)) { return "Could not save the theme. " + error.Message; }
+        catch (Exception error) when (IsExpected(error)) { return Loc.T("Theme.SaveFailed", error.Message); }
+    }
+
+    private void SelectLanguageChoice(string language)
+    {
+        var wasInitializing = initializing;
+        initializing = true;
+        foreach (var item in LanguageChoice.Items.OfType<ComboBoxItem>())
+            if ((string?)item.Tag == language) LanguageChoice.SelectedItem = item;
+        initializing = wasInitializing;
+    }
+
+    /// <summary>Layout direction for the window (drawers and inline views inherit it) and the directional icons, for the language in use.</summary>
+    private void ApplyLanguageLayout()
+    {
+        Loc.Current.ApplyFlowDirection(this);
+        Loc.Current.MirrorIcon(NavBackIcon);
+        Loc.Current.MirrorIcon(NavForwardIcon);
+        ThemeName.Text = Loc.ThemeName(ThemeCatalog.Find(settings.Theme));
+    }
+
+    private async void LanguageChoiceChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (initializing || LanguageChoice.SelectedItem is not ComboBoxItem { Tag: string language } || language == settings.Language) return;
+        if (settingsReadOnly) { SelectLanguageChoice(settings.Language); OperationNotice.Text = Loc.T("Settings.Language.ReadOnly"); return; }
+        try
+        {
+            var updated = settings with { Language = language };
+            await store.SaveSettingsAsync(updated);
+            settings = updated;
+            Loc.SetLanguage(language);
+            ApplyLanguageLayout();
+            OperationNotice.Text = Loc.T("Settings.Language.Saved");
+        }
+        catch (Exception error) when (IsExpected(error))
+        {
+            SelectLanguageChoice(settings.Language);
+            OperationNotice.Text = Loc.T("Settings.Language.SaveFailed", error.Message);
+        }
     }
 
     private async void NotesDataChanged(object? sender, EventArgs e)
@@ -509,6 +549,7 @@ public partial class MainWindow : Window
     private void UpdateButtons()
     {
         CloseToTrayChoice.IsEnabled=BackupNotificationsChoice.IsEnabled=!busy&&!editorOpen&&!stoppingObservation&&!quitPreparing&&!settingsReadOnly;
+        LanguageChoice.IsEnabled=!busy&&!editorOpen&&!stoppingObservation&&!quitPreparing&&!settingsReadOnly;
         NotesHost.IsEnabled=!quitPreparing&&!stoppingObservation;
         QuitButton.IsEnabled=!stoppingObservation&&!quitPreparing;
         LibraryNav.IsEnabled=SettingsNav.IsEnabled=!editorOpen&&!quitPreparing&&!stoppingObservation;
