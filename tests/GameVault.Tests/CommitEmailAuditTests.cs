@@ -75,6 +75,14 @@ public sealed class CommitEmailAuditTests : IDisposable
     }
 
     [Fact]
+    public void Dependabots_signed_off_by_line_with_githubs_public_support_address_passes()
+    {
+        Commit("49699333+dependabot[bot]@users.noreply.github.com", "noreply@github.com", message: "Bump the actions-weekly group with 3 updates\n\nSigned-off-by: dependabot[bot] <support@github.com>");
+        var (code, output) = Audit();
+        Assert.True(code == 0, output);
+    }
+
+    [Fact]
     public void A_personal_author_address_fails_and_the_address_is_never_printed()
     {
         Commit("142729322+BlackNard@users.noreply.github.com");
