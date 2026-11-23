@@ -4,11 +4,13 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = Split-Path $PSScriptRoot -Parent
 Import-Module (Join-Path $PSScriptRoot 'InstallerPayload.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'AppVersion.psm1') -Force
 $payload = [IO.Path]::GetFullPath($PublishDirectory).TrimEnd('\','/')
 if ($payload -match '[{}";\r\n]') { throw 'Unsafe publish path.' }
 $files = @(Get-InstallerPayload $payload)
 $version = (Get-Item -LiteralPath (Join-Path $payload 'GameVault.exe')).VersionInfo.ProductVersion.Split('+')[0]
 if ($version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') { throw 'App version must be a numeric Windows installer version.' }
+if ($version -ne (Get-AppVersion $root)) { throw 'The publish directory was built from a different app version than Directory.Build.props.' }
 $output = Join-Path $root ('artifacts/installer-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory $output | Out-Null
 $entries = Join-Path $output 'payload.iss'

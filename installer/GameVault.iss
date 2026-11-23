@@ -2,6 +2,10 @@
 #ifndef PayloadDirectory
   #error Use scripts/build-installer.ps1
 #endif
+; AppVersion comes from Directory.Build.props via build-installer.ps1; never define it here.
+#ifndef AppVersion
+  #error AppVersion must be supplied by scripts/build-installer.ps1
+#endif
 
 [Setup]
 AppId={{11DE0F05-D06D-4594-A970-85DDE91DC106}

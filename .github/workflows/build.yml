@@ -16,7 +16,9 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  # Build, tests, installer and release-bundle checks. The PR gate is the `verify` job below.
+  build:
+    name: Build, test, installer and release bundle
     runs-on: windows-latest
     timeout-minutes: 20
     env:
@@ -43,24 +45,13 @@ jobs:
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            **/packages.lock.json
+            global.json
       - name: Build, test, and verify self-contained publish
         shell: pwsh
         run: ./scripts/verify.ps1
-      - name: Prepare image-only native encoder on disposable runner
-        shell: pwsh
-        run: ./scripts/prepare-capture-probe-runner.ps1
-      - name: Prove synthetic image-only native MP4 encoding and finalization
-        shell: pwsh
-        env:
-          GAMEVAULT_CAPTURE_ENCODE_PROBE: '1'
-        run: dotnet test tests/GameVault.App.Tests/GameVault.App.Tests.csproj -c Release --no-build --no-restore --filter FullyQualifiedName~CaptureEncodeProbeTests --logger trx --results-directory artifacts/capture-encode-probe --blame-hang-timeout 90s
-      - name: Measure synthetic library storage and query performance
-        shell: pwsh
-        run: |
-          dotnet restore tests/PerformanceHarness/PerformanceHarness.csproj --locked-mode
-          if ($LASTEXITCODE -ne 0) { throw 'Performance harness locked restore failed.' }
-          dotnet run --project tests/PerformanceHarness/PerformanceHarness.csproj -c Release --no-restore 2>&1 | Tee-Object -FilePath artifacts/performance-harness.txt
-          if ($LASTEXITCODE -ne 0) { throw 'Performance harness failed.' }
       - name: Test clean installer payload boundaries
         shell: pwsh
         run: ./scripts/test-installer.ps1
@@ -96,10 +87,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: phase-one-automated-evidence
-          path: |
-            artifacts/test-results-*/*.trx
-            artifacts/capture-encode-probe/**
-            artifacts/performance-harness.txt
+          path: artifacts/test-results-*/*.trx
           if-no-files-found: ignore
           retention-days: 7
       - name: Keep synthetic installer lifecycle evidence
@@ -113,6 +101,104 @@ jobs:
             artifacts/installer-lifecycle-*/*.stderr
           if-no-files-found: ignore
           retention-days: 7
+
+  # Independent of the release bundle, so it runs in parallel with `verify`.
+  capture-encode-probe:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            **/packages.lock.json
+            global.json
+      - name: Prepare image-only native encoder on disposable runner
+        shell: pwsh
+        run: ./scripts/prepare-capture-probe-runner.ps1
+      - name: Build the capture probe tests
+        shell: pwsh
+        run: |
+          dotnet restore tests/GameVault.App.Tests/GameVault.App.Tests.csproj --locked-mode
+          if ($LASTEXITCODE -ne 0) { throw 'Locked restore failed.' }
+          dotnet build tests/GameVault.App.Tests/GameVault.App.Tests.csproj -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
+      - name: Prove synthetic image-only native MP4 encoding and finalization
+        shell: pwsh
+        env:
+          GAMEVAULT_CAPTURE_ENCODE_PROBE: '1'
+        run: dotnet test tests/GameVault.App.Tests/GameVault.App.Tests.csproj -c Release --no-build --no-restore --filter FullyQualifiedName~CaptureEncodeProbeTests --logger trx --results-directory artifacts/capture-encode-probe --blame-hang-timeout 90s
+      - name: Keep capture probe evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: capture-encode-probe-evidence
+          path: artifacts/capture-encode-probe/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # The slowest step by far; independent of the release bundle, so it runs in parallel with `verify`.
+  performance-harness:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            **/packages.lock.json
+            global.json
+      - name: Measure synthetic library storage and query performance
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          dotnet restore tests/PerformanceHarness/PerformanceHarness.csproj --locked-mode
+          if ($LASTEXITCODE -ne 0) { throw 'Performance harness locked restore failed.' }
+          dotnet run --project tests/PerformanceHarness/PerformanceHarness.csproj -c Release --no-restore 2>&1 | Tee-Object -FilePath artifacts/performance-harness.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Performance harness failed.' }
+      - name: Keep synthetic performance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: performance-harness-evidence
+          path: artifacts/performance-harness.txt
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # The single required PR check: passes only when every parallel job above passed.
+  verify:
+    needs: [build, capture-encode-probe, performance-harness]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every verification job to have succeeded
+        shell: bash
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          for r in $RESULTS; do
+            if [ "$r" != "success" ]; then echo "A verification job did not succeed ($r)."; exit 1; fi
+          done
 
   draft-asset-smoke:
     if: github.event_name == 'workflow_dispatch' && inputs.draft_release_id != ''

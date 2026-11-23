@@ -55,6 +55,8 @@ try {
         }
     }
 
+    & (Join-Path $PSScriptRoot 'test-version.ps1') -PublishDirectory $publishDirectory
+
     Invoke-Dotnet -Arguments @('run', '--project', 'tests/BrowserDependencyProbe/BrowserDependencyProbe.csproj', '-c', 'Release', '--no-build', '--no-restore', '--', $publishDirectory)
 
     $userData = @(Get-ChildItem -LiteralPath $publishDirectory -Directory -Recurse |
