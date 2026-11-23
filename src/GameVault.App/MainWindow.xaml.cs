@@ -75,6 +75,7 @@ public partial class MainWindow : Window
         Closing += BeforeClosing;
         Closed += (_, _) => StopAutoInfo();
         Loaded += InitializeTray;
+        Loaded += ShowPreviousRunNotice;
         Loaded += LoadLibrary;
         InitializePerformanceFeatures();
         InitializeRedesign();

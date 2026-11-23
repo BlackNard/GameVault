@@ -19,7 +19,22 @@ public static class AppLog
 
     public static void Info(string message) => Write("INFO", message);
     public static void Warn(string message) => Write("WARN", message);
-    public static void Error(string message, Exception? error = null) => Write("ERROR", error is null ? message : $"{message}: {error.GetType().Name}: {error.Message}");
+    public static void Error(string message, Exception? error = null) => Write("ERROR", error is null ? message : $"{message}: {Describe(error)}");
+
+    /// <summary>The exception type and message, up to 12 stack frames and up to 3 inner exceptions on one line, so a crash report says where it happened.</summary>
+    public static string Describe(Exception error)
+    {
+        var text = new StringBuilder();
+        var current = error;
+        for (var depth = 0; current is not null && depth < 4; depth++, current = current.InnerException)
+        {
+            if (depth > 0) text.Append(" <- inner ");
+            text.Append(current.GetType().Name).Append(": ").Append(current.Message.ReplaceLineEndings(" "));
+            var frames = (current.StackTrace ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Take(12);
+            foreach (var frame in frames) text.Append(" | ").Append(frame.ReplaceLineEndings(" "));
+        }
+        return text.ToString();
+    }
 
     private static void Write(string level, string message)
     {
