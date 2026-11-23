@@ -36,7 +36,21 @@ The entire publish folder is required. Copying only GameVault.exe is insufficien
 
 Package references use exact versions and committed `packages.lock.json` files, including the win-x64 restore graph. Update references and run `dotnet restore GameVault.slnx --force-evaluate` deliberately when changing dependencies or framework settings. Review and commit resulting lock changes. Ordinary verification must not rewrite them.
 
-The Windows foundation GitHub Actions workflow runs the same script on feature-branch pushes and pull requests targeting main. Action revisions are pinned. The verification job reads source, builds the installer and verifies its lifecycle on a disposable runner. It prepares private assets without publishing or merging. The optional exact-draft smoke job has narrowly scoped write access required by GitHub to read private drafts.
+The Windows foundation GitHub Actions workflow runs the same script on feature-branch pushes and pull requests targeting main. Action revisions are pinned by commit SHA. The `build` job reads source, builds the installer, verifies its lifecycle on a disposable runner and prepares private assets without publishing or merging. The slow, independent synthetic capture-encode probe and performance harness run as their own parallel jobs. The `verify` job is the single PR check: it passes only when all three succeeded. The NuGet package cache is restored by `actions/setup-dotnet` (keyed on every `packages.lock.json` and `global.json`). The optional exact-draft smoke job has narrowly scoped write access required by GitHub to read private drafts.
+
+### App version
+
+The app version is defined once, as `<GameVaultVersion>` in the root `Directory.Build.props` (which also feeds `<Version>`). `scripts/AppVersion.psm1` reads it; `build-installer.ps1` refuses a publish folder built from a different version and passes the value to `installer/GameVault.iss`, and the release scripts take the version from the installer manifest. `scripts/test-version.ps1` (run by `verify.ps1`) checks that no project or the installer script sets its own version and that the published `GameVault.exe` matches. To release a new version, change only that one line.
+
+### Dependency updates (Dependabot)
+
+`.github/dependabot.yml` opens at most one grouped weekly pull request for NuGet and one for GitHub Actions. Dependabot edits the exact version in the project files but does not reliably regenerate `packages.lock.json`, and CI restores in locked mode, so a NuGet update PR is expected to fail until the locks are refreshed. Review step for the owner (or the person working for them):
+
+1. Read the changelog of each bumped package; be wary of major versions and of packages that ship native or notice files (WebView2, ScreenRecorderLib, PDFsharp).
+2. Check out the PR branch and run `dotnet restore GameVault.slnx --force-evaluate`, plus the same for `tests/PerformanceHarness` (it is outside the solution); commit the lock changes to the PR branch and review the lock diff.
+3. Run `./scripts/verify.ps1`; update `THIRD-PARTY-NOTICES.txt` if a package or its licence changed.
+4. Merge only when CI is green. Actions PRs keep the 40-character SHA and the `# vN` comment; check that both changed and that the new SHA belongs to the release tag.
+
 
 ## Boundaries and data
 

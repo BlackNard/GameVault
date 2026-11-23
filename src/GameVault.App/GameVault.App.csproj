@@ -10,7 +10,6 @@
     <AssemblyName>GameVault</AssemblyName>
     <PlatformTarget>x64</PlatformTarget>
     <ApplicationIcon>Assets/GameVault.ico</ApplicationIcon>
-    <Version>0.1.0</Version>
     <Product>GameVault</Product>
     <Description>GameVault foundation development build</Description>
     <!-- The app is in English: do not ship 13 folders of translated framework resources (about 220 files). -->

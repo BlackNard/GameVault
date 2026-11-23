@@ -1,5 +1,9 @@
 <Project>
   <PropertyGroup>
+    <!-- The single source of the app version. Installer and release scripts read it through scripts/AppVersion.psm1;
+         scripts/test-version.ps1 checks that they agree. Format: major.minor.patch[.revision]. -->
+    <GameVaultVersion>0.1.0</GameVaultVersion>
+    <Version>$(GameVaultVersion)</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
