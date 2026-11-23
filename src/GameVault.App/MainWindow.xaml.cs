@@ -63,7 +63,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         lifetime=new(Hide,RestoreWindow,PrepareToQuitAsync,QuitRuntimeAsync);
         ThemePalette.Apply(this, settings.Theme);
-        CloseToTrayChoice.IsChecked=settings.CloseToTray;BackupNotificationsChoice.IsChecked=settings.NotifyBackupFailures;
+        CloseToTrayChoice.IsChecked=settings.CloseToTray;BackupNotificationsChoice.IsChecked=settings.NotifyBackupFailures;StartupSplashChoice.IsChecked=settings.ShowSplash;
         MinHeight = Math.Min(MinHeight, SystemParameters.WorkArea.Height);
         MinWidth = Math.Min(MinWidth, SystemParameters.WorkArea.Width);
         ThemeName.Text = ThemeCatalog.Find(settings.Theme).Name;
@@ -509,7 +509,7 @@ public partial class MainWindow : Window
     }
     private void UpdateButtons()
     {
-        CloseToTrayChoice.IsEnabled=BackupNotificationsChoice.IsEnabled=!busy&&!editorOpen&&!stoppingObservation&&!quitPreparing&&!settingsReadOnly;
+        CloseToTrayChoice.IsEnabled=BackupNotificationsChoice.IsEnabled=StartupSplashChoice.IsEnabled=!busy&&!editorOpen&&!stoppingObservation&&!quitPreparing&&!settingsReadOnly;
         NotesHost.IsEnabled=!quitPreparing&&!stoppingObservation;
         QuitButton.IsEnabled=!stoppingObservation&&!quitPreparing;
         LibraryNav.IsEnabled=SettingsNav.IsEnabled=!editorOpen&&!quitPreparing&&!stoppingObservation;

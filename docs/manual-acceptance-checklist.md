@@ -105,6 +105,15 @@ Use a clean copy of the app (extract the clean ZIP from `outputs/Archives` into 
 - [ ] Add a game: the welcome disappears; remove it again: the welcome does not come back (the library has had a game).
 - [ ] With your own library: Ctrl+K, "Show the welcome" opens it as a drawer; Close works and an action runs after it closes.
 
+## 8c. Startup splash (issue #28)
+
+- [ ] Starting GameVault shows a small centred window with the logo, "GameVault" and "Loading your library…" right away, then the main window appears; the splash is not in the taskbar and does not take focus from what you were doing.
+- [ ] It looks right in two or three themes (switch the theme, restart).
+- [ ] It stays about a second even on a fast start, and no longer than the real start-up on a slow one.
+- [ ] Settings > Background behaviour: untick "Show a small startup window…", restart: no splash. Tick it again: it returns.
+- [ ] With Windows "Show animations" off or reduce motion set, the bar does not animate.
+- [ ] Start a second copy while one is running: the splash closes before the "could not open its application folder" message.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

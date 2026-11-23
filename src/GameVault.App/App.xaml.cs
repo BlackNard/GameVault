@@ -36,6 +36,24 @@ public partial class App : Application
         DispatcherUnhandledException += (_, args) => AppLog.Error("Unhandled UI error", args.Exception);
         AppDomain.CurrentDomain.UnhandledException += (_, args) => AppLog.Error("Unhandled error", args.ExceptionObject as Exception);
         TaskScheduler.UnobservedTaskException += (_, args) => { AppLog.Error("Unobserved background task error", args.Exception); args.SetObserved(); };
+        SplashWindow? splash = null;
+        var splashShownAt = DateTimeOffset.UtcNow;
+        try
+        {
+            var preferences = SplashPreferences.Parse(ReadSettingsText(paths));
+            if (preferences.Show)
+            {
+                splash = new SplashWindow(preferences.Theme, preferences.ReduceMotion);
+                splash.Show();
+                await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.Render);   // let it paint before the real work starts
+                splashShownAt = DateTimeOffset.UtcNow;
+            }
+        }
+        catch (Exception error) when (error is InvalidOperationException or System.ComponentModel.Win32Exception or System.Runtime.InteropServices.COMException)
+        {
+            AppLog.Warn("The startup window could not be shown: " + error.Message);
+            splash = null;
+        }
         try
         {
             workspace = await Task.Run(() => ApplicationWorkspace.Open(paths));
@@ -47,10 +65,17 @@ public partial class App : Application
             var snapshot = await store.InitializeAsync();
             MainWindow = new MainWindow(paths, store, snapshot);
             ShutdownMode = ShutdownMode.OnMainWindowClose;
+            if (splash is not null)
+            {
+                var wait = SplashTiming.RemainingDelay(splashShownAt, DateTimeOffset.UtcNow);
+                if (wait > TimeSpan.Zero) await Task.Delay(wait);
+                splash.CloseOnce();
+            }
             MainWindow.Show();
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
+            splash?.CloseOnce();
             workspace?.Dispose();
             MessageBox.Show(
                 $"GameVault could not open its application folder:\n\n{paths.Root}\n\n" +
@@ -59,6 +84,12 @@ public partial class App : Application
                 "GameVault could not start", MessageBoxButton.OK, MessageBoxImage.Warning);
             Shutdown(1);
         }
+    }
+
+    private static string? ReadSettingsText(ApplicationPaths paths)
+    {
+        try { return File.ReadAllText(Path.Combine(paths.Data, "settings.json")); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return null; }
     }
 
     protected override void OnExit(ExitEventArgs e)
