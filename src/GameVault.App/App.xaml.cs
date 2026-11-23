@@ -45,7 +45,6 @@ public partial class App : Application
             if (PreviousRun.PreviousRunEndedUnexpectedly) AppLog.Warn("The previous run did not end normally" + (PreviousRun.PreviousStartedAt is { } at ? $" (it started {at:yyyy-MM-dd HH:mm})" : ""));
             var store = new AppDataStore(paths);
             var snapshot = await store.InitializeAsync();
-            Loc.SetLanguage(snapshot.Settings.Value?.Language);
             MainWindow = new MainWindow(paths, store, snapshot);
             ShutdownMode = ShutdownMode.OnMainWindowClose;
             MainWindow.Show();
