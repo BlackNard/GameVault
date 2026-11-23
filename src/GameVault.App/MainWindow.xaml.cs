@@ -139,6 +139,7 @@ public partial class MainWindow : Window
         EmptyState.Visibility = visible.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         EmptyHeading.Text = removed ? "No removed profiles here" : items.Length == 0 ? "Make room for your favorites" : "No matching games";
         EmptyDescription.Text = removed ? "Removed games keep their data here so you can restore them." : items.Length == 0 ? "Choose Add game and browse to its executable to start your library." : "Try another search or status. You can also check Removed profiles.";
+        UpdateWelcome(removed);
         ShowSelection();
         SyncChips();
         UpdateFilterButtons();

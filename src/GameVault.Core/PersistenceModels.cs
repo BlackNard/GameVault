@@ -9,7 +9,7 @@ public sealed record StoredDocument<T>(T? Value, DocumentState State, string? Me
 }
 
 public sealed record AppSettings(int SchemaVersion, string Theme, int DefaultBackupLimit,
-    bool KeepAllBackups, bool ReduceMotion, bool CloseToTray = true, bool NotifyBackupFailures = true)
+    bool KeepAllBackups, bool ReduceMotion, bool CloseToTray = true, bool NotifyBackupFailures = true, bool WelcomeDismissed = false)
 {
     public static AppSettings Default => new(1, "Midnight", 20, false, false);
 }
