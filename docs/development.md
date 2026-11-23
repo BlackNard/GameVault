@@ -46,7 +46,7 @@ The app version is defined once, as `<GameVaultVersion>` in the root `Directory.
 
 `.github/dependabot.yml` opens at most one grouped weekly pull request for NuGet and one for GitHub Actions. Dependabot edits the exact version in the project files but does not reliably regenerate `packages.lock.json`, and CI restores in locked mode, so a NuGet update PR is expected to fail until the locks are refreshed. Review step for the owner (or the person working for them):
 
-1. Read the changelog of each bumped package; be wary of major versions and of packages that ship native or notice files (WebView2, ScreenRecorderLib, PDFsharp).
+1. Read the changelog of each bumped package; be wary of major versions and of packages that ship native or notice files (WebView2, ScreenRecorderLib, PDFsharp). Check the licence of every new version too: PDFsharp 6.5.0 is AGPL-3.0/commercial, so PDFsharp is pinned at the MIT release 6.2.3 and ignored by Dependabot.
 2. Check out the PR branch and run `dotnet restore GameVault.slnx --force-evaluate`, plus the same for `tests/PerformanceHarness` (it is outside the solution); commit the lock changes to the PR branch and review the lock diff.
 3. Run `./scripts/verify.ps1`; update `THIRD-PARTY-NOTICES.txt` if a package or its licence changed.
 4. Merge only when CI is green. Actions PRs keep the 40-character SHA and the `# vN` comment; check that both changed and that the new SHA belongs to the release tag.
