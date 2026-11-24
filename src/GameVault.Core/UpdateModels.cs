@@ -1,7 +1,10 @@
 namespace GameVault.Core;
 
-/// <summary>A published release that is newer than the running app.</summary>
-public sealed record UpdateInfo(string Version, string Tag, string Url, bool IsPreRelease, DateTimeOffset? PublishedAt);
+/// <summary>The installer file of a release, as GitHub lists it: where to download it, how big it must be and the SHA-256 GitHub computed for it.</summary>
+public sealed record UpdateInstaller(string Name, string Url, long Size, string? Sha256, string? ChecksumUrl);
+
+/// <summary>A published release that is newer than the running app. <see cref="Installer"/> is set when the release carries the installer GameVault can run in place.</summary>
+public sealed record UpdateInfo(string Version, string Tag, string Url, bool IsPreRelease, DateTimeOffset? PublishedAt, UpdateInstaller? Installer = null);
 
 public enum UpdateStatus { UpToDate, Available, Failed }
 

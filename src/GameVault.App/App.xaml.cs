@@ -5,6 +5,7 @@ using GameVault.Infrastructure;
 using GameVault.Infrastructure.Storage;
 using GameVault.Infrastructure.Diagnostics;
 using GameVault.Infrastructure.Launching;
+using GameVault.Infrastructure.Updates;
 using System.Security.Principal;
 
 namespace GameVault.App;
@@ -16,6 +17,33 @@ public partial class App : Application
 
     /// <summary>What the previous run left behind (set once the application folder is ours); the main window reads it to show a notice.</summary>
     internal static CrashMarkerResult? PreviousRun { get; private set; }
+
+    /// <summary>Where downloaded update installers are kept (outside the application folder, so the library is never touched).</summary>
+    internal static string UpdatesFolder { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GameVault-Updates");
+
+    /// <summary>A verified installer the player asked for. It is started only after this process released the application folder, and only when GameVault really quits.</summary>
+    internal static string? PendingUpdateInstaller { get; set; }
+
+    /// <summary>True when the player asked to restart and update, so the new version opens when setup finishes. A normal quit installs without reopening.</summary>
+    internal static bool RelaunchAfterUpdate { get; set; }
+
+    /// <summary>Set by the main window while automatic updates are on: a verified update that is waiting installs when GameVault quits.</summary>
+    internal static bool AutoUpdateEnabled { get; set; }
+
+    /// <summary>
+    /// Starts the installer over the installed copy once this process has released the application folder. It runs for the update the player asked for,
+    /// or (automatic updates on) for a verified one that is waiting. The file is checked again here, right before it is started; nothing runs for an
+    /// update that failed too often. A player who simply closes GameVault gets the new version at the next start without a surprise window.
+    /// </summary>
+    private static void StartPendingUpdate(bool relaunch)
+    {
+        var store = new PendingUpdateStore(UpdatesFolder);
+        var pending = store.Read();
+        if (pending is null || !ReleaseVersion.TryParse(AppVersionInfo.Current, out var running)) return;
+        if (!AutoUpdateRules.ShouldInstall(true, pending, running) || !store.IsIntact(pending)) return;
+        var counted = store.RecordAttempt(pending, DateTimeOffset.UtcNow);
+        if (!UpdateLauncher.Start(store.InstallerPath(counted), UpdatesFolder, relaunch, Environment.ProcessId)) AppLog.Warn("The update installer could not be started.");
+    }
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -33,6 +61,12 @@ public partial class App : Application
         }
         var paths = ApplicationPaths.FromRoot(AppContext.BaseDirectory);
         AppLog.Initialize(paths.Root);
+        // A verified update that is still waiting (GameVault was not closed normally, or it lives in the tray) installs now, before anything else is opened.
+        if (UpdatePreferences.ParseAutoUpdate(ReadSettingsText(paths)) && TryInstallWaitingUpdateAtStart())
+        {
+            Shutdown(0);
+            return;
+        }
         DispatcherUnhandledException += (_, args) => AppLog.Error("Unhandled UI error", args.Exception);
         AppDomain.CurrentDomain.UnhandledException += (_, args) => AppLog.Error("Unhandled error", args.ExceptionObject as Exception);
         TaskScheduler.UnobservedTaskException += (_, args) => { AppLog.Error("Unobserved background task error", args.Exception); args.SetObserved(); };
@@ -86,6 +120,15 @@ public partial class App : Application
         }
     }
 
+    private static bool TryInstallWaitingUpdateAtStart()
+    {
+        var store = new PendingUpdateStore(UpdatesFolder);
+        var pending = store.Read();
+        if (pending is null || !ReleaseVersion.TryParse(AppVersionInfo.Current, out var running) || !AutoUpdateRules.ShouldInstall(true, pending, running) || !store.IsIntact(pending)) return false;
+        var counted = store.RecordAttempt(pending, DateTimeOffset.UtcNow);
+        return UpdateLauncher.Start(store.InstallerPath(counted), UpdatesFolder, relaunch: true, Environment.ProcessId);
+    }
+
     private static string? ReadSettingsText(ApplicationPaths paths)
     {
         try { return File.ReadAllText(Path.Combine(paths.Data, "settings.json")); }
@@ -97,6 +140,9 @@ public partial class App : Application
         if(MainWindow is MainWindow window){window.DisposeCaptureFeatures();window.DisposeTrayOnApplicationExit();}
         if (markerRoot is not null) CrashMarker.EndCleanly(markerRoot);
         workspace?.Dispose();
+        // The application folder lock is released: now the installer can replace the files in place (the player's Data and Profiles are not part of it).
+        if (PendingUpdateInstaller is not null) StartPendingUpdate(RelaunchAfterUpdate);
+        else if (AutoUpdateEnabled) StartPendingUpdate(relaunch: false);
         base.OnExit(e);
     }
 }

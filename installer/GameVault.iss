@@ -51,6 +51,8 @@ Name: "{userdesktop}\GameVault"; Filename: "{app}\GameVault.exe"; WorkingDir: "{
 [Run]
 Filename: "{app}\Prerequisites\VC_redist.x64.exe"; Parameters: "/install /passive /norestart"; Description: "Install Microsoft Visual C++ x64 runtime for screenshots and recording (administrator approval required)"; Verb: "runas"; Flags: shellexec waituntilterminated postinstall skipifsilent unchecked
 Filename: "{app}\GameVault.exe"; Description: "Launch GameVault"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent unchecked
+; In-place updates started by GameVault itself pass /RELAUNCH=1 so the new version opens when setup finishes (also when silent). Off by default.
+Filename: "{app}\GameVault.exe"; WorkingDir: "{app}"; Flags: nowait; Check: RelaunchRequested
 
 ; Deliberately no wildcard cleanup / UninstallDelete. Data, Profiles and the
 ; coordination lock are never owned by setup or logged for removal.
@@ -65,6 +67,10 @@ function CloseLease(Handle: THandle): Boolean;
   external 'CloseHandle@kernel32.dll stdcall';
 function PathAttributes(Name: String): Cardinal;
   external 'GetFileAttributesW@kernel32.dll stdcall';
+function OpenProcessHandle(Access: Cardinal; Inherit: Boolean; ProcessId: Cardinal): THandle;
+  external 'OpenProcess@kernel32.dll stdcall';
+function WaitForHandle(Handle: THandle; Milliseconds: Cardinal): Cardinal;
+  external 'WaitForSingleObject@kernel32.dll stdcall';
 
 function PathIsSafe(Path: String): Boolean;
 var
@@ -119,6 +125,29 @@ begin
     ApplicationLease := 0;
     Result := 'Quit GameVault using its tray menu and retry. If it is already closed, check that this folder is writable. Setup will not close GameVault or interrupt a game session.';
   end;
+end;
+
+// /WAITFORPID=<id> (passed by GameVault's own update) makes setup wait, up to a minute, until that GameVault process has ended, so its files are not in use.
+function InitializeSetup: Boolean;
+var
+  ProcessId: Integer;
+  Handle: THandle;
+begin
+  Result := True;
+  ProcessId := StrToIntDef(ExpandConstant('{param:WAITFORPID|0}'), 0);
+  if ProcessId > 0 then begin
+    Handle := OpenProcessHandle($00100000, False, ProcessId);   // SYNCHRONIZE
+    if Handle <> 0 then begin
+      WaitForHandle(Handle, 60000);
+      CloseLease(Handle);
+    end;
+  end;
+end;
+
+// /RELAUNCH=1 (passed by GameVault's own in-place update) starts the new version after a successful install.
+function RelaunchRequested: Boolean;
+begin
+  Result := ExpandConstant('{param:RELAUNCH|0}') = '1';
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;

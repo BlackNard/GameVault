@@ -24,7 +24,7 @@ public static class UpdateNoticeCache
         try
         {
             var bytes = File.ReadAllBytes(PathFor(root));
-            if (bytes.Length > 8192) return UpdateNoticeState.Empty;
+            if (bytes.Length > 16384) return UpdateNoticeState.Empty;
             using var document = JsonDocument.Parse(bytes);
             var json = document.RootElement;
             if (json.ValueKind != JsonValueKind.Object) return UpdateNoticeState.Empty;
@@ -32,10 +32,21 @@ public static class UpdateNoticeCache
             UpdateInfo? latest = null;
             if (Text(json, "tag") is { } tag && Text(json, "version") is { } version && Text(json, "url") is { } url)
                 latest = new UpdateInfo(version, tag, url, json.TryGetProperty("preRelease", out var p) && p.ValueKind == JsonValueKind.True,
-                    DateTimeOffset.TryParse(Text(json, "publishedAt"), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var when) ? when : null);
+                    DateTimeOffset.TryParse(Text(json, "publishedAt"), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var when) ? when : null,
+                    ReadInstaller(json));
             return new UpdateNoticeState(latest, dismissed);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException) { return UpdateNoticeState.Empty; }
+    }
+
+    private static UpdateInstaller? ReadInstaller(JsonElement json)
+    {
+        if (!json.TryGetProperty("installer", out var node) || node.ValueKind != JsonValueKind.Object) return null;
+        if (Text(node, "name") is not { } name || Text(node, "url") is not { } url) return null;
+        if (!node.TryGetProperty("size", out var size) || size.ValueKind != JsonValueKind.Number || !size.TryGetInt64(out var bytes)) return null;
+        var sha = Text(node, "sha256");
+        if (sha is not null && (sha.Length != 64 || !sha.All(Uri.IsHexDigit))) sha = null;
+        return new UpdateInstaller(name, url, bytes, sha, Text(node, "checksumUrl"));
     }
 
     /// <summary>Stores what the latest check found (null when nothing newer exists) and keeps the dismissed version.</summary>
@@ -72,6 +83,16 @@ public static class UpdateNoticeCache
                     writer.WriteString("url", latest.Url);
                     writer.WriteBoolean("preRelease", latest.IsPreRelease);
                     if (latest.PublishedAt is { } published) writer.WriteString("publishedAt", published.ToString("o", CultureInfo.InvariantCulture));
+                    if (latest.Installer is { } installer)
+                    {
+                        writer.WriteStartObject("installer");
+                        writer.WriteString("name", installer.Name);
+                        writer.WriteString("url", installer.Url);
+                        writer.WriteNumber("size", installer.Size);
+                        if (installer.Sha256 is { } sha) writer.WriteString("sha256", sha);
+                        if (installer.ChecksumUrl is { } sums) writer.WriteString("checksumUrl", sums);
+                        writer.WriteEndObject();
+                    }
                 }
                 if (state.DismissedTag is { } dismissed) writer.WriteString("dismissedTag", dismissed);
                 writer.WriteEndObject();
