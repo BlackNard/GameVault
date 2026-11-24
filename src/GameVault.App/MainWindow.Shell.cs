@@ -113,6 +113,8 @@ public partial class MainWindow
 
     private async Task NavigateHistoryAsync(bool back)
     {
+        // A full-window view (the theme picker, an editor) is closed first, through its own discard/save guard; Back/Forward then continue from the page underneath.
+        if (activeInlineEditor is { } open && !await open.TryLeaveAsync()) return;
         var route = back ? navHistory.Back(RouteStillExists) : navHistory.Forward(RouteStillExists);
         if (route is null) return;
         navigatingByHistory = true;

@@ -159,6 +159,12 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] Settings > GameVault data > Restore from a backup… accepts that safety copy.
 - [ ] With the system drive nearly full (or the `Safety` folder made read-only) **Update now** says the safety copy cannot be made and nothing was changed; the app keeps running.
 
+## 8h. Backup and restore guide (issue #47)
+
+- [ ] Settings shows "Guide: how to back up and restore" (collapsed). Opening it reads clearly in several themes and at a narrow window width; **Go to GameVault data** scrolls to the GameVault data section.
+- [ ] A game's Saves tab has **How backups work**: it opens Settings with the guide expanded and in view.
+- [ ] Every button the guide names exists with that exact name (Back up now, Backup history, Back up GameVault data…, Restore from a backup…).
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.
