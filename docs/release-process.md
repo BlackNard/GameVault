@@ -30,6 +30,10 @@ This tool checks that the manifest names a successful matching CI run and source
 
 GitHub may display an untagged URL for a draft. This is normal; the tool does not explicitly push tags. Private draft downloads require repository access/push privileges. Signing checksums provide integrity checks, not publisher authentication.
 
+## Preview number (update check)
+
+Before building the commit a preview release is made from, set `GameVaultPreview` in `Directory.Build.props` to that preview's number and create the draft with the matching tag (`-Tag v<version>-preview.N`). The app reports `<version>-preview.N` and the notify-only update check ([docs/update-check.md](update-check.md)) compares it with the GitHub release tags.
+
 ## Test the exact downloaded asset
 
 Manually dispatch the existing Windows build workflow on the intended reviewed branch with `draft_release_id` set to that draft's numeric ID. The ordinary verification job remains read-only. The separate `draft-asset-smoke` job gets contents-write scope because GitHub draft visibility requires push access; its script only reads release/asset/originating-CI metadata and does not create, update, publish or delete releases.

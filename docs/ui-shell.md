@@ -9,6 +9,10 @@ Part of the UI overhaul (ticket #90, phases 2 and 3). The logic lives in `GameVa
 - **Now playing chip:** while a game runs, the title bar shows its name and elapsed time; clicking it opens the game page.
 - **Design tokens:** shape tokens (`AppRadius`, `AppRadiusSmall`) and the title bar button styles (`TitleIconButton`, `TitlePillButton`) are in `Styles.xaml`. Colours stay in `ThemePalette`.
 
+## Notifications (the bell, issue #40)
+- The bell in the title bar (left of the window buttons) shows a badge with the number of notices you have not looked at. Click it (or press Esc / click elsewhere to close) to see the list: title, detail, an action button, a dismiss button and **Clear all**.
+- It holds notices that must not vanish like a toast: a newer GameVault version (Open release page), "GameVault did not close normally last time" (Save diagnostics) and backup-needs-attention alerts (Review). Logic: `GameVault.Core/NoticeCenter.cs`; window code: `MainWindow.Notices.cs`. Toasts are still used for passing messages.
+
 ## Library, game page, rail, settings and drawer (UI overhaul, same PR)
 - **Library:** search box with placeholder, status chips (All, Playing, Completed, On hold, Not started) and a Removed chip, a cover-grid / compact-list switch, cover cards with a status badge, and hover actions (Play and a more-actions menu). Right-click a card or row for Play, Back up now, Open install folder, Edit, Sessions & notes, Remove. The chips drive the original (now hidden) status filter and removed checkbox, so filtering behaves as before. Artwork is still shown whole (Stretch Uniform).
 - **Game page:** a hero banner (soft backdrop from the cover), large Play button, icon buttons for Edit, Open install folder, Back up now and More (launch settings, remove), a facts row (playtime, latest session) and underline tabs. The separate Back button is gone: use the title bar history or the breadcrumb.

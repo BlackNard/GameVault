@@ -124,6 +124,18 @@ Use a clean copy of the app (extract the clean ZIP from `outputs/Archives` into 
 - [ ] Drop several items: the first game opens the form and the rest are listed in a toast.
 - [ ] While a drawer, prompt or operation is open, dropping is refused with a short message. Works in two or three themes and on the welcome screen of an empty library.
 
+## 8e. Update check and the notification bell (issues #38 and #40)
+
+- [ ] The title bar has a bell left of the window buttons; with nothing to show it has no badge and its list says "Nothing needs your attention."
+- [ ] Settings > Updates shows "You have version 0.1.0-preview.N" and a **Check now** button.
+- [ ] With a newer published release (the "old simulated" test build, or lower `GameVaultPreview` in `Directory.Build.props`): **no toast**; the bell gets a badge "1"; opening it lists "GameVault ... is available" with **Open release page** (opens the GitHub release page; nothing is downloaded) and a dismiss button; the badge clears after opening, the entry stays.
+- [ ] Dismiss it and restart: it does not come back for that version. With the current version: "You have the latest version" and no entry.
+- [ ] Close and reopen the app: the notice is still in the bell even though the start-up check is skipped (at most every 12 hours).
+- [ ] End the app from Task Manager and start it again: the bell shows "GameVault did not close normally last time" with **Save diagnostics**.
+- [ ] A failed backup (for example a read-only backup folder) adds "Backup needs attention: <game>" with **Review**; reviewing it, or a later successful backup, removes it.
+- [ ] Esc and a click outside close the list; keyboard Tab reaches the buttons; it looks right in two or three themes. Offline: a quiet start-up (no message), **Check now** explains.
+- [ ] Untick "Check for new versions when GameVault starts": restart: no check runs (cached notices still show). Tick it again: it returns.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

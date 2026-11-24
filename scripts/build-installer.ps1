@@ -8,7 +8,7 @@ Import-Module (Join-Path $PSScriptRoot 'AppVersion.psm1') -Force
 $payload = [IO.Path]::GetFullPath($PublishDirectory).TrimEnd('\','/')
 if ($payload -match '[{}";\r\n]') { throw 'Unsafe publish path.' }
 $files = @(Get-InstallerPayload $payload)
-$version = (Get-Item -LiteralPath (Join-Path $payload 'GameVault.exe')).VersionInfo.ProductVersion.Split('+')[0]
+$version = (Get-Item -LiteralPath (Join-Path $payload 'GameVault.exe')).VersionInfo.ProductVersion.Split('+')[0].Split('-')[0]   # 0.1.0-preview.2 -> 0.1.0: the installer version has no preview part
 if ($version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') { throw 'App version must be a numeric Windows installer version.' }
 if (-not $AllowDifferentVersion -and $version -ne (Get-AppVersion $root)) { throw 'The publish directory was built from a different app version than Directory.Build.props.' }
 $output = Join-Path $root ('artifacts/installer-' + [guid]::NewGuid().ToString('N'))

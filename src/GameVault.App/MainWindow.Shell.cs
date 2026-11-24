@@ -28,6 +28,7 @@ public partial class MainWindow
     private void InitializeShell()
     {
         ToastHost.ItemsSource = toastViews;
+        InitializeNotices();
         toastQueue.Changed += (_, _) => SyncToasts();
         // Every message the app already writes to the old status line becomes a toast; the old line stays hidden.
         DependencyPropertyDescriptor.FromProperty(TextBlock.TextProperty, typeof(TextBlock)).AddValueChanged(OperationNotice, (_, _) => OperationNoticeChanged());
@@ -167,6 +168,7 @@ public partial class MainWindow
     {
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
         if (key == Key.K && Keyboard.Modifiers == ModifierKeys.Control) { e.Handled = true; TogglePalette(); return; }
+        if (key == Key.Escape && NoticePanel.Visibility == Visibility.Visible && PaletteOverlay.Visibility != Visibility.Visible) { e.Handled = true; CloseNotices(); return; }
         if (PaletteOverlay.Visibility == Visibility.Visible) return;
         if (key == Key.OemQuestion && Keyboard.Modifiers == ModifierKeys.None && libraryVisible && LibraryPanel.Visibility == Visibility.Visible && Keyboard.FocusedElement is not TextBox)
         {
@@ -183,6 +185,7 @@ public partial class MainWindow
 
     private void ShellMouseDown(object sender, MouseButtonEventArgs e)
     {
+        if (e.ChangedButton == MouseButton.Left && NoticePanel.Visibility == Visibility.Visible && !IsInside(e.OriginalSource as DependencyObject, NoticePanel) && !IsInside(e.OriginalSource as DependencyObject, NoticesButton)) CloseNotices();
         if (e.ChangedButton is not (MouseButton.XButton1 or MouseButton.XButton2) || PaletteOverlay.Visibility == Visibility.Visible) return;
         e.Handled = true;
         _ = NavigateHistoryAsync(e.ChangedButton == MouseButton.XButton1);
