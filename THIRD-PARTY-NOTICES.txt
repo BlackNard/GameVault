@@ -75,8 +75,8 @@ Its installation is optional and requires explicit administrator approval.
 Microsoft licensing information:
 https://visualstudio.microsoft.com/license-terms/vs2022-cruntime/
 
-Microsoft.Web.WebView2 SDK 1.0.4314.35
-https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.4314.35
+Microsoft.Web.WebView2 SDK 1.0.4370.26
+https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.4370.26
 Copyright Microsoft Corporation. Exact restored SDK LICENSE.txt and NOTICE.txt
 are bundled at licenses/webview2/. These terms cover the redistributed SDK;
 the separately installed Evergreen WebView2 Runtime has its own Microsoft terms.
