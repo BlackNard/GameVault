@@ -235,7 +235,7 @@ public sealed class UpdateCheckTests : IDisposable
         var version = System.Text.RegularExpressions.Regex.Match(props, @"<GameVaultVersion>([^<]+)</GameVaultVersion>").Groups[1].Value;
         var preview = System.Text.RegularExpressions.Regex.Match(props, @"<GameVaultPreview>(\d+)</GameVaultPreview>").Groups[1].Value;
         Assert.False(string.IsNullOrEmpty(preview), "GameVaultPreview must be set in Directory.Build.props.");
-        Assert.Contains("<InformationalVersion>$(GameVaultVersion)-preview.$(GameVaultPreview)</InformationalVersion>", props);
+        Assert.Contains("<InformationalVersion>$(Version)-preview.$(GameVaultPreview)</InformationalVersion>", props);
         Assert.True(ReleaseVersion.TryParse($"{version}-preview.{preview}", out var built));
         Assert.True(V($"v{version}-preview.{int.Parse(preview) + 1}") > built);                    // the next tag would be offered as an update
         Assert.False(V($"v{version}-preview.{preview}") > built);

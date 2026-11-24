@@ -7,7 +7,7 @@
     <!-- The preview number of the next/current preview release (v$(GameVaultVersion)-preview.N). Bump it when a release is prepared, so the app can tell
          0.1.0-preview.2 from 0.1.0-preview.3 (the update check compares it with GitHub release tags). -->
     <GameVaultPreview>2</GameVaultPreview>
-    <InformationalVersion>$(GameVaultVersion)-preview.$(GameVaultPreview)</InformationalVersion>
+    <InformationalVersion>$(Version)-preview.$(GameVaultPreview)</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
