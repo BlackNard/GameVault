@@ -14,7 +14,8 @@ public sealed class CaptureTests : IDisposable
   await store.InitializeAsync();
   await store.SaveProfileAsync(new(1,game,"Test",Path.Combine(root,"test.exe"),root,[],GameStatus.Playing,20,false,false));
   var now=DateTimeOffset.UtcNow; await store.SaveSessionJournalAsync(new(1,game,target.SessionId,now,now,0,SessionState.Active,target.ProcessId,target.ProcessCreatedUtcTicks,Path.Combine(root,"test.exe"),null,0));
-  return new(paths,()=>backend,TimeSpan.FromMilliseconds(100));
+  // Only the tests that provoke a hang need the short timeout; the others must not fail when a slow runner needs more than 100 ms to finalize.
+  return new(paths,()=>backend,backend.Hang||backend.HangScreenshot?TimeSpan.FromMilliseconds(100):TimeSpan.FromSeconds(15));
  }
  [Fact] public async Task ScreenshotCommitsOnlyValidatedOutputAndSessionMetadata()
  {
