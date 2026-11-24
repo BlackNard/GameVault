@@ -124,6 +124,13 @@ Use a clean copy of the app (extract the clean ZIP from `outputs/Archives` into 
 - [ ] Drop several items: the first game opens the form and the rest are listed in a toast.
 - [ ] While a drawer, prompt or operation is open, dropping is refused with a short message. Works in two or three themes and on the welcome screen of an empty library.
 
+## 8e. Update check (issue #38)
+
+- [ ] Settings > Updates shows "You have version 0.1.0-preview.N" and a **Check now** button.
+- [ ] Check now with a newer published release (lower `GameVaultPreview` in `Directory.Build.props` for a local test build): a toast "GameVault ... is available" with **Open release page**, the Settings line says the same, and the button opens the GitHub release page in your browser. Nothing is downloaded.
+- [ ] With the current version: "You have the latest version". Offline: a plain "Could not check..." message (no dialog); at start-up nothing is shown.
+- [ ] Untick "Check for new versions when GameVault starts": restart; no check runs (see `Logs`/network). Tick again: it returns (at most once every 12 hours).
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.
