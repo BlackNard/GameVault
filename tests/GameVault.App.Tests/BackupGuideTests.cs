@@ -26,4 +26,13 @@ public sealed class BackupGuideTests
             Assert.Contains(name, xaml);
         Assert.Contains("BackupGuide.IsExpanded = true", Source("MainWindow.BackupGuide.cs"));
     }
+
+    [Fact]
+    public void Back_and_Forward_close_an_open_full_window_view_first_through_its_own_guard()
+    {
+        var shell = Source("MainWindow.Shell.cs");
+        var method = shell[shell.IndexOf("private async Task NavigateHistoryAsync", StringComparison.Ordinal)..];
+        var leave = method.IndexOf("activeInlineEditor is { } open && !await open.TryLeaveAsync()", StringComparison.Ordinal);
+        Assert.True(leave > 0 && leave < method.IndexOf("navHistory.Back(", StringComparison.Ordinal), "Leave the open view before the history moves.");
+    }
 }
