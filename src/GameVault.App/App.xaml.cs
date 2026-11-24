@@ -84,7 +84,7 @@ public partial class App : Application
         var answer = MessageBox.Show(
             "GameVault was updated, but your library is not exactly as it was before the update:\n\n" + difference.Summary(3) + "\n\n" +
             (check.SafetyArchive is { } archive ? "A safety copy of your data was made before the update:\n" + archive + "\n\n" : "") +
-            "You can restore it from Settings (Restore a data backup). Open GameVault anyway?\n\nYes opens GameVault. No closes it without changing anything.",
+            "You can restore it in Settings, under GameVault data (Restore from a backup…). Open GameVault anyway?\n\nYes opens GameVault. No closes it without changing anything.",
             "GameVault update check", MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (answer != MessageBoxResult.Yes) return false;
         new PendingUpdateStore(UpdatesFolder).Clear();
