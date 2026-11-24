@@ -55,7 +55,9 @@ public sealed class UpdateChecker(PoliteHttp http, string repository = UpdateChe
     }
 
     /// <summary>True only for https://github.com/&lt;repository&gt;/releases/... so a hostile or odd answer can never make the app open another site.</summary>
-    public bool IsOurReleaseLink(string url)
+    public bool IsOurReleaseLink(string url) => IsReleaseLink(url, repository);
+
+    public static bool IsReleaseLink(string url, string repository = DefaultRepository)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps || !uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase)) return false;
         if (!string.IsNullOrEmpty(uri.UserInfo) || !uri.IsDefaultPort || url.Length > 300) return false;

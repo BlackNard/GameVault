@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
+using GameVault.Core;
 using GameVault.Infrastructure.Diagnostics;
 using Microsoft.Win32;
 
@@ -42,8 +43,9 @@ public partial class MainWindow
     {
         Loaded -= ShowPreviousRunNotice;
         if (App.PreviousRun is not { PreviousRunEndedUnexpectedly: true }) return;
-        ShowToast("GameVault did not close normally last time", "If something went wrong, save a diagnostics package to attach to a bug report.", true,
-            "Save diagnostics", () => CreateDiagnosticsClicked(this, new RoutedEventArgs()));
+        PostNotice(new Notice(UnexpectedExitId, NoticeKind.UnexpectedExit, "GameVault did not close normally last time",
+            "If something went wrong, save a diagnostics package to attach to a bug report.", DateTimeOffset.UtcNow, true, "Save diagnostics"),
+            () => CreateDiagnosticsClicked(this, new RoutedEventArgs()));
     }
 
     private async void CreateDiagnosticsClicked(object sender, RoutedEventArgs e)

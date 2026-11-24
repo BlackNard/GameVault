@@ -29,7 +29,6 @@ public partial class MainWindow
 {
     private UpdateInfo? availableUpdate;
     private bool checkingForUpdates;
-    private bool updateToastShown;
 
     private void ShowUpdateSettingsState(string status, bool available)
     {
@@ -42,11 +41,23 @@ public partial class MainWindow
     {
         Loaded -= StartUpdateCheckLater;
         ShowUpdateSettingsState($"You have version {AppVersionInfo.Current}.", false);
+        ShowCachedUpdateNotice();
         if (!UpdateCheckRules.ShouldCheckAtStart(settings.CheckForUpdates, UpdateCheckStamp.Read(paths.Root), DateTimeOffset.UtcNow)) return;
         try { await Task.Delay(TimeSpan.FromSeconds(8)); }
         catch (TaskCanceledException) { return; }
         if (stoppingObservation || quitPreparing) return;
         await CheckForUpdatesAsync(manual: false);
+    }
+
+    /// <summary>After a restart the notice comes back from the cache (the start-up check runs at most every 12 hours): newer than this app and not dismissed.</summary>
+    private void ShowCachedUpdateNotice()
+    {
+        var cached = UpdateNoticeCache.Read(paths.Root);
+        if (cached.Latest is not { } latest || !ReleaseVersion.TryParse(AppVersionInfo.Current, out var running) || !ReleaseVersion.TryParse(latest.Version, out var version) ||
+            version <= running || !UpdateChecker.IsReleaseLink(latest.Url)) return;
+        availableUpdate = latest;
+        ShowUpdateSettingsState($"Version {latest.Version} is available (you have {AppVersionInfo.Current}).", true);
+        ShowUpdateNotice(latest);
     }
 
     private async void CheckForUpdatesClicked(object sender, RoutedEventArgs e) => await CheckForUpdatesAsync(manual: true);
@@ -62,16 +73,12 @@ public partial class MainWindow
             UpdateCheckResult result;
             using (var http = new PoliteHttp("GitHub"))
                 result = await Task.Run(() => new UpdateChecker(http).CheckAsync(AppVersionInfo.Current, CancellationToken.None));
-            if (result.Status != UpdateStatus.Failed) UpdateCheckStamp.Write(paths.Root, DateTimeOffset.UtcNow);
+            if (result.Status != UpdateStatus.Failed) { UpdateCheckStamp.Write(paths.Root, DateTimeOffset.UtcNow); UpdateNoticeCache.WriteLatest(paths.Root, result.Update); }
             else AppLog.Warn("Update check failed: " + result.Message);
             availableUpdate = result.Update;
             if (result.Status == UpdateStatus.Failed && !manual) { ShowUpdateSettingsState($"You have version {AppVersionInfo.Current}.", false); return; }   // a quiet start-up check says nothing when offline
             ShowUpdateSettingsState(result.Describe(), result.Status == UpdateStatus.Available);
-            if (result.Update is { } update && (manual || !updateToastShown))
-            {
-                updateToastShown = true;
-                ShowToast($"GameVault {update.Version} is available", "You have " + result.CurrentVersion + ". Nothing is downloaded or installed by GameVault.", false, "Open release page", () => OpenReleasePage(update));
-            }
+            ShowUpdateNotice(result.Status == UpdateStatus.Available ? result.Update : null);        // a quiet entry in the bell, no toast
         }
         catch (Exception error) when (error is IOException or InvalidOperationException or System.Net.Http.HttpRequestException)
         {
@@ -93,8 +100,7 @@ public partial class MainWindow
     /// <summary>Opens the release page in the player's browser, only for a link that points at this repository's releases on github.com.</summary>
     private void OpenReleasePage(UpdateInfo update)
     {
-        using var http = new PoliteHttp("GitHub");
-        if (!new UpdateChecker(http).IsOurReleaseLink(update.Url)) { ShowToast("Could not open the release page", "The link was not a GameVault release link.", true); return; }
+        if (!UpdateChecker.IsReleaseLink(update.Url)) { ShowToast("Could not open the release page", "The link was not a GameVault release link.", true); return; }
         try { Process.Start(new ProcessStartInfo(update.Url) { UseShellExecute = true }); }
         catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException) { ShowToast("Could not open the release page", error.Message, true); }
     }

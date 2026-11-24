@@ -1,6 +1,6 @@
 # Update check (notify only)
 
-GameVault can tell you when a newer version has been published. It **never downloads or installs anything**: it shows a toast and a status line in Settings > Updates with a button that opens the release page in your browser.
+GameVault can tell you when a newer version has been published. It **never downloads or installs anything**: it adds a quiet notice to the **bell** in the title bar (a badge, no pop-up) and a status line in Settings > Updates, each with a button that opens the release page in your browser. The notice stays in the bell until you dismiss it (that version stays dismissed after a restart) or you update; the last result is kept in `Cache/update-notice.json`.
 
 ## The one request
 - When it starts (a few seconds after the window is up, and at most once every 12 hours) GameVault sends **one anonymous GET** to `https://api.github.com/repos/BlackNard/GameVault/releases?per_page=20` through the shared polite HTTP client: fixed HTTPS address, 10 s timeout, 512 KB limit, no redirects, no cookies, no account.
