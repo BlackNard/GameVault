@@ -12,6 +12,7 @@ public partial class GameEditor : UserControl
     private readonly Func<Guid, Task<GameSaveResult>>? restore;
     private int coverRevision;
     private byte[]? newCoverBytes;
+    private bool removeCover;
     private CoverSearchView? coverSearch;
     private bool saving;
     public GameSaveResult? Result { get; private set; }
@@ -67,6 +68,14 @@ public partial class GameEditor : UserControl
         if (path is not null) WorkingDirectory.Text = path;
     });
 
+    private void RemoveCover(object sender, RoutedEventArgs e)
+    {
+        newCoverBytes = null;
+        removeCover = id is not null;      // a new game has no stored cover yet: dropping the picked image is enough
+        coverRevision++;
+        CoverPath.Text = id is null ? "No cover." : "The cover will be removed when you save. Choose another image or Find artwork online to use a different one.";
+    }
+
     private async void BrowseCover(object sender, RoutedEventArgs e)
     {
         try
@@ -89,6 +98,7 @@ public partial class GameEditor : UserControl
         coverSearch.CoverChosen += (png, credit) =>
         {
             newCoverBytes = png;
+            removeCover = false;
             coverRevision++;
             CoverPath.Text = "Imported cover: " + credit;
             CloseArtwork();
@@ -130,7 +140,7 @@ public partial class GameEditor : UserControl
         if (saving) return;
         var draft = new GameDraft(id, GameName.Text, Executable.Text, WorkingDirectory.Text,
             SaveSources.Text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
-            Enum.Parse<GameStatus>((string)((ComboBoxItem)StatusChoice.SelectedItem).Tag));
+            Enum.Parse<GameStatus>((string)((ComboBoxItem)StatusChoice.SelectedItem).Tag), removeCover);
         saving = true;
         Fields.IsEnabled = SaveButton.IsEnabled = CancelButton.IsEnabled = false;
         ErrorNotice.Text = "Saving game…";
