@@ -67,28 +67,37 @@ public sealed class UpdateCheckWiringTests
     }
 
     [Fact]
-    public void Update_now_asks_first_downloads_then_quits_normally_and_starts_the_installer_only_after_the_folder_lock_is_released()
+    public void Updates_download_in_the_background_install_only_when_closed_or_asked_and_the_file_is_checked_again_right_before_it_starts()
     {
         var updates = Source("MainWindow.Updates.cs");
-        var confirm = updates.IndexOf("\"Update GameVault\", MessageBoxButton.YesNo", StringComparison.Ordinal);
-        var download = updates.IndexOf("downloader.DownloadAsync(", StringComparison.Ordinal);
-        var pending = updates.IndexOf("App.PendingUpdateInstaller = installer;", StringComparison.Ordinal);
+        Assert.Contains("AutoUpdateRules.ShouldDownload(AutoUpdateOn, CanUpdateInPlace(update), IsGameRunning(), readyUpdate, update)", updates);    // never while a game runs
+        Assert.Contains("await DownloadInBackgroundAsync(update)", updates);
+        Assert.Contains("await Task.Delay(AutoUpdateRules.RecheckInterval)", updates);                                                  // a launcher left in the tray still looks again
+        var pending = updates.IndexOf("App.PendingUpdateInstaller = PendingUpdates.InstallerPath(pending);", StringComparison.Ordinal);
+        var intact = updates.IndexOf("!PendingUpdates.IsIntact(pending)", StringComparison.Ordinal);
         var quit = updates.IndexOf("await lifetime.QuitAsync()", StringComparison.Ordinal);
-        Assert.True(confirm > 0 && confirm < download, "The player must confirm before anything is downloaded.");
-        Assert.True(download < pending && pending < quit, "Download and verify first, then quit.");
+        Assert.True(intact > 0 && intact < pending && pending < quit, "Check the file, then ask to quit.");
         Assert.Contains("if (result != WindowCloseResult.Quit)", updates);
         Assert.Contains("App.PendingUpdateInstaller = null;     // GameVault stayed open", updates);
         Assert.Contains("CanUpdateInPlace(UpdateInfo update) => update.Installer is not null && InstalledCopy.IsThisTheInstalledCopy()", updates);
-        Assert.DoesNotContain("Process.Start", updates.Substring(updates.IndexOf("BeginUpdateAsync(UpdateInfo update)", StringComparison.Ordinal), 2500));
+        Assert.Contains("PendingUpdates.Clear();", updates);
         var app = Source("App.xaml.cs");
-        Assert.True(app.IndexOf("workspace?.Dispose();", app.IndexOf("OnExit", StringComparison.Ordinal), StringComparison.Ordinal) < app.IndexOf("UpdateLauncher.Start(installer, UpdatesFolder)", StringComparison.Ordinal),
+        var exit = app[app.IndexOf("protected override void OnExit", StringComparison.Ordinal)..];
+        Assert.True(exit.IndexOf("workspace?.Dispose();", StringComparison.Ordinal) < exit.IndexOf("StartPendingUpdate(RelaunchAfterUpdate)", StringComparison.Ordinal),
             "The installer may only start after this process released the application folder lock.");
-        Assert.Contains("PendingUpdateInstaller is { } installer", app);
-        Assert.DoesNotContain("PendingUpdateInstaller =", app);                    // only the update flow sets it
+        Assert.Contains("else if (AutoUpdateEnabled) StartPendingUpdate(relaunch: false);", exit);            // a normal close installs without reopening the app
+        Assert.Contains("!AutoUpdateRules.ShouldInstall(true, pending, running) || !store.IsIntact(pending)) return;", app);        // checked again right before it starts
+        Assert.Contains("store.RecordAttempt(", app);
+        Assert.Contains("AutoUpdateRules.ShouldInstall(true, pending, running)", app);
+        var startup = app[app.IndexOf("protected override async void OnStartup", StringComparison.Ordinal)..];
+        Assert.True(startup.IndexOf("TryInstallWaitingUpdateAtStart()", StringComparison.Ordinal) < startup.IndexOf("ApplicationWorkspace.Open", StringComparison.Ordinal), "A waiting update installs before the library is opened.");
+        Assert.Contains("UpdatePreferences.ParseAutoUpdate(ReadSettingsText(paths))", app);
+        Assert.DoesNotContain("PendingUpdateInstaller =", app);                                               // only the update flow sets it
         var xaml = Source("MainWindow.xaml");
         Assert.Contains("x:Name=\"UpdateNowButton\"", xaml);
+        Assert.Contains("x:Name=\"AutoUpdateChoice\"", xaml);
         var notices = Source("MainWindow.Notices.cs");
-        Assert.Contains("inPlace ? \"Update now\" : \"Open release page\"", notices);
+        Assert.Contains("\"Restart and update now\"", notices);
         Assert.Contains("InstallLocationRules.IsInstalledCopy(AppContext.BaseDirectory, RegisteredInstallLocation())", Source("InstalledCopy.cs"));
         Assert.Contains("{11DE0F05-D06D-4594-A970-85DDE91DC106}_is1", Source("InstalledCopy.cs"));
     }

@@ -122,11 +122,14 @@ public partial class MainWindow
         var id = UpdateIdPrefix + update.Tag;
         notices.RetainOnly(NoticeKind.Update, new HashSet<string> { id });
         if (string.Equals(UpdateNoticeCache.Read(paths.Root).DismissedTag, update.Tag, StringComparison.Ordinal)) { notices.Remove(id); return; }
-        var inPlace = CanUpdateInPlace(update);
-        PostNotice(new Notice(id, NoticeKind.Update, $"GameVault {update.Version} is available",
-            inPlace ? $"You have {AppVersionInfo.Current}. Update now keeps your games, saves, backups and settings; nothing happens until you confirm."
-                    : $"You have {AppVersionInfo.Current}. This copy is not the installed one, so the release page has the download.",
-            update.PublishedAt ?? DateTimeOffset.UtcNow, false, inPlace ? "Update now" : "Open release page"),
+        var ready = IsReady(update);
+        var inPlace = ready || CanUpdateInPlace(update);
+        var title = ready ? $"GameVault {update.Version} is ready to install" : $"GameVault {update.Version} is available";
+        var detail = ready ? $"It installs when you close GameVault, so nothing that is running is interrupted. Your games, saves, backups and settings stay as they are. You have {AppVersionInfo.Current}."
+            : inPlace && AutoUpdateOn ? $"You have {AppVersionInfo.Current}. It downloads in the background and installs when you close GameVault."
+            : inPlace ? $"You have {AppVersionInfo.Current}. Update now keeps your games, saves, backups and settings."
+            : $"You have {AppVersionInfo.Current}. This copy is not the installed one, so the release page has the download.";
+        PostNotice(new Notice(id, NoticeKind.Update, title, detail, update.PublishedAt ?? DateTimeOffset.UtcNow, false, ready ? "Restart and update now" : inPlace ? "Update now" : "Open release page"),
             () => { if (inPlace) _ = BeginUpdateAsync(update); else OpenReleasePage(update); });
     }
 

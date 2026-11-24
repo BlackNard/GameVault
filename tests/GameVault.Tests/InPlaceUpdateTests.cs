@@ -390,8 +390,9 @@ public sealed class InPlaceUpdateTests : IDisposable
         Assert.False(UpdateLauncher.IsStartable(outside, folder));                                                           // right name, wrong folder
         Assert.False(UpdateLauncher.IsStartable(Path.Combine(folder, "..", "updates", "..", "GameVault-Setup-0.4.0-win-x64.exe"), folder));
         Assert.False(UpdateLauncher.IsStartable("bad\0path", folder));
-        Assert.Equal("/SILENT /NORESTART /RELAUNCH=1", UpdateLauncher.Arguments);
-        Assert.False(UpdateLauncher.Start(other, folder));                                                                   // refuses before starting anything
+        Assert.Equal("/SILENT /NORESTART /RELAUNCH=1 /WAITFORPID=42", UpdateLauncher.BuildArguments(relaunch: true, waitForProcessId: 42));
+        Assert.Equal("/SILENT /NORESTART", UpdateLauncher.BuildArguments(relaunch: false, waitForProcessId: 0));
+        Assert.False(UpdateLauncher.Start(other, folder, relaunch: false, waitForProcessId: 1));                                                                   // refuses before starting anything
     }
 
     [Theory]
@@ -416,7 +417,8 @@ public sealed class InPlaceUpdateTests : IDisposable
         Assert.Contains("{param:RELAUNCH|0}", iss);                                                     // off unless /RELAUNCH=1 is passed
         Assert.Contains("Check: RelaunchRequested", iss);
         Assert.Contains("function RelaunchRequested: Boolean;", iss);
-        Assert.Equal("/SILENT /NORESTART /RELAUNCH=1", UpdateLauncher.Arguments);
+        Assert.Contains("{param:WAITFORPID|0}", iss);                                                   // setup waits for GameVault's own process to end
+        Assert.Contains("function InitializeSetup: Boolean;", iss);
         Assert.DoesNotContain("UninstallDelete", iss.Replace("; Deliberately no wildcard cleanup / UninstallDelete.", ""));   // data and profiles are still never touched by setup
         Assert.Contains("PrivilegesRequired=lowest", iss);                                              // an update never asks for administrator rights
         Assert.Contains("CloseApplications=no", iss);

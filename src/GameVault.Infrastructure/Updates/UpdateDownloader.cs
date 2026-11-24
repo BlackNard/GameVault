@@ -156,7 +156,7 @@ public sealed class UpdateDownloader : IDisposable
     }
 
     /// <summary>Removes old downloaded installers (and partial files) from the updates folder. Never throws.</summary>
-    public static void CleanOld(string folder, TimeSpan olderThan, DateTime? now = null)
+    public static void CleanOld(string folder, TimeSpan olderThan, DateTime? now = null, string? keep = null)
     {
         try
         {
@@ -165,6 +165,7 @@ public sealed class UpdateDownloader : IDisposable
             foreach (var file in Directory.EnumerateFiles(folder))
             {
                 var name = Path.GetFileName(file);
+                if (keep is not null && string.Equals(name, keep, StringComparison.Ordinal)) continue;
                 if ((InstallerFile.IsMatch(name) || name.EndsWith(".exe.part", StringComparison.Ordinal) && InstallerFile.IsMatch(name[..^5])) && File.GetLastWriteTimeUtc(file) < limit) DeleteQuietly(file);
             }
         }
@@ -183,7 +184,12 @@ public sealed class UpdateDownloader : IDisposable
 /// <summary>Starts a downloaded installer over the installed copy. Only a file in GameVault's own updates folder with the release installer's name is ever started.</summary>
 public static class UpdateLauncher
 {
-    public const string Arguments = "/SILENT /NORESTART /RELAUNCH=1";
+    /// <summary>
+    /// Silent setup (a progress window, no wizard, no administrator rights). /RELAUNCH=1 opens the new version when setup finishes (when the player asked to restart and
+    /// update); /WAITFORPID makes setup wait until GameVault's own process has ended so no file is still in use.
+    /// </summary>
+    public static string BuildArguments(bool relaunch, int waitForProcessId) =>
+        "/SILENT /NORESTART" + (relaunch ? " /RELAUNCH=1" : "") + (waitForProcessId > 0 ? $" /WAITFORPID={waitForProcessId}" : "");
     private static readonly Regex InstallerFile = new(@"^GameVault-Setup-[0-9.]{5,30}-win-x64\.exe$", RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     public static bool IsStartable(string installerPath, string updatesFolder)
@@ -198,12 +204,12 @@ public static class UpdateLauncher
     }
 
     /// <summary>Starts the installer detached from this process (it keeps running after GameVault exits). Returns false when the file is not startable or Windows refuses.</summary>
-    public static bool Start(string installerPath, string updatesFolder)
+    public static bool Start(string installerPath, string updatesFolder, bool relaunch, int waitForProcessId)
     {
         if (!IsStartable(installerPath, updatesFolder)) return false;
         try
         {
-            using var process = Process.Start(new ProcessStartInfo(Path.GetFullPath(installerPath), Arguments) { UseShellExecute = false, WorkingDirectory = Path.GetFullPath(updatesFolder) });
+            using var process = Process.Start(new ProcessStartInfo(Path.GetFullPath(installerPath), BuildArguments(relaunch, waitForProcessId)) { UseShellExecute = false, WorkingDirectory = Path.GetFullPath(updatesFolder) });
             return process is not null;
         }
         catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException or IOException) { return false; }
