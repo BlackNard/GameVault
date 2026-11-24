@@ -24,7 +24,8 @@ if ((Get-Content -Raw -LiteralPath (Join-Path $root 'scripts/build-installer.ps1
 if ($PublishDirectory) {
     $exe = Join-Path $PublishDirectory 'GameVault.exe'
     $built = (Get-Item -LiteralPath $exe).VersionInfo.ProductVersion.Split('+')[0]
-    if ($built -ne $version) { $problems.Add("GameVault.exe reports $built but Directory.Build.props says $version.") }
+    $expected = "$version-preview.$(Get-AppPreview $root)"
+    if ($built -ne $expected) { $problems.Add("GameVault.exe reports $built but Directory.Build.props says $expected.") }
 }
 if ($problems.Count -gt 0) { throw ("Version single-source check failed:`n" + ($problems -join "`n")) }
 Write-Host "App version $version is single-sourced and consistent."
