@@ -13,6 +13,8 @@ GameVault fills a game's information (description, release date, developers, pub
 | The game file | developer from the exe's version resource | local only | Engine companies (Epic Games, Unity) are ignored |
 | Your PC | install size | local only | Steam games use the size in their own manifest |
 
+**Title search terms (Steam).** Steam's store search finds nothing when the query contains " - ", while Steam's own titles use a colon ("Grand Theft Auto IV - The Complete Edition" is "Grand Theft Auto IV: The Complete Edition" there). GameVault therefore asks with the dash removed first, then the title as typed, then the part before the subtitle (at most three requests, `SteamStoreProvider.SearchTerms`). Whatever Steam returns must still equal the full title once case and punctuation are ignored, so a different edition is never taken, and two apps with the same title are never guessed. The "Not the right game?" picker uses the same terms.
+
 Not used: IGDB, RAWG and SteamGridDB (need a key or account), PCGamingWiki (CC BY-NC-SA, see `save-location-database.md`), Metacritic and OpenCritic.
 
 ## Identity and "Not the right game?"
