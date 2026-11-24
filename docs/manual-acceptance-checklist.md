@@ -149,6 +149,16 @@ Needs an **installed** older copy whose version is lower than the newest publish
 - [ ] Portable/ZIP or development copy: only **Open release page** is offered, nothing is downloaded.
 - [ ] Offline during the download: a quiet message in Settings, the current version keeps working, it tries again later. (A tampered download cannot be tested by hand; the unit tests cover it.)
 
+## 8g. Data safety during updates (issue #44)
+
+Same setup as 8f. Use a library that has some games, saves and backups.
+
+- [ ] After an automatic or **Restart and update now** update, the new version opens straight away with no data warning, and `%LOCALAPPDATA%\GameVault-Updates\Safety` holds a `GameVault-data-....zip` plus a `fingerprint-....txt` (at most two of each).
+- [ ] `Logs/gamevault.log` says a safety copy was made before the update and that all files were checked and are unchanged after it.
+- [ ] Delete or edit one game's `profile.json` between the safety copy and the first start of the new version (close GameVault, wait for the installer, then change the file before reopening): the new version shows "your library is not exactly as it was", names the file and the safety copy; **No** closes it, **Yes** opens it.
+- [ ] Settings > Restore a data backup accepts that safety copy.
+- [ ] With the system drive nearly full (or the `Safety` folder made read-only) **Update now** says the safety copy cannot be made and nothing was changed; the app keeps running.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

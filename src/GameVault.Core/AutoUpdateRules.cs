@@ -4,7 +4,8 @@ namespace GameVault.Core;
 
 /// <summary>An update that was downloaded and verified and is waiting to be installed (kept in the updates folder next to the installer file).</summary>
 /// <param name="InstallerName">The installer's file name inside the updates folder (never a path).</param>
-public sealed record PendingUpdate(string Tag, string Version, string InstallerName, string Sha256, long Size, DateTimeOffset DownloadedAt, int Attempts = 0, DateTimeOffset? LastAttemptAt = null);
+public sealed record PendingUpdate(string Tag, string Version, string InstallerName, string Sha256, long Size, DateTimeOffset DownloadedAt, int Attempts = 0, DateTimeOffset? LastAttemptAt = null,
+    string? SafetyArchive = null, string? FingerprintFile = null);
 
 /// <summary>Whether updates install on their own. Default on; read tolerantly from settings.json before the library is opened (like the startup window).</summary>
 public static class UpdatePreferences

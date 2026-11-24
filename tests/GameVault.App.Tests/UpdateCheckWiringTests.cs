@@ -101,4 +101,21 @@ public sealed class UpdateCheckWiringTests
         Assert.Contains("InstallLocationRules.IsInstalledCopy(AppContext.BaseDirectory, RegisteredInstallLocation())", Source("InstalledCopy.cs"));
         Assert.Contains("{11DE0F05-D06D-4594-A970-85DDE91DC106}_is1", Source("InstalledCopy.cs"));
     }
+
+    [Fact]
+    public void The_library_is_protected_around_every_update_a_safety_copy_before_and_a_fingerprint_check_after()
+    {
+        var app = Source("App.xaml.cs");
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(app, @"StartWithSafetyCopy\(store, pending").Count);            // exit path and start-up path
+        Assert.DoesNotContain("UpdateLauncher.Start(store.InstallerPath(counted)", app.Replace("return UpdateLauncher.Start(store.InstallerPath(counted), UpdatesFolder, relaunch, Environment.ProcessId);", ""));
+        var helper = app[app.IndexOf("private static bool StartWithSafetyCopy", StringComparison.Ordinal)..];
+        Assert.True(helper.IndexOf("UpdateSafety.PrepareAsync", StringComparison.Ordinal) < helper.IndexOf("UpdateLauncher.Start", StringComparison.Ordinal), "No safety copy, no installer.");
+        Assert.Contains("return false;", helper[..helper.IndexOf("UpdateLauncher.Start", StringComparison.Ordinal)]);
+        var startup = app[app.IndexOf("protected override async void OnStartup", StringComparison.Ordinal)..];
+        var verify = startup.IndexOf("LibraryIsSafeAfterUpdate(paths)", StringComparison.Ordinal);
+        Assert.True(verify > 0 && verify < startup.IndexOf("SplashPreferences.Parse", StringComparison.Ordinal) && verify < startup.IndexOf("ApplicationWorkspace.Open", StringComparison.Ordinal),
+            "The library is compared with the fingerprint before the splash window and before the library is opened.");
+        Assert.Contains("MessageBoxButton.YesNo", app);
+        Assert.Contains("UpdateSafety.CanPrepare(paths, App.UpdatesFolder", Source("MainWindow.Updates.cs"));
+    }
 }

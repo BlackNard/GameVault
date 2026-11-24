@@ -36,7 +36,11 @@ public sealed class PendingUpdateStore(string folder)
             DateTimeOffset.TryParse(Text(json, "downloadedAt"), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var downloaded);
             var attempts = json.TryGetProperty("attempts", out var a) && a.TryGetInt32(out var count) && count is >= 0 and <= 100 ? count : 0;
             DateTimeOffset? last = DateTimeOffset.TryParse(Text(json, "lastAttemptAt"), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var when) ? when : null;
-            return new PendingUpdate(tag, version, name, sha.ToLowerInvariant(), bytesSize, downloaded, attempts, last);
+            var archive = Text(json, "safetyArchive");
+            var print = Text(json, "fingerprintFile");
+            if (archive is not null && !SafeFileName(archive)) archive = null;
+            if (print is not null && !SafeFileName(print)) print = null;
+            return new PendingUpdate(tag, version, name, sha.ToLowerInvariant(), bytesSize, downloaded, attempts, last, archive, print);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException) { return null; }
     }
@@ -58,6 +62,8 @@ public sealed class PendingUpdateStore(string folder)
                 writer.WriteString("downloadedAt", pending.DownloadedAt.ToString("o", CultureInfo.InvariantCulture));
                 writer.WriteNumber("attempts", pending.Attempts);
                 if (pending.LastAttemptAt is { } last) writer.WriteString("lastAttemptAt", last.ToString("o", CultureInfo.InvariantCulture));
+                if (pending.SafetyArchive is { } archive) writer.WriteString("safetyArchive", archive);
+                if (pending.FingerprintFile is { } print) writer.WriteString("fingerprintFile", print);
                 writer.WriteEndObject();
             }
             var temporary = StatePath + ".tmp";
@@ -104,6 +110,9 @@ public sealed class PendingUpdateStore(string folder)
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.SequentialScan);
         return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
     }
+
+    /// <summary>A plain file name inside the Safety folder: no path, no drive, no traversal.</summary>
+    private static bool SafeFileName(string name) => name.Length is > 0 and <= 120 && name == Path.GetFileName(name) && name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0 && !name.Contains("..", StringComparison.Ordinal);
 
     private static string? Text(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String && value.GetString() is { Length: > 0 and <= 200 } text ? text : null;
