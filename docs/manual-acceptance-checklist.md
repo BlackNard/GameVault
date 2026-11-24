@@ -168,6 +168,7 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 ## 8i. Remove a cover; automatic update choice (issues #50 and #51)
 
 - [ ] Edit a game that has a cover > **Remove cover** > Save changes: the cover disappears from the library and the game page, the rest of the game is unchanged, and after restarting GameVault (and a "Fetch missing info") the cover does **not** come back.
+- [ ] On that game page press **Refresh info**: a Steam game gets its store cover again (Refresh is an explicit request, so it overrides the earlier removal); the automatic lookup alone still does not.
 - [ ] Edit the same game > **Find artwork online…** or **Browse…** and pick a cover: it is used again.
 - [ ] Remove cover then Cancel instead of saving: nothing changes.
 - [ ] Settings > Updates: the explanation under "Download and install updates automatically" is clear; unticking it and checking for updates shows the update with Update now (installed copy) and nothing downloads on its own.

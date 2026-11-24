@@ -230,6 +230,15 @@ public sealed class LibraryService
 
     private void WriteCover(Guid id, byte[] png) => WriteProfileFile(id, "cover.png", png);
 
+    /// <summary>The player asked for information again (Refresh info): a cover they removed earlier may be fetched again, so the "removed" choice is forgotten.</summary>
+    public async Task AllowCoverAgainAsync(Guid id)
+    {
+        await gate.WaitAsync().ConfigureAwait(false);
+        try { DeleteCoverRemovedMarker(id); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+        finally { gate.Release(); }
+    }
+
     /// <summary>Remembers that the player removed this game's cover, so the automatic cover lookup does not bring it back.</summary>
     public const string CoverRemovedMarkerName = "cover-removed.marker";
 

@@ -53,6 +53,9 @@ public sealed class BackupGuideTests
         Assert.Contains("x:Name=\"RemoveCoverButton\"", Source("GameEditor.xaml"));
         var code = Source("GameEditor.xaml.cs");
         Assert.Contains("removeCover);", code);                       // GameDraft carries RemoveCover
-        Assert.Contains("removeCover = false;", code);                // choosing another cover cancels the removal
+        Assert.Contains("removeCover = false;", code);
+        var refresh = Source("MainWindow.Metadata.cs");
+        refresh = refresh[refresh.IndexOf("private async void RefreshInfoClicked", StringComparison.Ordinal)..];
+        Assert.True(refresh.IndexOf("library.AllowCoverAgainAsync(id)", StringComparison.Ordinal) < refresh.IndexOf("AutoCoversAsync(", StringComparison.Ordinal), "Refresh info forgets the removal, then fetches the cover.");                // choosing another cover cancels the removal
     }
 }

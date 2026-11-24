@@ -96,7 +96,10 @@ public partial class MainWindow
         {
             var result = await Task.Run(() => Metadata.RefreshAsync(id, true, CancellationToken.None));
             AboutNotice.Text = "";
-            if (await EnsureHeroesAsync([(id, item.Name)], CancellationToken.None) > 0) await RefreshLibrary(id);
+            // Refresh info is an explicit request: a game without a cover (also one the player removed) gets its store cover again.
+            await library.AllowCoverAgainAsync(id);
+            var covers = await AutoCoversAsync([(id, item.Name)], CancellationToken.None);
+            if (await EnsureHeroesAsync([(id, item.Name)], CancellationToken.None) > 0 || covers > 0) await RefreshLibrary(id);
             ShowToast(result.FieldsFilled > 0 ? "Game information updated" : "Nothing new found", result.Problems.Length > 0 ? string.Join(" ", result.Problems) : result.UsedNetwork ? "Steam store" : "Your PC", result.Problems.Length > 0);
         }
         catch (Exception error) when (IsExpected(error)) { ShowToast("Could not update the information", error.Message, true); }

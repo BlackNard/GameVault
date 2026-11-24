@@ -49,6 +49,17 @@ public sealed class RemoveCoverTests : IDisposable
     }
 
     [Fact]
+    public async Task AskingForInformationAgainAllowsTheCoverToBeFetchedAgain()
+    {
+        var id = await AddWithCoverAsync();
+        await service.SaveAsync(new(id, "My game", exe, "", [], RemoveCover: true));
+        Assert.False(await service.SetCoverIfMissingAsync(id, Png));
+        await service.AllowCoverAgainAsync(id);
+        Assert.True(await service.SetCoverIfMissingAsync(id, Png));
+        Assert.NotNull((await ReadAsync(id)).CoverFile);
+    }
+
+    [Fact]
     public async Task ChoosingANewCoverClearsTheRemovedChoice()
     {
         var id = await AddWithCoverAsync();
