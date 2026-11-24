@@ -84,13 +84,45 @@ public sealed class SteamStoreProvider : IMatchSearchProvider, IDisposable
         if (title.Length is < 2 or > 120 || title.Any(char.IsControl) || title.Contains('\\') || title.Contains('/') || title.Contains("://")) return null;
         var wanted = NormalizeTitle(title);
         if (wanted.Length < 2) return null;
-        var json = await GetBytesAsync("https://store.steampowered.com/api/storesearch/?term=" + Uri.EscapeDataString(title) + "&l=english&cc=US", cancellationToken).ConfigureAwait(false);
+        foreach (var term in SearchTerms(title))
+        {
+            var (exact, siblings) = await SearchExactAsync(term, wanted, cancellationToken).ConfigureAwait(false);
+            if (exact.Count > 1) return null;                         // two apps with exactly this title: never guess
+            if (exact.Count == 1) return await PickEditionAsync(exact[0], siblings, exeYear, cancellationToken).ConfigureAwait(false);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// The queries to try, best first. Steam's store search finds nothing when the query contains " - " (it works with a space or a colon), so the
+    /// title is asked with the dash removed first ("Grand Theft Auto IV - The Complete Edition" finds Steam's "Grand Theft Auto IV: The Complete Edition"),
+    /// then as typed, then the part before the subtitle. Whatever comes back must still equal the full title once punctuation is ignored.
+    /// </summary>
+    public static IReadOnlyList<string> SearchTerms(string title)
+    {
+        var typed = System.Text.RegularExpressions.Regex.Replace((title ?? "").Trim(), @"\s+", " ");
+        var terms = new List<string>();
+        void Add(string term)
+        {
+            term = term.Trim();
+            if (term.Length >= 2 && !terms.Contains(term, StringComparer.OrdinalIgnoreCase)) terms.Add(term);
+        }
+        Add(System.Text.RegularExpressions.Regex.Replace(typed, @"\s+[-\u2013\u2014]\s+", " "));
+        Add(typed);
+        var cut = System.Text.RegularExpressions.Regex.Match(typed, @"^(.{4,}?)(?:\s+[-\u2013\u2014]\s+|:\s)");
+        if (cut.Success) Add(cut.Groups[1].Value);
+        return [.. terms.Take(3)];
+    }
+
+    private async Task<(List<string> Exact, List<(string Id, int Year)> Siblings)> SearchExactAsync(string term, string wanted, CancellationToken cancellationToken)
+    {
+        var json = await GetBytesAsync("https://store.steampowered.com/api/storesearch/?term=" + Uri.EscapeDataString(term) + "&l=english&cc=US", cancellationToken).ConfigureAwait(false);
         var exact = new List<string>();
         var siblings = new List<(string Id, int Year)>();
         try
         {
             using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 16 });
-            if (document.RootElement.ValueKind != JsonValueKind.Object || !document.RootElement.TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array) return null;
+            if (document.RootElement.ValueKind != JsonValueKind.Object || !document.RootElement.TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array) return (exact, siblings);
             foreach (var item in items.EnumerateArray().Take(50))
             {
                 if (item.ValueKind != JsonValueKind.Object) continue;
@@ -99,20 +131,24 @@ public sealed class SteamStoreProvider : IMatchSearchProvider, IDisposable
                 if (!item.TryGetProperty("id", out var id) || id.ValueKind != JsonValueKind.Number || !id.TryGetInt64(out var number) || number <= 0 || number > 9_999_999_999) continue;
                 var text = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 var normalized = NormalizeTitle(itemName.GetString() ?? "");
-                if (normalized == wanted) exact.Add(text);
+                if (normalized == wanted) { if (!exact.Contains(text)) exact.Add(text); }
                 else if (normalized.Length == wanted.Length + 4 && normalized.StartsWith(wanted, StringComparison.Ordinal) && int.TryParse(normalized[wanted.Length..], out var year) && year is >= 1970 and <= 2100)
                     siblings.Add((text, year));
             }
         }
         catch (JsonException) { throw new IOException("Steam sent an answer GameVault could not read."); }
-        if (exact.Count != 1) return null;
-        if (siblings.Count == 0 || exeYear is not { } built) return exact[0];
+        return (exact, siblings);
+    }
+
+    private async Task<string> PickEditionAsync(string plainId, List<(string Id, int Year)> siblings, int? exeYear, CancellationToken cancellationToken)
+    {
+        if (siblings.Count == 0 || exeYear is not { } built) return plainId;
         // The plain title has no year in its name, so ask Steam when it was released.
-        var plainYear = await ReleaseYearAsync(exact[0], cancellationToken).ConfigureAwait(false);
-        var choices = siblings.Select(x => (x.Id, Year: (int?)x.Year)).Append((Id: exact[0], Year: plainYear)).Where(x => x.Year is not null).ToList();
-        if (choices.Count == 0) return exact[0];
+        var plainYear = await ReleaseYearAsync(plainId, cancellationToken).ConfigureAwait(false);
+        var choices = siblings.Select(x => (x.Id, Year: (int?)x.Year)).Append((Id: plainId, Year: plainYear)).Where(x => x.Year is not null).ToList();
+        if (choices.Count == 0) return plainId;
         var fit = choices.Where(x => x.Year <= built + 1).OrderByDescending(x => x.Year).FirstOrDefault();
-        return fit.Id ?? exact[0];
+        return fit.Id ?? plainId;
     }
 
     private async Task<int?> ReleaseYearAsync(string appId, CancellationToken token)
@@ -142,12 +178,22 @@ public sealed class SteamStoreProvider : IMatchSearchProvider, IDisposable
     {
         title = (title ?? "").Trim();
         if (!PoliteHttp.SafeTitle(title)) return [];
-        var json = await GetBytesAsync("https://store.steampowered.com/api/storesearch/?term=" + Uri.EscapeDataString(title) + "&l=english&cc=US", cancellationToken).ConfigureAwait(false);
         var result = new List<MatchCandidate>();
+        foreach (var term in SearchTerms(title))
+        {
+            await AddCandidatesAsync(term, result, cancellationToken).ConfigureAwait(false);
+            if (result.Count > 0) break;
+        }
+        return result;
+    }
+
+    private async Task AddCandidatesAsync(string term, List<MatchCandidate> result, CancellationToken cancellationToken)
+    {
+        var json = await GetBytesAsync("https://store.steampowered.com/api/storesearch/?term=" + Uri.EscapeDataString(term) + "&l=english&cc=US", cancellationToken).ConfigureAwait(false);
         try
         {
             using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 16 });
-            if (document.RootElement.ValueKind != JsonValueKind.Object || !document.RootElement.TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array) return result;
+            if (document.RootElement.ValueKind != JsonValueKind.Object || !document.RootElement.TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array) return;
             foreach (var item in items.EnumerateArray().Take(30))
             {
                 if (item.ValueKind != JsonValueKind.Object || !item.TryGetProperty("type", out var type) || type.ValueKind != JsonValueKind.String || type.GetString() != "app") continue;
@@ -158,7 +204,6 @@ public sealed class SteamStoreProvider : IMatchSearchProvider, IDisposable
             }
         }
         catch (JsonException) { throw new IOException("Steam sent an answer GameVault could not read."); }
-        return result;
     }
 
     private async Task<byte[]> GetBytesAsync(string url, CancellationToken cancellationToken)
