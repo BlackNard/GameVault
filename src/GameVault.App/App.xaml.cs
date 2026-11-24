@@ -41,8 +41,54 @@ public partial class App : Application
         var pending = store.Read();
         if (pending is null || !ReleaseVersion.TryParse(AppVersionInfo.Current, out var running)) return;
         if (!AutoUpdateRules.ShouldInstall(true, pending, running) || !store.IsIntact(pending)) return;
+        if (!StartWithSafetyCopy(store, pending, relaunch)) AppLog.Warn("The update installer was not started.");
+    }
+
+    /// <summary>
+    /// The one place an installer is started. First a verified safety copy of the library's data and its fingerprint are made (see <see cref="UpdateSafety"/>);
+    /// when that fails the installer is not started at all, and the attempt still counts so a permanently failing copy does not loop.
+    /// </summary>
+    private static bool StartWithSafetyCopy(PendingUpdateStore store, PendingUpdate pending, bool relaunch)
+    {
         var counted = store.RecordAttempt(pending, DateTimeOffset.UtcNow);
-        if (!UpdateLauncher.Start(store.InstallerPath(counted), UpdatesFolder, relaunch, Environment.ProcessId)) AppLog.Warn("The update installer could not be started.");
+        var paths = ApplicationPaths.FromRoot(AppContext.BaseDirectory);
+        SafetyCopy copy;
+        try { copy = Task.Run(() => UpdateSafety.PrepareAsync(paths, UpdatesFolder, AppVersionInfo.Current)).GetAwaiter().GetResult(); }
+        catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            AppLog.Warn("The update was not started because the safety copy of the library could not be made: " + error.Message);
+            return false;
+        }
+        counted = counted with { SafetyArchive = Path.GetFileName(copy.ArchivePath), FingerprintFile = copy.FingerprintFile };
+        store.Write(counted);
+        AppLog.Info($"Safety copy made before the update ({copy.Fingerprint.FileCount} files in the library).");
+        return UpdateLauncher.Start(store.InstallerPath(counted), UpdatesFolder, relaunch, Environment.ProcessId);
+    }
+
+    /// <summary>
+    /// Right after an update, before the library is opened: it must be exactly as it was when the installer started. Returns false when the player chose to quit.
+    /// </summary>
+    private static bool LibraryIsSafeAfterUpdate(ApplicationPaths paths)
+    {
+        if (!ReleaseVersion.TryParse(AppVersionInfo.Current, out var running)) return true;
+        var check = UpdateSafety.VerifyAfterUpdate(paths, UpdatesFolder, running);
+        if (check.Status == AfterUpdateStatus.NotApplicable) return true;
+        if (check.Status == AfterUpdateStatus.Intact)
+        {
+            AppLog.Info($"After the update all {check.FileCount} files of the library were checked and are unchanged.");
+            new PendingUpdateStore(UpdatesFolder).Clear();
+            return true;
+        }
+        var difference = check.Difference!;
+        AppLog.Warn("After the update the library differs from before: " + difference.Summary(5));
+        var answer = MessageBox.Show(
+            "GameVault was updated, but your library is not exactly as it was before the update:\n\n" + difference.Summary(3) + "\n\n" +
+            (check.SafetyArchive is { } archive ? "A safety copy of your data was made before the update:\n" + archive + "\n\n" : "") +
+            "You can restore it from Settings (Restore a data backup). Open GameVault anyway?\n\nYes opens GameVault. No closes it without changing anything.",
+            "GameVault update check", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (answer != MessageBoxResult.Yes) return false;
+        new PendingUpdateStore(UpdatesFolder).Clear();
+        return true;
     }
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -63,6 +109,11 @@ public partial class App : Application
         AppLog.Initialize(paths.Root);
         // A verified update that is still waiting (GameVault was not closed normally, or it lives in the tray) installs now, before anything else is opened.
         if (UpdatePreferences.ParseAutoUpdate(ReadSettingsText(paths)) && TryInstallWaitingUpdateAtStart())
+        {
+            Shutdown(0);
+            return;
+        }
+        if (!LibraryIsSafeAfterUpdate(paths))
         {
             Shutdown(0);
             return;
@@ -125,8 +176,7 @@ public partial class App : Application
         var store = new PendingUpdateStore(UpdatesFolder);
         var pending = store.Read();
         if (pending is null || !ReleaseVersion.TryParse(AppVersionInfo.Current, out var running) || !AutoUpdateRules.ShouldInstall(true, pending, running) || !store.IsIntact(pending)) return false;
-        var counted = store.RecordAttempt(pending, DateTimeOffset.UtcNow);
-        return UpdateLauncher.Start(store.InstallerPath(counted), UpdatesFolder, relaunch: true, Environment.ProcessId);
+        return StartWithSafetyCopy(store, pending, relaunch: true);
     }
 
     private static string? ReadSettingsText(ApplicationPaths paths)

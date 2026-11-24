@@ -74,7 +74,7 @@ public sealed class SplashWindowTests
         Assert.Contains("SplashPreferences.Parse(ReadSettingsText(paths))", app);
         Assert.Contains("SplashTiming.RemainingDelay(", app);
         Assert.True(app.IndexOf("splash.CloseOnce()", StringComparison.Ordinal) < app.IndexOf("MainWindow.Show()", StringComparison.Ordinal));
-        Assert.True(app.IndexOf("splash?.CloseOnce()", StringComparison.Ordinal) < app.IndexOf("MessageBox.Show(", StringComparison.Ordinal), "Close it before the error dialog.");
+        Assert.True(app.IndexOf("splash?.CloseOnce()", StringComparison.Ordinal) < app.IndexOf("GameVault could not start", StringComparison.Ordinal), "Close it before the error dialog.");
         Assert.Contains("StartupSplashChoice", Source("MainWindow.xaml"));
         Assert.Contains("SplashPreferenceChanged", Source("MainWindow.Splash.cs"));
     }

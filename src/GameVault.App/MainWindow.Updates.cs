@@ -226,6 +226,8 @@ public partial class MainWindow
             UpdateStatusText.Text = "The downloaded update failed its check and was deleted. Choose Update now again to download it afresh.";
             return;
         }
+        var (canPrepare, reason) = await Task.Run(() => (UpdateSafety.CanPrepare(paths, App.UpdatesFolder, out var why), why));
+        if (!canPrepare) { UpdateStatusText.Text = reason + " Nothing was changed."; return; }
         UpdateStatusText.Text = "Closing GameVault to install the update…";
         App.PendingUpdateInstaller = PendingUpdates.InstallerPath(pending);
         App.RelaunchAfterUpdate = true;
