@@ -144,7 +144,7 @@ public sealed class NoticeCenterTests : IDisposable
             File.WriteAllText(file, text);
             Assert.Null(UpdateNoticeCache.Read(root).Latest);
         }
-        File.WriteAllText(file, "{\"tag\":\"v9.9.9\",\"version\":\"9.9.9\",\"url\":\"https://github.com/BlackNard/GameVault/releases/tag/v9.9.9\",\"pad\":\"" + new string('x', 9000) + "\"}");
+        File.WriteAllText(file, "{\"tag\":\"v9.9.9\",\"version\":\"9.9.9\",\"url\":\"https://github.com/BlackNard/GameVault/releases/tag/v9.9.9\",\"pad\":\"" + new string('x', 20000) + "\"}");
         Assert.Equal(UpdateNoticeState.Empty, UpdateNoticeCache.Read(root));                 // refused as too large
         File.WriteAllText(file, "{\"tag\":\"v9.9.9\",\"version\":\"not a version\",\"url\":\"https://github.com/BlackNard/GameVault/releases/tag/v9.9.9\"}");
         Assert.False(UpdateNoticeCache.ShouldShow(UpdateNoticeCache.Read(root), V("0.1.0")));

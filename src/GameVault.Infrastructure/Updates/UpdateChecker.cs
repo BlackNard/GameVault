@@ -48,10 +48,50 @@ public sealed class UpdateChecker(PoliteHttp http, string repository = UpdateChe
             if (tag is null || url is null || !ReleaseVersion.TryParse(tag, out var version) || !IsOurReleaseLink(url)) continue;
             if (version <= current || bestVersion is not null && version <= bestVersion) continue;
             DateTimeOffset? published = DateTimeOffset.TryParse(Text(release, "published_at"), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var when) ? when : null;
-            best = new UpdateInfo(version.ToString(), tag, url, Flag(release, "prerelease") || version.IsPreRelease, published);
+            best = new UpdateInfo(version.ToString(), tag, url, Flag(release, "prerelease") || version.IsPreRelease, published, FindInstaller(release, tag, version));
             bestVersion = version;
         }
         return best;
+    }
+
+    public const long MinInstallerBytes = 1_000_000;
+    public const long MaxInstallerBytes = 400_000_000;
+    private static readonly System.Text.RegularExpressions.Regex InstallerName = new(@"^GameVault-Setup-(?<v>\d{1,6}\.\d{1,6}\.\d{1,6}(?:\.\d{1,6})?)-win-x64\.exe$", System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.Compiled);
+    private static readonly System.Text.RegularExpressions.Regex Sha256Digest = new("^sha256:(?<h>[0-9a-fA-F]{64})$", System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>
+    /// The release's setup file (<c>GameVault-Setup-&lt;version&gt;-win-x64.exe</c>) with its GitHub-computed SHA-256 and the <c>.sha256</c> asset next to it. Null when the release
+    /// has no such file, its name does not match the tag, its link is not a download link of this release, or its size is not believable.
+    /// </summary>
+    private UpdateInstaller? FindInstaller(JsonElement release, string tag, ReleaseVersion version)
+    {
+        if (!release.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array) return null;
+        var byName = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        foreach (var asset in assets.EnumerateArray().Take(60))
+            if (asset.ValueKind == JsonValueKind.Object && Text(asset, "name") is { } name) byName[name] = asset;
+        foreach (var (name, asset) in byName)
+        {
+            var match = InstallerName.Match(name);
+            if (!match.Success || !ReleaseVersion.TryParse(match.Groups["v"].Value, out var fileVersion) || fileVersion.Major != version.Major || fileVersion.Minor != version.Minor || fileVersion.Patch != version.Patch || fileVersion.Revision != version.Revision) continue;
+            var url = Text(asset, "browser_download_url");
+            if (url is null || !IsDownloadLink(url, tag, name, repository)) continue;
+            if (!asset.TryGetProperty("size", out var size) || size.ValueKind != JsonValueKind.Number || !size.TryGetInt64(out var bytes) || bytes < MinInstallerBytes || bytes > MaxInstallerBytes) continue;
+            string? digest = null;
+            if (Text(asset, "digest") is { } text && Sha256Digest.Match(text) is { Success: true } hash) digest = hash.Groups["h"].Value.ToLowerInvariant();
+            string? checksumUrl = null;
+            if (byName.TryGetValue(name + ".sha256", out var sums) && Text(sums, "browser_download_url") is { } sumsUrl && IsDownloadLink(sumsUrl, tag, name + ".sha256", repository)) checksumUrl = sumsUrl;
+            if (digest is null && checksumUrl is null) continue;                      // nothing to verify the file against: not offered
+            return new UpdateInstaller(name, url, bytes, digest, checksumUrl);
+        }
+        return null;
+    }
+
+    /// <summary>True only for https://github.com/&lt;repository&gt;/releases/download/&lt;tag&gt;/&lt;name&gt; (exact path, no query, no user info).</summary>
+    public static bool IsDownloadLink(string url, string tag, string name, string repository = DefaultRepository)
+    {
+        if (url.Length > 400 || !Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps || !uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase)) return false;
+        if (!string.IsNullOrEmpty(uri.UserInfo) || !uri.IsDefaultPort || !string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment)) return false;
+        return string.Equals(uri.AbsolutePath, $"/{repository}/releases/download/{Uri.EscapeDataString(tag)}/{Uri.EscapeDataString(name)}", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>True only for https://github.com/&lt;repository&gt;/releases/... so a hostile or odd answer can never make the app open another site.</summary>

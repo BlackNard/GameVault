@@ -34,6 +34,66 @@ public partial class MainWindow
     {
         UpdateStatusText.Text = status;
         OpenReleasePageButton.Visibility = available ? Visibility.Visible : Visibility.Collapsed;
+        UpdateNowButton.Visibility = available && availableUpdate is { } update && CanUpdateInPlace(update) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>Update now is offered only for the copy the installer put on this PC and only when the release carries a verifiable installer.</summary>
+    private static bool CanUpdateInPlace(UpdateInfo update) => update.Installer is not null && InstalledCopy.IsThisTheInstalledCopy();
+
+    private async void UpdateNowClicked(object sender, RoutedEventArgs e)
+    {
+        if (availableUpdate is { } update) await BeginUpdateAsync(update);
+    }
+
+    private bool updatingInPlace;
+
+    /// <summary>
+    /// Update in place after the player confirms: download and verify the release's installer, quit GameVault normally and let the installer replace the files
+    /// over the installed copy (Data and Profiles are not part of it), then it opens the new version. Any failure leaves the current version running.
+    /// </summary>
+    private async Task BeginUpdateAsync(UpdateInfo update)
+    {
+        if (!CanUpdateInPlace(update)) { OpenReleasePage(update); return; }
+        if (updatingInPlace || busy || editorOpen || quitPreparing || stoppingObservation || InlinePrompts.IsOpen(this))
+        {
+            ShowToast("GameVault is busy", "Finish what you are doing, then choose Update now again.", true);
+            return;
+        }
+        var megabytes = Math.Max(1, update.Installer!.Size / (1024 * 1024));
+        var answer = await InlinePrompts.ShowAsync(this,
+            $"GameVault {update.Version} (about {megabytes} MB) will be downloaded from GitHub, checked against its published checksum and installed over this copy.\n\n" +
+            "GameVault closes while it updates and opens again afterwards. Your games, saves, backups, notes and settings stay exactly where they are.\n\nUpdate now?",
+            "Update GameVault", MessageBoxButton.YesNo, MessageBoxResult.Yes);
+        if (answer != MessageBoxResult.Yes) return;
+        updatingInPlace = true;
+        UpdateNowButton.IsEnabled = CheckForUpdatesButton.IsEnabled = false;
+        var progress = new Progress<DownloadProgress>(p => UpdateStatusText.Text = p.Total > 0 ? $"Downloading GameVault {update.Version}… {p.Received * 100 / p.Total}%" : "Downloading…");
+        try
+        {
+            string installer;
+            using (var downloader = new UpdateDownloader())
+                installer = await Task.Run(() => downloader.DownloadAsync(update, App.UpdatesFolder, progress, CancellationToken.None));
+            UpdateStatusText.Text = "Downloaded and checked. Closing GameVault to install the update…";
+            App.PendingUpdateInstaller = installer;
+            var result = await lifetime.QuitAsync();
+            if (result != WindowCloseResult.Quit)
+            {
+                App.PendingUpdateInstaller = null;     // GameVault stayed open: nothing may start later by surprise
+                UpdateStatusText.Text = "The update was downloaded but GameVault stayed open (a game or a backup is still running). Choose Update now again when it has finished.";
+            }
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            App.PendingUpdateInstaller = null;
+            AppLog.Warn("In-place update failed: " + error.Message);
+            UpdateStatusText.Text = "The update was not installed: " + error.Message.TrimEnd('.') + ". Your current version is untouched.";
+            ShowToast("The update was not installed", error.Message + " Your current version is untouched.", true);
+        }
+        finally
+        {
+            updatingInPlace = false;
+            UpdateNowButton.IsEnabled = CheckForUpdatesButton.IsEnabled = true;
+        }
     }
 
     /// <summary>Starts a few seconds after the window is up, at most once per <see cref="UpdateCheckRules.MinimumInterval"/>, and only when the player allows it.</summary>
@@ -42,6 +102,7 @@ public partial class MainWindow
         Loaded -= StartUpdateCheckLater;
         ShowUpdateSettingsState($"You have version {AppVersionInfo.Current}.", false);
         ShowCachedUpdateNotice();
+        _ = Task.Run(() => UpdateDownloader.CleanOld(App.UpdatesFolder, TimeSpan.FromDays(2)));
         if (!UpdateCheckRules.ShouldCheckAtStart(settings.CheckForUpdates, UpdateCheckStamp.Read(paths.Root), DateTimeOffset.UtcNow)) return;
         try { await Task.Delay(TimeSpan.FromSeconds(8)); }
         catch (TaskCanceledException) { return; }

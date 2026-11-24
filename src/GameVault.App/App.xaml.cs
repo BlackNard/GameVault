@@ -5,6 +5,7 @@ using GameVault.Infrastructure;
 using GameVault.Infrastructure.Storage;
 using GameVault.Infrastructure.Diagnostics;
 using GameVault.Infrastructure.Launching;
+using GameVault.Infrastructure.Updates;
 using System.Security.Principal;
 
 namespace GameVault.App;
@@ -16,6 +17,12 @@ public partial class App : Application
 
     /// <summary>What the previous run left behind (set once the application folder is ours); the main window reads it to show a notice.</summary>
     internal static CrashMarkerResult? PreviousRun { get; private set; }
+
+    /// <summary>Where downloaded update installers are kept (outside the application folder, so the library is never touched).</summary>
+    internal static string UpdatesFolder { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GameVault-Updates");
+
+    /// <summary>A verified installer the player asked for. It is started only after this process released the application folder, and only when GameVault really quits.</summary>
+    internal static string? PendingUpdateInstaller { get; set; }
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -97,6 +104,8 @@ public partial class App : Application
         if(MainWindow is MainWindow window){window.DisposeCaptureFeatures();window.DisposeTrayOnApplicationExit();}
         if (markerRoot is not null) CrashMarker.EndCleanly(markerRoot);
         workspace?.Dispose();
+        // The application folder lock is released: now the installer can replace the files in place (the player's Data and Profiles are not part of it).
+        if (PendingUpdateInstaller is { } installer && !UpdateLauncher.Start(installer, UpdatesFolder)) AppLog.Warn("The update installer could not be started.");
         base.OnExit(e);
     }
 }

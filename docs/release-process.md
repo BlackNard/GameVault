@@ -30,6 +30,10 @@ This tool checks that the manifest names a successful matching CI run and source
 
 GitHub may display an untagged URL for a draft. This is normal; the tool does not explicitly push tags. Private draft downloads require repository access/push privileges. Signing checksums provide integrity checks, not publisher authentication.
 
+## What in-place updates need from a release
+
+The in-place update ([docs/update-check.md](update-check.md)) downloads the release's `GameVault-Setup-<version>-win-x64.exe` and verifies it against the digest GitHub computes for the asset and the `GameVault-Setup-<version>-win-x64.exe.sha256` asset; both are already part of the nine-file bundle. Keep those two names exactly (the installer name must match the tag's version) and never remove them from a published release, or "Update now" falls back to the release-page link.
+
 ## Preview number (update check)
 
 Before building the commit a preview release is made from, set `GameVaultPreview` in `Directory.Build.props` to that preview's number and create the draft with the matching tag (`-Tag v<version>-preview.N`). The app reports `<version>-preview.N` and the notify-only update check ([docs/update-check.md](update-check.md)) compares it with the GitHub release tags.

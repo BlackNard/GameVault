@@ -65,4 +65,31 @@ public sealed class UpdateCheckWiringTests
         Assert.Contains("backupAlerts.Acknowledge(game)", notices);
         Assert.Contains("ShowCachedUpdateNotice();", Source("MainWindow.Updates.cs"));
     }
+
+    [Fact]
+    public void Update_now_asks_first_downloads_then_quits_normally_and_starts_the_installer_only_after_the_folder_lock_is_released()
+    {
+        var updates = Source("MainWindow.Updates.cs");
+        var confirm = updates.IndexOf("\"Update GameVault\", MessageBoxButton.YesNo", StringComparison.Ordinal);
+        var download = updates.IndexOf("downloader.DownloadAsync(", StringComparison.Ordinal);
+        var pending = updates.IndexOf("App.PendingUpdateInstaller = installer;", StringComparison.Ordinal);
+        var quit = updates.IndexOf("await lifetime.QuitAsync()", StringComparison.Ordinal);
+        Assert.True(confirm > 0 && confirm < download, "The player must confirm before anything is downloaded.");
+        Assert.True(download < pending && pending < quit, "Download and verify first, then quit.");
+        Assert.Contains("if (result != WindowCloseResult.Quit)", updates);
+        Assert.Contains("App.PendingUpdateInstaller = null;     // GameVault stayed open", updates);
+        Assert.Contains("CanUpdateInPlace(UpdateInfo update) => update.Installer is not null && InstalledCopy.IsThisTheInstalledCopy()", updates);
+        Assert.DoesNotContain("Process.Start", updates.Substring(updates.IndexOf("BeginUpdateAsync(UpdateInfo update)", StringComparison.Ordinal), 2500));
+        var app = Source("App.xaml.cs");
+        Assert.True(app.IndexOf("workspace?.Dispose();", app.IndexOf("OnExit", StringComparison.Ordinal), StringComparison.Ordinal) < app.IndexOf("UpdateLauncher.Start(installer, UpdatesFolder)", StringComparison.Ordinal),
+            "The installer may only start after this process released the application folder lock.");
+        Assert.Contains("PendingUpdateInstaller is { } installer", app);
+        Assert.DoesNotContain("PendingUpdateInstaller =", app);                    // only the update flow sets it
+        var xaml = Source("MainWindow.xaml");
+        Assert.Contains("x:Name=\"UpdateNowButton\"", xaml);
+        var notices = Source("MainWindow.Notices.cs");
+        Assert.Contains("inPlace ? \"Update now\" : \"Open release page\"", notices);
+        Assert.Contains("InstallLocationRules.IsInstalledCopy(AppContext.BaseDirectory, RegisteredInstallLocation())", Source("InstalledCopy.cs"));
+        Assert.Contains("{11DE0F05-D06D-4594-A970-85DDE91DC106}_is1", Source("InstalledCopy.cs"));
+    }
 }

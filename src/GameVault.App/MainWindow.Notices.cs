@@ -122,9 +122,12 @@ public partial class MainWindow
         var id = UpdateIdPrefix + update.Tag;
         notices.RetainOnly(NoticeKind.Update, new HashSet<string> { id });
         if (string.Equals(UpdateNoticeCache.Read(paths.Root).DismissedTag, update.Tag, StringComparison.Ordinal)) { notices.Remove(id); return; }
+        var inPlace = CanUpdateInPlace(update);
         PostNotice(new Notice(id, NoticeKind.Update, $"GameVault {update.Version} is available",
-            $"You have {AppVersionInfo.Current}. Nothing is downloaded or installed by GameVault.", update.PublishedAt ?? DateTimeOffset.UtcNow, false, "Open release page"),
-            () => OpenReleasePage(update));
+            inPlace ? $"You have {AppVersionInfo.Current}. Update now keeps your games, saves, backups and settings; nothing happens until you confirm."
+                    : $"You have {AppVersionInfo.Current}. This copy is not the installed one, so the release page has the download.",
+            update.PublishedAt ?? DateTimeOffset.UtcNow, false, inPlace ? "Update now" : "Open release page"),
+            () => { if (inPlace) _ = BeginUpdateAsync(update); else OpenReleasePage(update); });
     }
 
     private static bool IsInside(DependencyObject? source, DependencyObject container)

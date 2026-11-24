@@ -136,6 +136,17 @@ Use a clean copy of the app (extract the clean ZIP from `outputs/Archives` into 
 - [ ] Esc and a click outside close the list; keyboard Tab reaches the buttons; it looks right in two or three themes. Offline: a quiet start-up (no message), **Check now** explains.
 - [ ] Untick "Check for new versions when GameVault starts": restart: no check runs (cached notices still show). Tick it again: it returns.
 
+## 8f. Update in place (issue #42)
+
+Needs an **installed** older copy (install `v0.1.0-preview.2`, which has no updater, or any installed build whose version is lower than the newest published release) and a newer published release with the installer and its `.sha256`.
+
+- [ ] In the installed older version the bell notice says "Update now" and Settings > Updates shows an **Update now** button next to Open release page. In a portable/ZIP or development copy only **Open release page** is offered.
+- [ ] Update now asks first ("... installed over this copy ... Your games, saves, backups, notes and settings stay exactly where they are"); No/closing it does nothing.
+- [ ] Yes: the status shows the download percentage, then GameVault closes, a small installer progress window runs (no wizard, no administrator prompt), and the new version opens by itself.
+- [ ] All games, covers, playtime, notes, backups and settings (theme, language of the UI, tags) are still there; Settings > Updates says "You have the latest version".
+- [ ] With a game running or a backup in progress: GameVault stays open, says so, and nothing is installed later by surprise; after the game ends, Update now works.
+- [ ] Offline during the download: a clear message, the current version keeps working. (Optional) A tampered download cannot be tested by hand; the unit tests cover it.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.
