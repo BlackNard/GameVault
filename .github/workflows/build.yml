@@ -37,8 +37,11 @@ jobs:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
         run: |
+          # After a force-push the "before" commit no longer exists; then fall back to the last 50 commits instead of failing.
+          $beforeUsable = $false
+          if ($env:PUSH_BEFORE -and $env:PUSH_BEFORE -notmatch '^0+$') { git cat-file -e "$($env:PUSH_BEFORE)^{commit}" 2>$null; $beforeUsable = ($LASTEXITCODE -eq 0) }
           if ($env:PR_BASE) { ./scripts/audit-commit-emails.ps1 -Range "$($env:PR_BASE)..$($env:GAMEVAULT_HEAD_SHA)" }
-          elseif ($env:PUSH_BEFORE -and $env:PUSH_BEFORE -notmatch '^0+$') { ./scripts/audit-commit-emails.ps1 -Range "$($env:PUSH_BEFORE)..$($env:GAMEVAULT_HEAD_SHA)" }
+          elseif ($beforeUsable) { ./scripts/audit-commit-emails.ps1 -Range "$($env:PUSH_BEFORE)..$($env:GAMEVAULT_HEAD_SHA)" }
           else { ./scripts/audit-commit-emails.ps1 }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Install pinned .NET SDK
