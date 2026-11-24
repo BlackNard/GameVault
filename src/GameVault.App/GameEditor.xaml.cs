@@ -43,6 +43,15 @@ public partial class GameEditor : UserControl
         Loaded += (_, _) => GameName.Focus();
     }
 
+    /// <summary>Fills a new game's form from a dropped executable (same suggestions as Browse). Not counted as an unsaved edit.</summary>
+    public void Prefill(string executablePath)
+    {
+        WorkingDirectory.Text = GamePathSuggestions.WorkingDirectory(Executable.Text, WorkingDirectory.Text, executablePath);
+        Executable.Text = executablePath;
+        GameName.Text = GamePathSuggestions.GameName(GameName.Text, executablePath);
+        navigation.AcceptSaved(Snapshot());
+    }
+
     private void BrowseExecutable(object sender, RoutedEventArgs e) => Pick(() =>
     {
         var path = NativePickers.File(Window.GetWindow(this)!, "Choose game executable", "Windows executables (*.exe)|*.exe", Executable.Text);

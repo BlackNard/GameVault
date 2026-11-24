@@ -280,7 +280,7 @@ public partial class MainWindow : Window
         finally { editorOpen = false; EndOperation(); CompleteInlineEditor(); }
     }
 
-    private async void OpenEditor(GameProfile? profile)
+    private async void OpenEditor(GameProfile? profile, string? prefillExecutable = null)
     {
         GameOptionsPopup.IsOpen=false;
         if (busy || editorOpen || quitPreparing || stoppingObservation) return;
@@ -299,6 +299,7 @@ public partial class MainWindow : Window
                 try { return await library.RestoreAsync(id); }
                 finally { busy = false; }
             });
+            if (profile is null && prefillExecutable is not null) editor.Prefill(prefillExecutable);
             editor.FullWidthChanged += (_, _) => SetDrawerFullWidth(true);   // the editor always fills the window
             if (await ShowInlineEditorAsync(editor,h=>editor.Completed+=h,h=>editor.Completed-=h) && editor.Result is GameSaveResult result)
             {
