@@ -84,9 +84,15 @@ public sealed class LibraryService
             string? warning = null;
             if (coverPng is not null)
             {
-                try { WriteCover(profile.Id, coverPng); }
+                try { WriteCover(profile.Id, coverPng); DeleteCoverRemovedMarker(profile.Id); }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException)
                 { warning = "The game was saved, but its cover could not be updated. Edit the game to retry the cover."; }
+            }
+            else if (draft.RemoveCover)
+            {
+                try { RemoveCoverFiles(profile.Id); }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+                { warning = "The game was saved, but its cover could not be removed. Edit the game to retry."; }
             }
             return new(profile, warning);
         }
@@ -104,7 +110,7 @@ public sealed class LibraryService
         {
             var game = await store.LoadProfileAsync(id).ConfigureAwait(false);
             if (game.Profile.IsReadOnly || game.Profile.Value is not { IsArchived: false }) return false;
-            if (File.Exists(Path.Combine(ProfileFolders.Resolve(paths, id), "cover.png"))) return false;
+            if (File.Exists(Path.Combine(ProfileFolders.Resolve(paths, id), "cover.png")) || File.Exists(CoverRemovedMarker(id))) return false;   // a removed cover stays removed
             WriteCover(id, png);
             return true;
         }
@@ -223,6 +229,39 @@ public sealed class LibraryService
     }
 
     private void WriteCover(Guid id, byte[] png) => WriteProfileFile(id, "cover.png", png);
+
+    /// <summary>The player asked for information again (Refresh info): a cover they removed earlier may be fetched again, so the "removed" choice is forgotten.</summary>
+    public async Task AllowCoverAgainAsync(Guid id)
+    {
+        await gate.WaitAsync().ConfigureAwait(false);
+        try { DeleteCoverRemovedMarker(id); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+        finally { gate.Release(); }
+    }
+
+    /// <summary>Remembers that the player removed this game's cover, so the automatic cover lookup does not bring it back.</summary>
+    public const string CoverRemovedMarkerName = "cover-removed.marker";
+
+    private string CoverRemovedMarker(Guid id) => Path.Combine(ProfileFolders.Resolve(paths, id), CoverRemovedMarkerName);
+
+    private void DeleteCoverRemovedMarker(Guid id)
+    {
+        var marker = CoverRemovedMarker(id);
+        managed.Check(marker);
+        if (File.Exists(marker)) File.Delete(marker);
+    }
+
+    /// <summary>Deletes the cover (and its previous copy) and leaves the marker. Only this game's cover files are touched.</summary>
+    private void RemoveCoverFiles(Guid id)
+    {
+        var cover = Path.Combine(ProfileFolders.Resolve(paths, id), "cover.png");
+        managed.Check(cover); managed.Check(cover + ".bak");
+        if (File.Exists(cover)) File.Delete(cover);
+        if (File.Exists(cover + ".bak")) File.Delete(cover + ".bak");
+        var marker = CoverRemovedMarker(id);
+        managed.Check(marker);
+        if (!File.Exists(marker)) File.WriteAllText(marker, "The player removed this game's cover on purpose; automatic lookups must not add one.");
+    }
 
     private void WriteProfileFile(Guid id, string name, byte[] png)
     {

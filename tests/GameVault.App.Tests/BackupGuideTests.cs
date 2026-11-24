@@ -35,4 +35,27 @@ public sealed class BackupGuideTests
         var leave = method.IndexOf("activeInlineEditor is { } open && !await open.TryLeaveAsync()", StringComparison.Ordinal);
         Assert.True(leave > 0 && leave < method.IndexOf("navHistory.Back(", StringComparison.Ordinal), "Leave the open view before the history moves.");
     }
+
+    [Fact]
+    public void Settings_explain_what_the_automatic_update_choice_does_and_where_to_update_when_it_is_off()
+    {
+        var xaml = Source("MainWindow.xaml");
+        Assert.Contains("x:Name=\"AutoUpdateChoice\"", xaml);
+        var hint = xaml[xaml.IndexOf("x:Name=\"AutoUpdateHint\"", StringComparison.Ordinal)..];
+        hint = hint[..hint.IndexOf("/>", StringComparison.Ordinal)];
+        Assert.Contains("Turned off: nothing downloads or installs by itself", hint);
+        Assert.Contains("Update now", hint);
+    }
+
+    [Fact]
+    public void The_game_editor_can_remove_the_cover_and_sends_the_choice_with_the_save()
+    {
+        Assert.Contains("x:Name=\"RemoveCoverButton\"", Source("GameEditor.xaml"));
+        var code = Source("GameEditor.xaml.cs");
+        Assert.Contains("removeCover);", code);                       // GameDraft carries RemoveCover
+        Assert.Contains("removeCover = false;", code);
+        var refresh = Source("MainWindow.Metadata.cs");
+        refresh = refresh[refresh.IndexOf("private async void RefreshInfoClicked", StringComparison.Ordinal)..];
+        Assert.True(refresh.IndexOf("library.AllowCoverAgainAsync(id)", StringComparison.Ordinal) < refresh.IndexOf("AutoCoversAsync(", StringComparison.Ordinal), "Refresh info forgets the removal, then fetches the cover.");                // choosing another cover cancels the removal
+    }
 }
