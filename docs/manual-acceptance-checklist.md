@@ -114,6 +114,16 @@ Use a clean copy of the app (extract the clean ZIP from `outputs/Archives` into 
 - [ ] With Windows "Show animations" off or reduce motion set, the bar does not animate.
 - [ ] Start a second copy while one is running: the splash closes before the "could not open its application folder" message.
 
+## 8d. Drag and drop a game (issue #35)
+
+- [ ] Drag a game's `.exe` from Explorer over the library: the library shows "Drop a game here to add it"; drop it: the add-game form opens with the path, name and working folder filled in (nothing was run).
+- [ ] Drop a Desktop/Start-menu **shortcut** to a game: same result using the shortcut's target.
+- [ ] Drop a game **folder** (for example `...\Steam\steamapps\common\SomeGame`): the main game exe is picked, not the installer, uninstaller or crash handler.
+- [ ] Drop a game that is already in the library: you are told and taken to its page; if it is in Removed profiles you are told where to restore it.
+- [ ] Drop a text file, a broken shortcut or an empty folder: a clear message, no form.
+- [ ] Drop several items: the first game opens the form and the rest are listed in a toast.
+- [ ] While a drawer, prompt or operation is open, dropping is refused with a short message. Works in two or three themes and on the welcome screen of an empty library.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.
