@@ -63,6 +63,29 @@ public sealed class ArchivedProfileRestoreTests : IDisposable
     }
 
     [Fact]
+    public async Task AFreshProfileCanBeAddedBesideARemovedOneWhichStaysUntouched()
+    {
+        var archived = await Archive();
+        var before = System.Text.Json.JsonSerializer.Serialize(archived);
+        var fresh = (await service.SaveAsync(new(null, "Fresh start", exe, "", [], BesideRemoved: true))).Profile;
+        Assert.NotEqual(archived.Id, fresh.Id);
+        var games = (await service.ListAsync()).Games;
+        Assert.Equal(2, games.Length);
+        Assert.Equal(before, System.Text.Json.JsonSerializer.Serialize(games.Single(g => g.Id == archived.Id).Profile));
+        // The new profile can be edited and removed like any other.
+        await service.SaveAsync(new(fresh.Id, "Renamed", exe, "", []));
+        // Never two in the library with the same program: the old one cannot come back while the new one is there.
+        var refused = await Assert.ThrowsAsync<DuplicateGameException>(() => service.RestoreAsync(archived.Id));
+        Assert.False(refused.IsArchived);
+        Assert.Equal(fresh.Id, refused.ExistingId);
+        var again = await Assert.ThrowsAsync<DuplicateGameException>(() => service.SaveAsync(new(null, "Third", exe, "", [], BesideRemoved: true)));
+        Assert.False(again.IsArchived);
+        await service.SetArchivedAsync(fresh.Id, true);
+        await service.RestoreAsync(archived.Id);
+        Assert.Single((await service.ListAsync()).Games, g => g.Profile is { IsArchived: false });
+    }
+
+    [Fact]
     public async Task RestoreRefusesReadOnlyOrMissingProfilesWithoutOverwritingFiles()
     {
         var archived = await Archive();

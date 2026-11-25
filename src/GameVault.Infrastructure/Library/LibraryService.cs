@@ -69,7 +69,8 @@ public sealed class LibraryService
                 ?? throw new ArgumentException("Save locations must be a list of absolute paths.");
             new SaveSourcePolicy(paths,[Path.GetDirectoryName(executable)!,working]).ValidateSet(draft.SaveSources.Select(s=>s.Trim().Trim('"')));
             if (!Enum.IsDefined(draft.Status)) throw new ArgumentException("Choose a supported game status.");
-            CheckDuplicate(snapshot, executable, draft.Id);
+            // A removed profile only matters when adding: the player may restore it, or (BesideRemoved) start a fresh one and leave the old one where it is.
+            CheckDuplicate(snapshot, executable, draft.Id, ignoreRemoved: draft.Id is not null || draft.BesideRemoved);
             if (coverPng is not null && (coverPng.Length < 33 || coverPng.Length > 10 * 1024 * 1024 ||
                 !coverPng.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 })))
                 throw new ArgumentException("Choose a valid PNG/JPEG image. The normalized cover must be at most 10 MB.");
@@ -128,7 +129,7 @@ public sealed class LibraryService
             var game = snapshot.Games.SingleOrDefault(g => g.Id == id);
             if (game?.Profile.Value is not GameProfile profile || game.Profile.IsReadOnly)
                 throw new IOException("This profile is missing or read-only; it was left unchanged.");
-            CheckDuplicate(snapshot, profile.ExecutablePath, id);
+            CheckDuplicate(snapshot, profile.ExecutablePath, id, ignoreRemoved: true);
             var restored = profile with { IsArchived = false };
             if (profile.IsArchived) await store.SaveProfileAsync(restored).ConfigureAwait(false);
             return new(restored, null);
@@ -145,15 +146,17 @@ public sealed class LibraryService
             var game = snapshot.Games.SingleOrDefault(g => g.Id == id);
             if (game?.Profile.Value is not GameProfile profile || game.Profile.IsReadOnly)
                 throw new IOException("This profile is missing or read-only; it was left unchanged.");
-            if (!archived) CheckDuplicate(snapshot, profile.ExecutablePath, id);
+            if (!archived) CheckDuplicate(snapshot, profile.ExecutablePath, id, ignoreRemoved: true);
             await store.SaveProfileAsync(profile with { IsArchived = archived }).ConfigureAwait(false);
         }
         finally { gate.Release(); }
     }
 
-    private static void CheckDuplicate(AppDataSnapshot snapshot, string path, Guid? except)
+    /// <summary>Two games in the library may never use the same program. A removed one with that program is reported only when asked.</summary>
+    private static void CheckDuplicate(AppDataSnapshot snapshot, string path, Guid? except, bool ignoreRemoved)
     {
-        var match = snapshot.Games.FirstOrDefault(g => g.Id != except && g.Profile.Value is not null && SamePath(path, g.Profile.Value.ExecutablePath));
+        var matches = snapshot.Games.Where(g => g.Id != except && g.Profile.Value is not null && SamePath(path, g.Profile.Value.ExecutablePath)).ToArray();
+        var match = matches.FirstOrDefault(g => !g.Profile.Value!.IsArchived) ?? (ignoreRemoved ? null : matches.FirstOrDefault());
         if (match is not null) throw new DuplicateGameException(match.Id, match.Profile.Value!.IsArchived);
     }
 
