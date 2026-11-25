@@ -210,6 +210,13 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] Remove a game, then add the same program again: the question offers **Yes** (restore the old profile), **No** (a new, fresh profile; the old one stays in Removed games) and **Cancel** (back to the form, nothing changed).
 - [ ] After **No**, restoring the old profile is refused while the new one is in the library, and works after removing the new one.
 
+## 8p. Starting GameVault again (issue #69)
+
+- [ ] With GameVault in the tray, double-click the exe or the desktop shortcut: its window appears on top, on the page you left, with no error and no second tray icon or startup window.
+- [ ] The same when the window is minimised or behind other windows, and during a running game session (tracking continues).
+- [ ] Two quick double-clicks open one GameVault only.
+- [ ] A copy in another folder still starts on its own.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.
