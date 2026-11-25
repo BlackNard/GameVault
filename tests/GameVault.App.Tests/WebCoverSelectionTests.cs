@@ -68,6 +68,7 @@ public sealed class WebCoverSelectionTests
         var script = WebCoverSelection.HitTestScript(x, y, zoom);
         Assert.Contains("document.elementFromPoint(", script);
         Assert.DoesNotContain("querySelectorAll", script); Assert.DoesNotContain("addEventListener", script);
+        Assert.Contains("closest('div[data-docid][data-lpage]')", script);        // only the clicked tile is looked up
     }
 
     [Fact]
