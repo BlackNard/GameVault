@@ -173,6 +173,14 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] Remove cover then Cancel instead of saving: nothing changes.
 - [ ] Settings > Updates: the explanation under "Download and install updates automatically" is clear; unticking it and checking for updates shows the update with Update now (installed copy) and nothing downloads on its own.
 
+## 8j. Import from an old GameVault folder (issue #53)
+
+- [ ] Settings > GameVault data > **Import from an old GameVault folder…**: pick an old folder (the one with `Profiles` inside, or `Profiles` itself). The list shows each game with playtime, sessions, backups and size.
+- [ ] Import some: they appear with cover, playtime, notes and save backups; **Backup history** restores one of the imported backups. The old folder is unchanged.
+- [ ] Run it again: the games show as already in your library and cannot be ticked.
+- [ ] Choosing the current GameVault folder or a folder without profiles shows a clear message and changes nothing.
+- [ ] A new library's welcome has **Choose the old folder**; the list reads well in a few themes and at a narrow window.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

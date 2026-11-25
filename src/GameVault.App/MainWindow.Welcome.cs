@@ -27,6 +27,7 @@ public partial class MainWindow
         {
             case WelcomeAction.AddGame: AddGame(this, new RoutedEventArgs()); break;
             case WelcomeAction.ImportFromStores: AddFromStoresClicked(this, new RoutedEventArgs()); break;
+            case WelcomeAction.ImportOldFolder: ImportOldFolderClicked(this, new RoutedEventArgs()); break;
             case WelcomeAction.ChooseTheme: await OpenThemePickerAsync(); break;
             case WelcomeAction.DownloadSaveDatabase: DownloadSaveDatabaseClicked(this, new RoutedEventArgs()); break;
             case WelcomeAction.Skip: await DismissWelcomeAsync(); break;

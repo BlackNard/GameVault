@@ -1,7 +1,7 @@
 namespace GameVault.Core;
 
 /// <summary>What a player can choose on the first-run welcome.</summary>
-public enum WelcomeAction { AddGame, ImportFromStores, ChooseTheme, DownloadSaveDatabase, Skip }
+public enum WelcomeAction { AddGame, ImportFromStores, ChooseTheme, DownloadSaveDatabase, Skip, ImportOldFolder }
 
 /// <summary>When the first-run welcome replaces the library's empty message.</summary>
 public static class WelcomeRules

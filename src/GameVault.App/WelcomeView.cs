@@ -40,6 +40,7 @@ public sealed class WelcomeView : UserControl
         root.Children.Add(Row("", "Import from Steam, Epic or GOG", "Find games that are already installed through a store and add them in one go.", "Choose from my stores", WelcomeAction.ImportFromStores));
         root.Children.Add(Row("", "Choose a theme", "Preview colour themes, from calm navy to your favourite game's look.", "Browse themes", WelcomeAction.ChooseTheme));
         root.Children.Add(Row("", "Get save locations (optional)", "Download a list of where thousands of games keep their saves, about 18 MB. It is used offline afterwards.", "Download the list", WelcomeAction.DownloadSaveDatabase));
+        root.Children.Add(Row("", "Used GameVault before?", "Bring your games, playtime and save backups from an old GameVault folder. The old folder is not changed.", "Choose the old folder", WelcomeAction.ImportOldFolder));
         var footer = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0) };
         var close = new Button { Content = embedded ? "Skip for now" : "Close", MinWidth = 120 };
         AutomationProperties.SetName(close, embedded ? "Skip the welcome" : "Close the welcome");
