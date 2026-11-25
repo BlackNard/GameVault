@@ -196,6 +196,8 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] The **Captures** page shows one folder per game (cover, counts, latest date). Opening a folder shows all its captures as tiles with **‹ All games**, **Open folder** and **Open game**; the title-bar Back/Forward move between the two pages.
 - [ ] Unfinished captures are marked and cannot be opened; NVIDIA App copies are labelled.
 
+- [ ] After the first start, **Open captures folder** shows date-named folders (for example `2026-11-18 22-45`) instead of long IDs, all captures are still listed and open, and a new screenshot and recording go into a date-named folder. Folder cards on the Captures page show the cover cleanly.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

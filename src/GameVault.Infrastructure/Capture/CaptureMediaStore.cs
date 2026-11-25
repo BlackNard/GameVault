@@ -21,9 +21,8 @@ public sealed class CaptureMediaStore(ApplicationPaths paths)
   if(journal?.State!=DocumentState.Ready || journal.Value is not {State:SessionState.Active} session ||
    session.ProcessId!=target.ProcessId || session.ProcessCreatedUtcTicks!=target.ProcessCreatedUtcTicks)
    throw new IOException("Capture target does not match this profile's active saved game session.");
-  var folder=Path.Combine(ProfileFolders.Resolve(paths,profileId),"Media",target.SessionId.ToString("N"));
-  managed.EnsureDirectory(folder);
   var now=DateTimeOffset.UtcNow; var id=Guid.NewGuid();
+  var folder=MediaFolders.ForSession(managed,Path.Combine(ProfileFolders.Resolve(paths,profileId),"Media"),target.SessionId,now);
   var name=$"{now:yyyyMMddTHHmmssfffffffZ}-{id:N}"+(kind==CaptureMediaKind.Video?".mp4":".png");
   var media=new CaptureMedia(id,profileId,target.SessionId,now,kind,CaptureMediaStatus.Incomplete,Path.Combine(folder,name)+".partial");
   managed.Check(media.FilePath);
@@ -37,8 +36,7 @@ public sealed class CaptureMediaStore(ApplicationPaths paths)
   var profile=await new AppDataStore(paths).LoadProfileAsync(profileId);
   if(profile.Profile.State!=DocumentState.Ready || profile.Profile.Value!.IsArchived)
    throw new IOException("A writable library profile is required to import captures.");
-  var folder=Path.Combine(ProfileFolders.Resolve(paths,profileId),"Media",sessionId.ToString("N"));
-  managed.EnsureDirectory(folder);
+  var folder=MediaFolders.ForSession(managed,Path.Combine(ProfileFolders.Resolve(paths,profileId),"Media"),sessionId,capturedUtc);
   var id=Guid.NewGuid();
   var name=$"{capturedUtc.ToUniversalTime():yyyyMMddTHHmmssfffffffZ}-{id:N}"+(kind==CaptureMediaKind.Video?".mp4":".png");
   var media=new CaptureMedia(id,profileId,sessionId,capturedUtc.ToUniversalTime(),kind,CaptureMediaStatus.Incomplete,Path.Combine(folder,name)+".partial",null,sourceFingerprint);
@@ -63,7 +61,7 @@ public sealed class CaptureMediaStore(ApplicationPaths paths)
   var result=new List<CaptureMedia>();
   foreach(var session in Directory.EnumerateDirectories(folder))
   {
-   if(!Guid.TryParseExact(Path.GetFileName(session),"N",out var sessionId))continue;
+   if(MediaFolders.Identify(session) is not Guid sessionId)continue;
    managed.Check(session);
    foreach(var file in Directory.EnumerateFiles(session,"*.json"))
    {
@@ -146,9 +144,10 @@ public sealed class CaptureMediaStore(ApplicationPaths paths)
    throw new ArgumentException("Invalid capture metadata.");
   var extension=media.Kind==CaptureMediaKind.Video?".mp4":".png";
   if(media.Status==CaptureMediaStatus.Incomplete)extension+=".partial";
-  var expected=Path.Combine(ProfileFolders.Resolve(paths,media.ProfileId),"Media",media.SessionId.ToString("N"),
-   $"{media.CapturedUtc:yyyyMMddTHHmmssfffffffZ}-{media.Id:N}"+extension);
-  if(!string.Equals(expected,media.FilePath,StringComparison.OrdinalIgnoreCase))throw new IOException("Capture media must remain in its owning profile and session folder.");
+  var root=Path.Combine(ProfileFolders.Resolve(paths,media.ProfileId),"Media");
+  var folder=Path.GetDirectoryName(media.FilePath);
+  if(folder is null || !string.Equals(Path.Combine(root,Path.GetFileName(folder),$"{media.CapturedUtc:yyyyMMddTHHmmssfffffffZ}-{media.Id:N}"+extension),media.FilePath,StringComparison.OrdinalIgnoreCase) ||
+   MediaFolders.Identify(folder)!=media.SessionId)throw new IOException("Capture media must remain in its owning profile and session folder.");
   managed.Check(media.FilePath);
  } void Write(CaptureMedia media)
  {

@@ -146,6 +146,9 @@ public partial class App : Application
             PreviousRun = CrashMarker.Begin(paths.Root, typeof(App).Assembly.GetName().Version?.ToString() ?? "unknown", DateTimeOffset.Now);
             markerRoot = paths.Root;
             if (PreviousRun.PreviousRunEndedUnexpectedly) AppLog.Warn("The previous run did not end normally" + (PreviousRun.PreviousStartedAt is { } at ? $" (it started {at:yyyy-MM-dd HH:mm})" : ""));
+            // Capture folders from older versions get readable date names, before anything lists or records captures.
+            var renamed = await Task.Run(() => GameVault.Infrastructure.Capture.MediaFolders.MigrateAll(paths));
+            if (renamed > 0) AppLog.Info($"Renamed {renamed} capture folder(s) to date names.");
             var store = new AppDataStore(paths);
             var snapshot = await store.InitializeAsync();
             MainWindow = new MainWindow(paths, store, snapshot);

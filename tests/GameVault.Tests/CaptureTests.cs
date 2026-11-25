@@ -22,7 +22,7 @@ public sealed class CaptureTests : IDisposable
   var c=await Create(new()); var media=await c.ScreenshotAsync(game,target);
   Assert.Equal(target.SessionId,media.SessionId); Assert.Equal(CaptureMediaStatus.Complete,media.Status);
   Assert.True(File.Exists(media.FilePath)); Assert.False(File.Exists(media.FilePath+".partial"));
-  Assert.True(File.Exists(media.FilePath+".json")); Assert.Contains(target.SessionId.ToString("N"),media.FilePath);
+  Assert.True(File.Exists(media.FilePath+".json")); Assert.Equal(target.SessionId,GameVault.Infrastructure.Capture.MediaFolders.Identify(Path.GetDirectoryName(media.FilePath)!));
  }
  [Fact] public async Task InvalidScreenshotRetainsPartialAndIncompleteMetadata()
  {
