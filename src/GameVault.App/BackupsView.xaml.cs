@@ -32,8 +32,8 @@ public partial class BackupsView:UserControl
             Apply(await history.ListAsync(GameId));var recoveries=await restores.ListRecoveriesAsync(GameId);
             recoveryBlocked=recoveries.Journal.IsReadOnly||recoveries.Journal.Value?.Phase is RestorePhase.Prepared or RestorePhase.RecoveryRequired;
             pendingRecovery=recoveries.Journal.Value?.Phase is RestorePhase.Prepared or RestorePhase.RecoveryRequired?recoveries.Journal.Value.RequiredRecoveryId??recoveries.Journal.Value.OperationId:null;
-            RecoveryList.ItemsSource=recoveries.Snapshots.Select(r=>new RecoveryRow(r)).ToArray();RecoveryList.SelectedIndex=recoveries.Snapshots.Length>0?0:-1;
-            Warnings.Text+=Warnings.Text.Length>0?"\n":"";Warnings.Text+=string.Join("\n",recoveries.Warnings);
+            RecoveryList.ItemsSource=recoveries.Snapshots.Select(r=>new RecoveryRow(r)).ToArray();RecoveryList.SelectedIndex=recoveries.Snapshots.Length>0?0:-1;RecoveryPanel.Visibility=recoveries.Snapshots.Length>0||pendingRecovery is not null?Visibility.Visible:Visibility.Collapsed;
+            Warnings.Text+=Warnings.Text.Length>0?"\n":"";Warnings.Text+=string.Join("\n",recoveries.Warnings);Warnings.Visibility=Warnings.Text.Length>0?Visibility.Visible:Visibility.Collapsed;
         }
         catch(Exception e)when(Expected(e)){Notice.Text="History could not be refreshed. "+e.Message;}
         finally{SetBusy(false);}

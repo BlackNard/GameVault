@@ -224,6 +224,10 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] Two quick double-clicks open one GameVault only.
 - [ ] A copy in another folder still starts on its own.
 
+## 8r. Backup history layout
+
+- [ ] Backup history (empty and with backups): the Refresh button is normal size, retention is one compact card, the empty message sits in a card, Pin/Restore/Open folder sit directly under the list, recovery copies show only when there are some, and it reads well at a narrow window.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.
