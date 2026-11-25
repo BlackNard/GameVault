@@ -217,6 +217,13 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] The last page is shown when returning to Settings; Back/Forward move between pages; Ctrl+K "Settings: Updates" opens it; **How backups work** opens the guide.
 - [ ] Readable in several themes, usable with the keyboard, and at a narrow window width.
 
+## 8p. Starting GameVault again (issue #69)
+
+- [ ] With GameVault in the tray, double-click the exe or the desktop shortcut: its window appears on top, on the page you left, with no error and no second tray icon or startup window.
+- [ ] The same when the window is minimised or behind other windows, and during a running game session (tracking continues).
+- [ ] Two quick double-clicks open one GameVault only.
+- [ ] A copy in another folder still starts on its own.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

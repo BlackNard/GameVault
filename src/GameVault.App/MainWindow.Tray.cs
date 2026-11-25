@@ -23,6 +23,20 @@ public partial class MainWindow
 
     }
     private void PostTray(Action action){if(!Dispatcher.HasShutdownStarted)_=Dispatcher.InvokeAsync(()=>{if(!observationStopped&&!stoppingObservation)action();});}
+    /// <summary>True once the window has been shown (before that, App waits and shows it when it is ready).</summary>
+    internal bool HasBeenShown => new System.Windows.Interop.WindowInteropHelper(this).Handle != IntPtr.Zero;
+
+    /// <summary>GameVault was started again: show this window where the player left it, like choosing it in the tray.</summary>
+    internal void ShowForAnotherStart()
+    {
+        RestoreWindow();
+        var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        if (handle != IntPtr.Zero) SetForegroundWindow(handle);
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr window);
+
     private void RestoreWindow()
     {
         if(observationStopped||stoppingObservation)return;

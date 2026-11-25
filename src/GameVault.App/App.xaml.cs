@@ -14,6 +14,8 @@ public partial class App : Application
 {
     private ApplicationWorkspace? workspace;
     private string? markerRoot;
+    private SingleInstance? instance;
+    private bool showRequested;      // another start asked for the window while it was still being created
 
     /// <summary>What the previous run left behind (set once the application folder is ours); the main window reads it to show a notice.</summary>
     internal static CrashMarkerResult? PreviousRun { get; private set; }
@@ -106,6 +108,13 @@ public partial class App : Application
             return;
         }
         var paths = ApplicationPaths.FromRoot(AppContext.BaseDirectory);
+        // GameVault already runs from this folder (often just in the tray): bring its window up and end quietly. This comes before anything else, so a second
+        // start never installs an update, checks the library or writes into the folder the running copy owns.
+        if (ActivateRunningCopy(paths))
+        {
+            Shutdown(0);
+            return;
+        }
         AppLog.Initialize(paths.Root);
         // A verified update that is still waiting (GameVault was not closed normally, or it lives in the tray) installs now, before anything else is opened.
         if (UpdatePreferences.ParseAutoUpdate(ReadSettingsText(paths)) && TryInstallWaitingUpdateAtStart())
@@ -139,6 +148,7 @@ public partial class App : Application
         try
         {
             workspace = await Task.Run(() => ApplicationWorkspace.Open(paths));
+            instance = SingleInstance.Listen(paths.Root, ShowForAnotherStart);
             // Only now is this process the owner of the folder, so only now may it read or write the "running" marker.
             PreviousRun = CrashMarker.Begin(paths.Root, typeof(App).Assembly.GetName().Version?.ToString() ?? "unknown", DateTimeOffset.Now);
             markerRoot = paths.Root;
@@ -157,11 +167,18 @@ public partial class App : Application
                 splash.CloseOnce();
             }
             MainWindow.Show();
+            if (showRequested) ((MainWindow)MainWindow).ShowForAnotherStart();
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
             splash?.CloseOnce();
             workspace?.Dispose();
+            // Two starts at the same moment: the other one may only just have begun listening.
+            if (SingleInstance.TryActivateExisting(paths.Root, TimeSpan.FromSeconds(5), AllowAnyForeground))
+            {
+                Shutdown(0);
+                return;
+            }
             MessageBox.Show(
                 $"GameVault could not open its application folder:\n\n{paths.Root}\n\n" +
                 "Close any other GameVault instance using this folder and try again. " +
@@ -170,6 +187,24 @@ public partial class App : Application
             Shutdown(1);
         }
     }
+
+    private static bool ActivateRunningCopy(ApplicationPaths paths) =>
+        SingleInstance.TryActivateExisting(paths.Root, TimeSpan.FromSeconds(5), AllowAnyForeground);
+
+    /// <summary>The start the player just made has the right to take the foreground; it passes that to the running copy.</summary>
+    private static void AllowAnyForeground() => AllowSetForegroundWindow(-1);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool AllowSetForegroundWindow(int processId);
+
+    /// <summary>Called on a background thread when GameVault is started again.</summary>
+    private bool ShowForAnotherStart() => Dispatcher.Invoke(() =>
+    {
+        if (Dispatcher.HasShutdownStarted) return false;
+        if (MainWindow is MainWindow window && window.HasBeenShown) window.ShowForAnotherStart();
+        else showRequested = true;
+        return true;
+    });
 
     private static bool TryInstallWaitingUpdateAtStart()
     {
@@ -187,6 +222,8 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        instance?.Dispose();      // first: a closing copy must not answer a new start
+        instance = null;
         if(MainWindow is MainWindow window){window.DisposeCaptureFeatures();window.DisposeTrayOnApplicationExit();}
         if (markerRoot is not null) CrashMarker.EndCleanly(markerRoot);
         workspace?.Dispose();
