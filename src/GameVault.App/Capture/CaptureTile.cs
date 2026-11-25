@@ -64,6 +64,7 @@ public sealed class CaptureTile : UserControl
         Picture.Click += (_, _) => card.Open(media);
 
         var title = new TextBlock { Text = CaptureGalleryRules.Title(media), FontWeight = FontWeights.SemiBold, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = media.Warning ?? media.Error };
+        title.SetResourceReference(TextBlock.ForegroundProperty, "AppMuted");      // otherwise the list row gives it the system's black
         var size = "";
         try { size = " · " + CaptureGalleryRules.Size(new FileInfo(media.FilePath).Length); }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { }
