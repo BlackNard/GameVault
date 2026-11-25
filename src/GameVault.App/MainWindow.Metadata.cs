@@ -38,6 +38,7 @@ public partial class MainWindow
     {
         if (item?.Game.Profile is null) { AboutBlock.Visibility = Visibility.Collapsed; return; }
         var id = item.Game.Id;
+        if (aboutFor != id) { ShowWholeDescription(false); DescriptionEditor.Visibility = Visibility.Collapsed; }
         aboutFor = id;
         GameMetadataDocument? document = null;
         string? problem = null;
@@ -54,30 +55,32 @@ public partial class MainWindow
         var lookingUp = lookupsInProgress.Contains(id);
         AboutLookupBar.Visibility = lookingUp ? Visibility.Visible : Visibility.Collapsed;
         AboutText.Text = description?.Text ?? (lookingUp ? "Looking up information about this game… the facts appear here as soon as they arrive." : document?.Identity is { NoMatch: true } ? "You said no listed game matches, so nothing is looked up for this one. Write your own description, or choose Not the right game? to pick one." : "No description yet. Information is looked up automatically; if this game could not be matched (several games share its title), choose Not the right game? to pick the correct one, or write your own description.");
+        ReadMoreButton.Visibility = GameOverviewRules.NeedsReadMore(AboutText.Text) ? Visibility.Visible : Visibility.Collapsed;
+        // At first only what a player looks for; everything else waits in "More details".
         AboutFacts.Children.Clear();
         void Fact(string label, string? value)
         {
-            if (string.IsNullOrWhiteSpace(value)) return;
-            var panel = new StackPanel { Margin = new Thickness(0, 0, 32, 8) };
-            var caption = new TextBlock { Text = label };
-            caption.SetResourceReference(TextBlock.ForegroundProperty, "AppMuted");
-            panel.Children.Add(caption);
-            panel.Children.Add(new TextBlock { Text = value, Margin = new Thickness(0, 2, 0, 0) });
-            AboutFacts.Children.Add(panel);
+            if (!string.IsNullOrWhiteSpace(value)) AboutFacts.Children.Add(FactPanel(label, value));
         }
         Fact("Released", document?.Get(MetadataField.ReleaseDate)?.Date is { } date ? PartialDate.Parse(date)?.Display() : null);
         Fact("Developer", Join(document?.Get(MetadataField.Developers)?.Items));
-        Fact("Publisher", Join(document?.Get(MetadataField.Publishers)?.Items));
         Fact("Genres", Join(document?.Get(MetadataField.Genres)?.Items));
-        Fact("Install size", document?.Get(MetadataField.InstallSize)?.Bytes is long bytes ? SizeText(bytes) : null);
-        Fact("Rated", document?.Get(MetadataField.AgeRating)?.Text);
-        Fact("Platforms", Join(document?.Get(MetadataField.Platforms)?.Items));
-        Fact("Metacritic", document?.Get(MetadataField.CriticScore)?.Number is int score ? score.ToString(System.Globalization.CultureInfo.InvariantCulture) : null);
-        Fact("Player reviews", document?.Get(MetadataField.CommunitySummary)?.Text);
-        Fact("Achievements", document?.Get(MetadataField.AchievementCount)?.Number is int achievements ? achievements.ToString(System.Globalization.CultureInfo.InvariantCulture) : null);
-        Fact("DLC", document?.Get(MetadataField.DlcCount)?.Number is int dlc ? dlc.ToString(System.Globalization.CultureInfo.InvariantCulture) : null);
-        Fact("Installed", Join(document?.Get(MetadataField.Installed)?.Items?.Select(i => i).ToArray()));
-        RenderAboutDetails(document);
+        var more = new List<(string Label, string Value)>();
+        void Extra(string label, string? value)
+        {
+            if (!string.IsNullOrWhiteSpace(value)) more.Add((label, value));
+        }
+        Extra("Publisher", Join(document?.Get(MetadataField.Publishers)?.Items));
+        Extra("Install size", document?.Get(MetadataField.InstallSize)?.Bytes is long bytes ? SizeText(bytes) : null);
+        Extra("Rated", document?.Get(MetadataField.AgeRating)?.Text);
+        Extra("Platforms", Join(document?.Get(MetadataField.Platforms)?.Items));
+        Extra("Metacritic", document?.Get(MetadataField.CriticScore)?.Number is int score ? score.ToString(System.Globalization.CultureInfo.InvariantCulture) : null);
+        Extra("Player reviews", document?.Get(MetadataField.CommunitySummary)?.Text);
+        Extra("Achievements", document?.Get(MetadataField.AchievementCount)?.Number is int achievements ? achievements.ToString(System.Globalization.CultureInfo.InvariantCulture) : null);
+        Extra("DLC", document?.Get(MetadataField.DlcCount)?.Number is int dlc ? dlc.ToString(System.Globalization.CultureInfo.InvariantCulture) : null);
+        Extra("Installed", Join(document?.Get(MetadataField.Installed)?.Items));
+        RenderTimeToBeat(document, item.Game.PlayedSeconds);
+        RenderAboutDetails(document, more);
         var sources = document?.Fields.Values.Select(v => v.Provider).Distinct().Select(p => p switch { "steam" => "Steam store", "local" => "this PC", "you" => "you", var other => other }).ToArray();
         AboutSource.Text = sources is { Length: > 0 } ? "Information from " + string.Join(", ", sources) + "." : "";
         AboutNotice.Text = problem ?? "";

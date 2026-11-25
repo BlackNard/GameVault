@@ -87,7 +87,9 @@ public partial class MainWindow
         if (item?.Game.Profile is null) { TagsBlock.Visibility = Visibility.Collapsed; return; }
         TagsBlock.Visibility = Visibility.Visible;
         var tags = TagsOf(item.Game.Id);
-        TagsText.Text = tags.Length == 0 ? "You have not added any tags. Add your own, such as RPG, Co-op, Finish soon or Replaying, then filter the library by them." : string.Join("  ·  ", tags);
+        TagsChips.Children.Clear();
+        foreach (var tag in tags) TagsChips.Children.Add(Chip(tag));
+        if (tags.Length == 0) TagsChips.Children.Add(Muted("None yet", new Thickness(0, 0, 0, 6)));
         EditTagsButton.IsEnabled = !tagsReadOnly;
     }
 
