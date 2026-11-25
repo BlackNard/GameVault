@@ -235,7 +235,7 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 
 ## 8s. Game page essentials (issue #76)
 
-- [ ] A game's Overview shows only: a short description (**Read more** / **Show less**), release date, developer and genres, one time-to-beat line with your progress, your tags with **Edit tags**, and closed sections.
+- [ ] A game's Overview shows only: a short description (**Read more** / **Show less**), release date, developer and genres, **How long to beat** cards with your progress and the HowLongToBeat link, your tags with **Edit tags**, and closed sections.
 - [ ] **More details**, **Store tags, features and languages**, **Full description**, **System requirements**, **Links and store screenshots** and **Manage game information** open on demand, stay open when you move to another game, and hold everything that was on the page before. Refresh info, Edit description and Not the right game? still work.
 - [ ] A game whose backup failed shows a warning with **Open Saves**; a healthy game shows none. Games with little information have no empty sections. Readable in several themes and at a narrow window.
 

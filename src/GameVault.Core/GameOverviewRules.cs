@@ -18,17 +18,6 @@ public static class GameOverviewRules
         return (hours >= 100 ? hours.ToString("0", CultureInfo.CurrentCulture) : hours.ToString("0.#", CultureInfo.CurrentCulture)) + " h";
     }
 
-    /// <summary>"Main story 27 h · Main + extras 40.3 h · Completionist 71.7 h"; "All play styles" only when it is the one figure there is.</summary>
-    public static string TimeToBeatLine(int? main, int? extras, int? complete, int? all)
-    {
-        var parts = new List<string>();
-        if (main is > 0) parts.Add("Main story " + Hours(main.Value));
-        if (extras is > 0) parts.Add("Main + extras " + Hours(extras.Value));
-        if (complete is > 0) parts.Add("Completionist " + Hours(complete.Value));
-        if (parts.Count == 0 && all is > 0) parts.Add("All play styles " + Hours(all.Value));
-        return string.Join(" · ", parts);
-    }
-
     /// <summary>The player's progress against the main story (or, without it, the all-styles figure): a share from 0 to 1 and a sentence. Null without playtime or a figure.</summary>
     public static (double Share, string Text)? Progress(long? playedSeconds, int? main, int? all)
     {

@@ -91,7 +91,6 @@ public partial class MainWindow
             if (GameMetadataDocument.ParseLink(entry) is not { } link) continue;
             AddLink(linkRow, link.Label, link.Url);
         }
-        if (document.Get(MetadataField.TimeToBeat)?.Times is { Url: { } beat } && GameMetadataDocument.SafeLink(beat)) AddLink(linkRow, "HowLongToBeat", beat);
         if (linkRow.Children.Count > 0) extras.Children.Add(linkRow);
         var shots = document.Get(MetadataField.Screenshots)?.Items;
         if (shots is { Length: > 0 }) AddScreenshots(extras, shots);
@@ -136,16 +135,41 @@ public partial class MainWindow
         host.Children.Add(strip);
     }
 
-    /// <summary>One line of HowLongToBeat averages with your own progress under it.</summary>
+    /// <summary>HowLongToBeat averages as cards, with your own progress under them.</summary>
     private void RenderTimeToBeat(GameMetadataDocument? document, long? playedSeconds)
     {
         var times = document?.Get(MetadataField.TimeToBeat)?.Times;
-        var line = times is null ? "" : GameOverviewRules.TimeToBeatLine(times.MainSeconds, times.PlusSeconds, times.CompleteSeconds, times.AllSeconds);
-        TimeToBeatBlock.Visibility = line.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-        TimeToBeatText.Text = line;
-        var progress = line.Length > 0 ? GameOverviewRules.Progress(playedSeconds, times!.MainSeconds, times.AllSeconds) : null;
+        TimeToBeatCards.Children.Clear();
+        TimeToBeatBlock.Visibility = times is { HasAny: true } ? Visibility.Visible : Visibility.Collapsed;
+        if (times is not { HasAny: true }) return;
+        void Card(string label, int? seconds)
+        {
+            if (seconds is not > 0) return;
+            var panel = new StackPanel();
+            var caption = Muted(label);
+            caption.FontSize = 12;
+            panel.Children.Add(caption);
+            panel.Children.Add(new TextBlock { Text = GameOverviewRules.Hours(seconds.Value), FontSize = 22, Margin = new Thickness(0, 2, 0, 0) });
+            var card = new Border { CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1), Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 0, 10, 10), MinWidth = 130, Child = panel };
+            card.SetResourceReference(Border.BorderBrushProperty, "AppLine");
+            card.SetResourceReference(Border.BackgroundProperty, "AppSurface");
+            TimeToBeatCards.Children.Add(card);
+        }
+        Card("Main story", times.MainSeconds);
+        Card("Main + extras", times.PlusSeconds);
+        Card("Completionist", times.CompleteSeconds);
+        Card("All play styles", times.AllSeconds);
+        var progress = GameOverviewRules.Progress(playedSeconds, times.MainSeconds, times.AllSeconds);
         TimeProgressBar.Visibility = TimeProgressText.Visibility = progress is null ? Visibility.Collapsed : Visibility.Visible;
         if (progress is { } own) { TimeProgressBar.Value = own.Share; TimeProgressText.Text = own.Text; }
+        var link = times.Url is { } url && GameMetadataDocument.SafeLink(url) ? url : null;
+        TimeToBeatLink.Tag = TimeToBeatLink.ToolTip = link;
+        TimeToBeatLink.Visibility = link is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void TimeToBeatLinkClicked(object sender, RoutedEventArgs e)
+    {
+        if (TimeToBeatLink.Tag is string url) OpenLink(url);
     }
 
     private void ReadMoreClicked(object sender, RoutedEventArgs e) => ShowWholeDescription(double.IsFinite(AboutText.MaxHeight));

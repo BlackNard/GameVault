@@ -14,12 +14,9 @@ public sealed class GameOverviewRulesTests
     }
 
     [Fact]
-    public void TimeToBeatReadsAsOneLine()
+    public void HoursReadNaturally()
     {
-        var line = GameOverviewRules.TimeToBeatLine(27 * 3600, 40 * 3600, 71 * 3600, 33 * 3600);
-        Assert.Equal("Main story 27 h · Main + extras 40 h · Completionist 71 h", line);
-        Assert.Equal("All play styles 33 h", GameOverviewRules.TimeToBeatLine(null, null, null, 33 * 3600));
-        Assert.Equal("", GameOverviewRules.TimeToBeatLine(null, 0, null, null));
+        Assert.Equal("27 h", GameOverviewRules.Hours(27 * 3600));
         Assert.Equal("30 min", GameOverviewRules.Hours(1800));
         Assert.Equal("1 min", GameOverviewRules.Hours(5));
     }

@@ -16,7 +16,7 @@ public sealed class GamePageEssentialsTests
     {
         var xaml = Source("MainWindow.xaml");
         var overview = xaml[xaml.IndexOf("x:Name=\"OverviewSection\"", StringComparison.Ordinal)..xaml.IndexOf("x:Name=\"SavesSection\"", StringComparison.Ordinal)];
-        foreach (var name in new[] { "AttentionCard", "AboutText", "ReadMoreButton", "AboutFacts", "TimeToBeatText", "TimeProgressBar", "TagsChips", "EditTagsButton", "AboutDetails", "ManageInfo", "RefreshInfoButton", "EditDescriptionButton", "WrongGameButton" })
+        foreach (var name in new[] { "AttentionCard", "AboutText", "ReadMoreButton", "AboutFacts", "TimeToBeatCards", "TimeProgressBar", "TimeToBeatLink", "TagsChips", "EditTagsButton", "AboutDetails", "ManageInfo", "RefreshInfoButton", "EditDescriptionButton", "WrongGameButton" })
             Assert.Contains("x:Name=\"" + name + "\"", overview);
         Assert.DoesNotContain("Your game, at a glance", overview);
         Assert.DoesNotContain("Save backup status", overview);
