@@ -229,6 +229,10 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] Grand Theft Auto IV: play, save at a safehouse, close the game. The Saves tab shows the Rockstar save folder (or, for a copy without the Rockstar launcher, the `Goldberg SocialClub Emu Saves\GTA IV` folder) selected (or asks to confirm when two exist), and a dated backup appears. **Back up now** works and a restore brings the save back.
 - [ ] Before the first save it says it is waiting, without an empty backup.
 
+## 8r. Backup history layout
+
+- [ ] Backup history (empty and with backups): the Refresh button is normal size, retention is one compact card, the empty message sits in a card, Pin/Restore/Open folder sit directly under the list, recovery copies show only when there are some, and it reads well at a narrow window.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.
