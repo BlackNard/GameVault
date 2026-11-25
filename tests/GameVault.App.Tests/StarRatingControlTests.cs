@@ -53,6 +53,9 @@ public sealed class StarRatingControlTests
         Assert.Contains("x:Name=\"Rating\"", Source("NotesView.xaml"));
         Assert.Contains("RatingPanel.Visibility=review?", Source("NotesView.xaml.cs"));
         Assert.Contains("x:Name=\"RatingButton\"", Source("MainWindow.xaml"));
+        Assert.Contains("x:Name=\"HeroRating\"", Source("MainWindow.xaml"));
+        Assert.Contains("HeroRating.Chosen += HeroRatingChosen;", Source("MainWindow.xaml.cs"));
+        Assert.Contains("HeroRating.Value = item.Game.Rating;", Source("MainWindow.xaml.cs"));
         Assert.Contains("RatingFilters.Matches(ratingFilter, i.Game.Rating)", Source("MainWindow.xaml.cs"));
         foreach (var file in new[] { "MainWindow.ProfileImport.cs", "MainWindow.StoreImport.cs", "MainWindow.Shell.cs", "MainWindow.Tray.cs", "MainWindow.xaml.cs" })
             Assert.Contains("ratingFilter = ", Source(file));

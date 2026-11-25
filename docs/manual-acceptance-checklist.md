@@ -185,7 +185,7 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 
 - [ ] A game's Sessions & notes > **Review** tab shows five stars; clicking the left or right half of a star gives a half or whole rating and says it is saved; clicking the same rating again clears it. It works for a game that is not Completed.
 - [ ] Keyboard: Tab to the stars; arrows change by half a star, 1 to 5 pick whole stars, Delete clears.
-- [ ] The game page shows "Your rating"; **Sort: Highest rated** and the **Rating** filter work; adding or importing a game clears the rating filter.
+- [ ] The game page shows a **Your rating** card next to Total playtime as soon as it opens; clicking its stars saves and matches the Review tab; **Sort: Highest rated** and the **Rating** filter work; adding or importing a game clears the rating filter.
 - [ ] Review export contains the rating; the rating survives restart, data backup/restore and import from an old folder. The stars look right in several themes.
 
 ## 9. Existing acceptance issues (cannot be closed by tests)

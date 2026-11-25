@@ -61,6 +61,7 @@ public partial class MainWindow : Window
         settings = snapshot.Settings.Value ?? AppSettings.Default;
         settingsReadOnly = snapshot.Settings.IsReadOnly;
         InitializeComponent();
+        HeroRating.Chosen += HeroRatingChosen;
         lifetime=new(Hide,RestoreWindow,PrepareToQuitAsync,QuitRuntimeAsync);
         ThemePalette.Apply(this, settings.Theme);
         CloseToTrayChoice.IsChecked=settings.CloseToTray;BackupNotificationsChoice.IsChecked=settings.NotifyBackupFailures;StartupSplashChoice.IsChecked=settings.ShowSplash;CheckForUpdatesChoice.IsChecked=settings.CheckForUpdates;AutoUpdateChoice.IsChecked=settings.AutoUpdate;
@@ -155,12 +156,14 @@ public partial class MainWindow : Window
         if(item is not null)_=RefreshHeroCoverAsync(item);else {GameHeroCover.Source=null;heroCoverGame=null;heroCoverRequest?.Cancel();}
         DetailTitle.Text = item?.Name ?? "A home for every game";
         DetailState.Text = item is null ? "Select a game to see its details or choose Add game to get started." :
-            string.Join("\n", new[] { item.Status, item.Game.Rating > 0 ? "Your rating: " + StarRating.Text(item.Game.Rating) : null, item.Availability, item.Game.Warning }.Where(s => !string.IsNullOrWhiteSpace(s)));
+            string.Join("\n", new[] { item.Status, item.Availability, item.Game.Warning }.Where(s => !string.IsNullOrWhiteSpace(s)));
         DetailFields.Visibility = item?.Game.Profile is not null ? Visibility.Visible : Visibility.Collapsed;
         if(item is null)summarizedGame=null;
         if (item?.Game.Profile is GameProfile profile)
         {
             DetailTime.Text = item.Played;
+            HeroRating.Value = item.Game.Rating;
+            HeroRating.IsEnabled = !item.Game.IsReadOnly && !profile.IsArchived;
             SessionElapsed.Text = item.SessionTime;
             SessionWarning.Text = item.SessionWarning ?? "";
             DetailExecutable.Text = profile.ExecutablePath;

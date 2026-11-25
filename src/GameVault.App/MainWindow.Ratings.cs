@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -9,6 +10,21 @@ namespace GameVault.App;
 public partial class MainWindow
 {
     private string ratingFilter = RatingFilters.Any;
+
+    /// <summary>The "Your rating" card at the top of a game page: saved as soon as it is chosen.</summary>
+    private async void HeroRatingChosen(object? sender, int halfStars)
+    {
+        if (GameList.SelectedItem is not LibraryItemView { Game.Profile: { IsArchived: false } profile }) return;
+        HeroRating.IsEnabled = false;
+        try
+        {
+            await store.SaveRatingAsync(profile.Id, halfStars);
+            HeroRating.Value = halfStars;
+            await RefreshLibrary(profile.Id);
+        }
+        catch (Exception error) when (IsExpected(error) || error is IOException) { ShowToast("The rating could not be saved", error.Message, true); }
+        finally { HeroRating.IsEnabled = GameList.SelectedItem is LibraryItemView { Game: { IsReadOnly: false, Profile.IsArchived: false } }; }
+    }
 
     private void RatingButtonClicked(object sender, RoutedEventArgs e)
     {
