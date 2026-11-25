@@ -32,6 +32,19 @@ public sealed class CaptureGalleryRulesTests
     }
 
     [Fact]
+    public void AnOpenedCaptureFolderIsItsOwnPlaceInTheHistory()
+    {
+        var game = Guid.NewGuid();
+        Assert.Equal("Captures", NavBreadcrumb.Text(NavRoute.Captures, null));
+        Assert.Equal("Captures › TEKKEN 8", NavBreadcrumb.Text(NavRoute.CapturesOf(game), "TEKKEN 8"));
+        var history = new NavigationHistory();
+        history.Record(NavRoute.Captures);
+        history.Record(NavRoute.CapturesOf(game));
+        Assert.Equal(NavRoute.Captures, history.Back(_ => true));
+        Assert.Equal(NavRoute.CapturesOf(game), history.Forward(_ => true));
+    }
+
+    [Fact]
     public void PreviousAndNextMoveThroughFinishedScreenshotsOnly()
     {
         static CaptureMedia Media(CaptureMediaKind kind, CaptureMediaStatus status = CaptureMediaStatus.Complete) =>

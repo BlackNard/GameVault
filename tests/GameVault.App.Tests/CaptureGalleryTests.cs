@@ -77,7 +77,12 @@ public sealed class CaptureGalleryTests
         string Source(string name) => File.ReadAllText(Path.Combine(dir!.FullName, "src", "GameVault.App", name));
         var xaml = Source("MainWindow.xaml");
         Assert.Contains("x:Name=\"CaptureGalleryList\"", xaml);
-        Assert.Contains("<local:CaptureTile/>", xaml);
+        Assert.Contains("x:Name=\"CaptureFolders\"", xaml);                 // the Captures page lists one folder per game
+        Assert.Contains("x:Name=\"CaptureGalleryPage\"", xaml);             // and opens a folder as the same virtualised gallery
+        var overview = Source("MainWindow.Overview.cs");
+        Assert.Contains("NavigateToAsync(NavRoute.CapturesOf(folder.Item.Game.Id))", overview);
+        Assert.Contains("CaptureGalleryPage.Show(cards);", overview);
+        Assert.Contains("NavRoute.CapturesOf(folder)", Source("MainWindow.Shell.cs"));   // Back and Forward know the opened folder
         Assert.DoesNotContain("CaptureMediaList", xaml);
         var actions = Source("MainWindow.CaptureGallery.cs");
         Assert.Contains("await FindCaptureAsync(media)", actions);

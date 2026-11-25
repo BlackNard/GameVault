@@ -80,7 +80,7 @@ public partial class MainWindow
     private NavRoute CurrentRoute()
     {
         if (SettingsPanel.Visibility == Visibility.Visible) return NavRoute.Settings;
-        if (OverviewVisible) return overviewKind == NavKind.Backups ? NavRoute.Backups : NavRoute.Captures;
+        if (OverviewVisible) return overviewKind == NavKind.Backups ? NavRoute.Backups : captureFolder is Guid folder ? NavRoute.CapturesOf(folder) : NavRoute.Captures;
         if (GameList.SelectedItem is LibraryItemView item && (GamePage.Visibility == Visibility.Visible || notesView is not null))
         {
             var section = notesView is not null ? "Sessions" : gameSection;
@@ -109,7 +109,7 @@ public partial class MainWindow
         UpdateRecent();
     }
 
-    private bool RouteStillExists(NavRoute route) => route.Kind != NavKind.Game || items.Any(i => i.Game.Id == route.GameId);
+    private bool RouteStillExists(NavRoute route) => route.GameId is null || items.Any(i => i.Game.Id == route.GameId);
 
     private async Task NavigateHistoryAsync(bool back)
     {
@@ -145,7 +145,8 @@ public partial class MainWindow
             case NavKind.Backups:
             case NavKind.Captures:
                 if (!await LeaveNotes()) return false;
-                await ShowOverviewAsync(route.Kind);
+                if (route.GameId is Guid wanted && items.All(i => i.Game.Id != wanted)) { ShowToast("That game is no longer in the library", null, true); return false; }
+                await ShowOverviewAsync(route.Kind, route.GameId);
                 return true;
             default:
                 var item = items.FirstOrDefault(i => i.Game.Id == route.GameId);

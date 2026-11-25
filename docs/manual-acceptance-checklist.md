@@ -193,7 +193,8 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] A game's **Media** tab shows thumbnails for screenshots and recordings (recordings show length and file name); the grid refits when the window is resized and scrolls smoothly with many captures.
 - [ ] Clicking a screenshot previews it inside GameVault; Previous/Next and the arrow keys move; Escape and Close return. **Open in default app** and **Show in File Explorer** work.
 - [ ] Clicking a recording opens it in the default video player (for example VLC). **Show in File Explorer** selects the file; right-click offers Copy file path; **Open captures folder** opens the game's folder.
-- [ ] The **Captures** page shows the same tiles per game with **Open folder**. Unfinished captures are marked and cannot be opened; NVIDIA App copies are labelled.
+- [ ] The **Captures** page shows one folder per game (cover, counts, latest date). Opening a folder shows all its captures as tiles with **‹ All games**, **Open folder** and **Open game**; the title-bar Back/Forward move between the two pages.
+- [ ] Unfinished captures are marked and cannot be opened; NVIDIA App copies are labelled.
 
 ## 9. Existing acceptance issues (cannot be closed by tests)
 

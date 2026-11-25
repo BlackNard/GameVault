@@ -87,7 +87,7 @@ public sealed class MainWindowStartupTests
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
         var window = Root();
         var names = window.Descendants().Select(e => (string?)e.Attribute(x + "Name")).Where(n => n is not null).ToHashSet();
-        foreach (var name in new[] { "ContinueRow", "ContinueList", "ViewsButton", "BackupsNav", "CapturesNav", "OverviewPanel", "OverviewList", "CaptureGroups", "OverviewEmpty" })
+        foreach (var name in new[] { "ContinueRow", "ContinueList", "ViewsButton", "BackupsNav", "CapturesNav", "OverviewPanel", "OverviewList", "CaptureFolders", "CaptureGalleryPage", "OverviewEmpty" })
             Assert.Contains(name, names);
         Assert.Equal("Collapsed", (string?)window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "OverviewPanel").Attribute("Visibility"));
         Assert.Equal("Collapsed", (string?)window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "ContinueRow").Attribute("Visibility"));
