@@ -9,6 +9,8 @@ public sealed record NavRoute(NavKind Kind, Guid? GameId = null, string? Section
  public static readonly NavRoute Settings = new(NavKind.Settings);
  public static readonly NavRoute Backups = new(NavKind.Backups);
  public static readonly NavRoute Captures = new(NavKind.Captures);
+ /// <summary>One game's folder on the Captures page.</summary>
+ public static NavRoute CapturesOf(Guid id) => new(NavKind.Captures, id);
  public static NavRoute Game(Guid id, string? section = null) => new(NavKind.Game, id, string.IsNullOrWhiteSpace(section) ? "Overview" : section);
 }
 
@@ -57,7 +59,7 @@ public static class NavBreadcrumb
   {
    case NavKind.Settings: return "Settings";
    case NavKind.Backups: return "Backups";
-   case NavKind.Captures: return "Captures";
+   case NavKind.Captures: return route.GameId is null ? "Captures" : "Captures › " + (string.IsNullOrWhiteSpace(gameName) ? "Game" : gameName);
    case NavKind.Game:
     var name = string.IsNullOrWhiteSpace(gameName) ? "Game" : gameName;
     var section = route.Section switch { "Sessions" => "Sessions & notes", "Saves" => "Saves", "Media" => "Media", _ => null };

@@ -112,12 +112,13 @@ public partial class MainWindow
    ThemePickerView editor=>editor.CanLeaveAsync,
    WelcomeView editor=>editor.CanLeaveAsync,
    ProfileImportView editor=>editor.CanLeaveAsync,
+   CapturePreviewView editor=>editor.CanLeaveAsync,
    _=>throw new ArgumentException("The inline editor must provide a navigation guard.",nameof(view))
   });
   activeInlineEditor=session;
   void Completed(object? sender,bool saved)=>session.Complete(saved);
   subscribe(Completed);
-  SetDrawerFullWidth(view is GameEditor or ThemePickerView);DrawerLayer.Visibility=Visibility.Visible;ContentRoot.IsEnabled=false;
+  SetDrawerFullWidth(view is GameEditor or ThemePickerView or CapturePreviewView);DrawerLayer.Visibility=Visibility.Visible;ContentRoot.IsEnabled=false;
   EditorHost.Content=view;EditorHost.Visibility=Visibility.Visible;
   try{return await session.Completion;}
   finally

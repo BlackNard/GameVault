@@ -45,7 +45,7 @@ Data/settings.json  Data/backup-destinations.json  Data/capture-preferences.json
 Cache/ (downloaded save-location manifest)  Logs/gamevault.log  Logs/running.marker (exists while the app runs; a leftover means the last run ended unexpectedly)
 Profiles/<game name>/          (older GUID-named folders are renamed once at startup; the ID lives in profile.json and .gamevault-id)
   profile.json  statistics.json  launch.json?  save-discovery.json  capture-source.json?  metadata.json?  cover.png  hero.jpg|png?
-  Sessions/  Corrections/  Notes/Sessions/  Notes/review.json  Media/<session-id>/  Backups/<dated-backup>/
+  Sessions/  Corrections/  Notes/Sessions/  Notes/review.json  Media/<date and time>/  Backups/<dated-backup>/
 ```
 
 Every document is `schemaVersion`-tagged and rejects unknown fields; an unrecognised version is read-only (no auto-migration). Writes: validate, temp file in the same folder, flush, atomic replace, keep `.bak`. A corrupt primary with a valid `.bak` surfaces as Recovered/read-only and is never auto-promoted. Managed paths reject symlinks/junctions. **Always resolve a game's folder with `ProfileFolders.Resolve(paths, id)`; never `Path.Combine(Profiles, guid)`.** Backup retention default: latest 20 unpinned plus all pinned; external destinations are `<root>/<stable-id>/Backups`.

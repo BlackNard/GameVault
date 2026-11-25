@@ -340,27 +340,11 @@ public partial class MainWindow
             if(captureDisposed || revision!=mediaRevision)return;
             var media=id is Guid game?await capture.ListMediaAsync(game):[];
             if(captureDisposed || revision!=mediaRevision || (GameList.SelectedItem as LibraryItemView)?.Game.Id!=id)return;
-            CaptureMediaList.ItemsSource=media.Take(1000).Select(item=>new MediaRow(item)).ToArray();
-            CaptureMediaNotice.Text=media.Length==0?"No captures for this game yet.":$"{media.Length} captures · incomplete files are retained but not marked ready.";
+            CaptureGalleryList.Show(media.Select(CardFor));
+            CaptureMediaNotice.Text=media.Length==0?"No captures for this game yet.":$"{media.Length} captures · click a screenshot to preview it, or a recording to play it.";
         }
         catch(Exception error){if(revision==mediaRevision)CaptureMediaNotice.Text="Captures could not be listed. "+error.Message;}
         finally{mediaReadGate.Release();}
-    }
-    private async void OpenCaptureMedia(object sender,RoutedEventArgs e)
-    {
-        if(capture is null || CaptureMediaList.SelectedItem is not MediaRow row || row.Media.Status!=CaptureMediaStatus.Complete)return;
-        try
-        {
-            var current=(await capture.ListMediaAsync(row.Media.ProfileId)).SingleOrDefault(item=>item.Id==row.Media.Id && item.Status==CaptureMediaStatus.Complete)
-                ??throw new IOException("Capture is no longer available.");
-            Process.Start(new ProcessStartInfo(current.FilePath){UseShellExecute=true});
-        }
-        catch(Exception error){OperationNotice.Text="Capture could not open. "+error.Message;}
-    }
-    private void CaptureMediaSelected(object sender,SelectionChangedEventArgs e)
-    {
-        OpenCaptureMediaButton.IsEnabled=CaptureMediaList.SelectedItem is MediaRow{Media.Status:CaptureMediaStatus.Complete};
-        if(CaptureMediaList.SelectedItem is MediaRow{Media.Warning:{} warning})CaptureMediaNotice.Text=warning;
     }
     private async Task PrepareCaptureShutdownAsync()
     {
@@ -373,9 +357,5 @@ public partial class MainWindow
         launches.SessionEnded-=CaptureSessionEnded;captureHotkeys?.Dispose();captureHotkeys=null;
         captureHwnd?.RemoveHook(CaptureMessage);captureHwnd=null;
         captureOverlay?.DisposeOverlay();captureOverlay=null;
-    }
-    private sealed record MediaRow(CaptureMedia Media)
-    {
-        public override string ToString()=>$"{Media.CapturedUtc.ToLocalTime():g} · {Media.Kind}"+(Media.SourceFingerprint is null?"":" · from NVIDIA App")+(Media.Warning is null?"":" · video froze")+(Media.Status==CaptureMediaStatus.Complete?"":" · Incomplete");
     }
 }

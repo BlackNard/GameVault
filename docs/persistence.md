@@ -78,6 +78,10 @@ A game whose cover the player removed has a `cover-removed.marker` file in its p
 
 `ProfileImporter` (Settings > GameVault data) adds profiles from another GameVault folder. It only reads the source, refuses the current library, links, and profile or statistics documents that are not valid for this version, and never overwrites a game with the same ID or program. Each game is copied to `.import-staging-<id>` beside `Profiles`, checked, then moved into place. Settings and backup destinations are not imported; backups kept in external folders stay there.
 
+## Capture folders
+
+`Profiles/<game>/Media/<date and time>/` holds one play session's captures (named after its first capture, `(2)` on a clash); a hidden `.session-id` file keeps the session ID. Folders named by the ID (older versions) are still read and are renamed at startup. Versions older than this change do not show captures in renamed folders; the files stay where they are.
+
 ## Rating
 
 `Profiles/<game>/rating.json` (schema 1: game id and half stars 0 to 10; 0 or a missing file means not rated). It is a separate document so older versions ignore it.

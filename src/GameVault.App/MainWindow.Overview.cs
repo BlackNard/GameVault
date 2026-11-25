@@ -11,29 +11,31 @@ public partial class MainWindow
 {
     private sealed record OverviewRow(LibraryItemView Item, string Detail, string PrimaryLabel, bool PrimaryEnabled, CaptureMedia? Media = null);
 
-    private sealed record CaptureLine(CaptureMedia Media, string Kind, string When, bool CanOpen);
-    private sealed record CaptureGroup(LibraryItemView Item, string Summary, CaptureLine[] Lines, string More)
-    {
-        public Visibility MoreVisibility => More.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-    }
+    /// <summary>A game that has captures, shown as a folder on the Captures page.</summary>
+    private sealed record CaptureFolder(LibraryItemView Item, string Summary, string Latest, DateTimeOffset Newest, System.Windows.Media.ImageSource? FolderCover);
 
     private NavKind overviewKind = NavKind.Backups;
     private int overviewRevision;
-    private const int MaxCapturesPerGame = 6;
+    private Guid? captureFolder;      // the game whose captures are open, or null for the list of folders
 
     private bool OverviewVisible => OverviewPanel.Visibility == Visibility.Visible;
 
     private async void ShowBackupsOverview(object sender, RoutedEventArgs e) => await NavigateToAsync(NavRoute.Backups);
     private async void ShowCapturesOverview(object sender, RoutedEventArgs e) => await NavigateToAsync(NavRoute.Captures);
 
-    private async Task ShowOverviewAsync(NavKind kind)
+    private async Task ShowOverviewAsync(NavKind kind, Guid? game = null)
     {
         overviewKind = kind;
+        captureFolder = kind == NavKind.Captures ? game : null;
+        CaptureGalleryPage.Show([]);
         libraryVisible = false;
         LibraryPanel.Visibility = SettingsPanel.Visibility = GamePage.Visibility = Visibility.Collapsed;
         OverviewPanel.Visibility = Visibility.Visible;
-        OverviewTitle.Text = kind == NavKind.Backups ? "Backups" : "Captures";
-        OverviewSubtitle.Text = kind == NavKind.Backups ? "The newest verified backup of every game. Back up one now, or open its page for history and restore." : "Screenshots and recordings, grouped by game with the newest first.";
+        OverviewTitle.Text = kind == NavKind.Backups ? "Backups" : captureFolder is Guid open ? items.FirstOrDefault(i => i.Game.Id == open)?.Name ?? "Captures" : "Captures";
+        OverviewSubtitle.Text = kind == NavKind.Backups ? "The newest verified backup of every game. Back up one now, or open its page for history and restore." : captureFolder is null ? "One folder for every game that has screenshots or recordings, newest first. Open a folder to see them." : "";
+        CaptureFolderBar.Visibility = captureFolder is null ? Visibility.Collapsed : Visibility.Visible;
+        OverviewScroll.Visibility = captureFolder is null ? Visibility.Visible : Visibility.Collapsed;
+        CaptureGalleryPage.Visibility = Visibility.Collapsed;
         RecordRoute();
         await RefreshOverviewAsync();
     }
@@ -44,7 +46,9 @@ public partial class MainWindow
         var revision = ++overviewRevision;
         var kind = overviewKind;
         var rows = new List<OverviewRow>();
-        var groups = new List<CaptureGroup>();
+        var folder = captureFolder;
+        var folders = new List<CaptureFolder>();
+        var cards = new List<CaptureCard>();
         try
         {
             if (kind == NavKind.Backups)
@@ -58,21 +62,28 @@ public partial class MainWindow
                     rows.Add(new OverviewRow(item, detail, result.Phase == BackupPhase.Working ? "Working…" : "Back up now", !backups.IsWorking(item.Game.Id) && item.Game.Profile is { IsArchived: false } && !item.Game.IsReadOnly));
                 }
             }
+            else if (capture is not null && folder is Guid opened)
+            {
+                var media = (await capture.ListMediaAsync(opened)).OrderByDescending(m => m.CapturedUtc).ToArray();
+                cards.AddRange(media.Select(CardFor));
+                if (revision == overviewRevision) OverviewSubtitle.Text = CaptureSummary(media);
+            }
             else if (capture is not null)
             {
                 foreach (var item in items.Where(i => i.Game.Profile is not null))
                 {
-                    var media = (await capture.ListMediaAsync(item.Game.Id)).OrderByDescending(m => m.CapturedUtc).ToArray();
+                    var media = await capture.ListMediaAsync(item.Game.Id);
                     if (media.Length == 0) continue;
-                    var videos = media.Count(m => m.Kind == CaptureMediaKind.Video);
-                    var shots = media.Length - videos;
-                    var lines = media.Take(MaxCapturesPerGame).Select(m => new CaptureLine(m, m.Kind == CaptureMediaKind.Video ? "Recording" : "Screenshot",
-                        m.CapturedUtc.ToLocalTime().ToString("d MMM yyyy · HH:mm", System.Globalization.CultureInfo.CurrentCulture) + (m.Status == CaptureMediaStatus.Complete ? "" : " · incomplete"),
-                        m.Status == CaptureMediaStatus.Complete)).ToArray();
-                    groups.Add(new CaptureGroup(item, $"{media.Length} capture(s) · {shots} screenshot(s) · {videos} recording(s)", lines,
-                        media.Length > lines.Length ? $"+ {media.Length - lines.Length} older. Open the game's Media tab to see all." : ""));
+                    var newest = media.Max(m => m.CapturedUtc);
+                    System.Windows.Media.ImageSource? cover = null;
+                    if (item.Game.CoverFile is string file)
+                    {
+                        try { cover = await CoverImages.LoadThumbnailAsync(file); }
+                        catch (Exception error) when (IsExpected(error) || error is ArgumentException or NotSupportedException) { }
+                    }
+                    folders.Add(new CaptureFolder(item, CaptureSummary(media), "Latest " + newest.ToLocalTime().ToString("d MMM yyyy", System.Globalization.CultureInfo.CurrentCulture), newest, cover));
                 }
-                groups = [.. groups.OrderByDescending(g => g.Lines[0].Media.CapturedUtc)];
+                folders = [.. folders.OrderByDescending(f => f.Newest)];
             }
         }
         catch (Exception error) when (IsExpected(error))
@@ -81,12 +92,15 @@ public partial class MainWindow
         }
         if (revision != overviewRevision || !OverviewVisible) return;
         OverviewList.ItemsSource = rows;
-        CaptureGroups.ItemsSource = groups;
+        CaptureFolders.ItemsSource = folders;
+        CaptureGalleryPage.Show(cards);
         OverviewList.Visibility = kind == NavKind.Backups ? Visibility.Visible : Visibility.Collapsed;
-        CaptureGroups.Visibility = kind == NavKind.Captures ? Visibility.Visible : Visibility.Collapsed;
+        CaptureFolders.Visibility = kind == NavKind.Captures && folder is null ? Visibility.Visible : Visibility.Collapsed;
         foreach (var row in rows) _ = row.Item.LoadRailIconAsync();
-        foreach (var group in groups) _ = group.Item.LoadRailIconAsync();
-        OverviewEmpty.Visibility = rows.Count == 0 && groups.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var empty = rows.Count == 0 && folders.Count == 0 && cards.Count == 0;
+        OverviewEmpty.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
+        OverviewScroll.Visibility = cards.Count > 0 ? Visibility.Collapsed : Visibility.Visible;
+        CaptureGalleryPage.Visibility = cards.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         OverviewEmptyText.Text = kind == NavKind.Backups ? "No games to back up yet. Add a game from the Library." : "No captures yet. Screenshots and recordings you take while playing will appear here.";
     }
 
@@ -99,24 +113,27 @@ public partial class MainWindow
         BackUpNow(sender, e);
     }
 
-    private async void CaptureLineOpenClicked(object sender, RoutedEventArgs e)
+    private static string CaptureSummary(CaptureMedia[] media)
     {
-        if ((sender as FrameworkElement)?.DataContext is not CaptureLine line || capture is null) return;
-        try
-        {
-            var current = (await capture.ListMediaAsync(line.Media.ProfileId)).SingleOrDefault(m => m.Id == line.Media.Id && m.Status == CaptureMediaStatus.Complete)
-                ?? throw new IOException("This capture is no longer available.");
-            Process.Start(new ProcessStartInfo(current.FilePath) { UseShellExecute = true });
-        }
-        catch (Exception error) when (IsExpected(error) || error is System.ComponentModel.Win32Exception)
-        {
-            ShowToast("Could not open the capture", error.Message, true);
-        }
+        var videos = media.Count(m => m.Kind == CaptureMediaKind.Video);
+        return $"{media.Length} capture(s) · {media.Length - videos} screenshot(s) · {videos} recording(s)";
     }
 
-    private async void CaptureGroupOpenGameClicked(object sender, RoutedEventArgs e)
+    private async void CaptureFolderClicked(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.DataContext is CaptureGroup group) await NavigateToAsync(NavRoute.Game(group.Item.Game.Id, "Media"));
+        if ((sender as FrameworkElement)?.DataContext is CaptureFolder folder) await NavigateToAsync(NavRoute.CapturesOf(folder.Item.Game.Id));
+    }
+
+    private async void AllCapturesClicked(object sender, RoutedEventArgs e) => await NavigateToAsync(NavRoute.Captures);
+
+    private void CaptureFolderOpenClicked(object sender, RoutedEventArgs e)
+    {
+        if (captureFolder is Guid game) OpenCaptureFolder(game);
+    }
+
+    private async void CaptureFolderGameClicked(object sender, RoutedEventArgs e)
+    {
+        if (captureFolder is Guid game) await NavigateToAsync(NavRoute.Game(game, "Media"));
     }
 
     private async void OverviewOpenGameClicked(object sender, RoutedEventArgs e)
