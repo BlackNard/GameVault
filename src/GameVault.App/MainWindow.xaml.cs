@@ -61,6 +61,7 @@ public partial class MainWindow : Window
         settings = snapshot.Settings.Value ?? AppSettings.Default;
         settingsReadOnly = snapshot.Settings.IsReadOnly;
         InitializeComponent();
+        HeroRating.Chosen += HeroRatingChosen;
         lifetime=new(Hide,RestoreWindow,PrepareToQuitAsync,QuitRuntimeAsync);
         ThemePalette.Apply(this, settings.Theme);
         CloseToTrayChoice.IsChecked=settings.CloseToTray;BackupNotificationsChoice.IsChecked=settings.NotifyBackupFailures;StartupSplashChoice.IsChecked=settings.ShowSplash;CheckForUpdatesChoice.IsChecked=settings.CheckForUpdates;AutoUpdateChoice.IsChecked=settings.AutoUpdate;
@@ -132,8 +133,8 @@ public partial class MainWindow : Window
         var search = Search.Text.Trim();
         var matching = items.Where(i => (i.Game.Profile?.IsArchived ?? false) == removed &&
             (search.Length == 0 || i.Name.Contains(search, StringComparison.OrdinalIgnoreCase)) &&
-            (filter == "All" || i.Game.Profile?.Status.ToString() == filter) && TagRules.HasAll(TagsOf(i.Game.Id), selectedTags));
-        var visible = LibrarySortOrder.Apply(matching, sortOrder, i => i.Name, i => i.LastPlayedAt, i => i.Game.PlayedSeconds).ToArray();
+            (filter == "All" || i.Game.Profile?.Status.ToString() == filter) && TagRules.HasAll(TagsOf(i.Game.Id), selectedTags) && RatingFilters.Matches(ratingFilter, i.Game.Rating));
+        var visible = LibrarySortOrder.Apply(matching, sortOrder, i => i.Name, i => i.LastPlayedAt, i => i.Game.PlayedSeconds, i => i.Game.Rating).ToArray();
         if(GameList.ItemsSource is not LibraryItemView[] current || !current.SequenceEqual(visible))GameList.ItemsSource=visible;
         GameList.SelectedItem = visible.FirstOrDefault(i => i.Game.Id == selected) ?? visible.FirstOrDefault();
         LibrarySummary.Text = $"{visible.Length} {(removed ? "removed profiles" : "games")} · stored on your device";
@@ -161,6 +162,8 @@ public partial class MainWindow : Window
         if (item?.Game.Profile is GameProfile profile)
         {
             DetailTime.Text = item.Played;
+            HeroRating.Value = item.Game.Rating;
+            HeroRating.IsEnabled = !item.Game.IsReadOnly && !profile.IsArchived;
             SessionElapsed.Text = item.SessionTime;
             SessionWarning.Text = item.SessionWarning ?? "";
             DetailExecutable.Text = profile.ExecutablePath;
@@ -309,7 +312,7 @@ public partial class MainWindow : Window
                 if (profile is null)
                 {
                     initializing = true;
-                    Search.Text = ""; StatusFilter.SelectedIndex = 0; RemovedFilter.IsChecked = false;
+                    Search.Text = ""; StatusFilter.SelectedIndex = 0; RemovedFilter.IsChecked = false; ratingFilter = RatingFilters.Any;
                     initializing = false;
                 }
                 if (!editor.WasRestored) await discovery.ScanAsync(result.Profile.Id);

@@ -26,6 +26,8 @@ public sealed class LibraryService
     public Task<LibrarySnapshot> ListAsync() => Task.Run(async () =>
     {
         var snapshot = await store.InitializeAsync().ConfigureAwait(false);
+        var ratings = new Dictionary<Guid, int>();
+        foreach (var game in snapshot.Games) ratings[game.Id] = (await store.LoadRatingAsync(game.Id).ConfigureAwait(false)).Value?.HalfStars ?? 0;
         var items = snapshot.Games.Select(game =>
         {
             var cover = Path.Combine(ProfileFolders.Resolve(paths, game.Id), "cover.png");
@@ -39,7 +41,7 @@ public sealed class LibraryService
             DateTimeOffset? lastPlayed = statistics is { Sessions.Length: > 0 } ? statistics.Sessions.Max(session => session.EndedAt ?? session.StartedAt) : null;
             var hero = HeroFileOf(game.Id);
             return new LibraryGame(game.Id, game.Profile.Value, game.Profile.IsReadOnly || game.Profile.Value is null,
-                game.Profile.Value is not null && !File.Exists(game.Profile.Value.ExecutablePath), cover, played, warning, lastPlayed, hero);
+                game.Profile.Value is not null && !File.Exists(game.Profile.Value.ExecutablePath), cover, played, warning, lastPlayed, hero, ratings[game.Id]);
         }).OrderBy(g => g.Profile?.Name, StringComparer.OrdinalIgnoreCase).ThenBy(g => g.Id).ToArray();
         return new LibrarySnapshot(items, snapshot.Warnings);
     });

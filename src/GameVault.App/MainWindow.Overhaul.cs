@@ -171,7 +171,7 @@ public partial class MainWindow
     private void UpdateContinueRow()
     {
         if (ContinueRow is null) return;
-        var plain = Search.Text.Trim().Length == 0 && RemovedFilter.IsChecked != true && ((StatusFilter.SelectedItem as ComboBoxItem)?.Tag as string ?? "All") == "All";
+        var plain = Search.Text.Trim().Length == 0 && RemovedFilter.IsChecked != true && ratingFilter == RatingFilters.Any && ((StatusFilter.SelectedItem as ComboBoxItem)?.Tag as string ?? "All") == "All";
         var picked = plain
             ? ContinuePlaying.Pick(items.Where(i => i.Game.Profile is { IsArchived: false }).Select(i => i.LastPlayedAt is { } at ? new ContinuePlaying.Entry(i.Game.Id, at) : null)).Select(e => libraryRows[e.GameId]).ToArray()
             : [];
@@ -262,6 +262,7 @@ public partial class MainWindow
         {
             Search.Text = view.Search;
             RemovedFilter.IsChecked = view.Removed;
+            ratingFilter = RatingFilters.Any;
             selectedTags.Clear();
             foreach (var tag in TagRules.Normalize(view.Tags)) selectedTags.Add(tag);
             sortOrder = LibrarySortOrder.Normalize(view.Sort);

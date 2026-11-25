@@ -120,7 +120,7 @@ public partial class MainWindow
         {
             await RefreshLibrary();var item=items.FirstOrDefault(i=>i.Game.Id==id);
             if(item is null){OperationNotice.Text="That game profile is no longer available. Existing backup diagnostics were preserved.";return;}
-            Search.Clear();StatusFilter.SelectedIndex=0;RemovedFilter.IsChecked=item.Game.Profile?.IsArchived==true;ApplyFilters(id);SetNavigation(true);
+            Search.Clear();StatusFilter.SelectedIndex=0; ratingFilter = GameVault.Core.RatingFilters.Any;RemovedFilter.IsChecked=item.Game.Profile?.IsArchived==true;ApplyFilters(id);SetNavigation(true);
             backupAlerts.Acknowledge(id);OperationNotice.Text="Review the backup result. Check Save sources or use Back up now to retry when the game is closed.";UpdateTray();SyncBackupNotices();
         }
         catch(Exception error)when(IsTrayError(error)){OperationNotice.Text="Could not open backup diagnostics. "+error.Message;}

@@ -4,7 +4,7 @@ using GameVault.Core;
 using GameVault.Infrastructure.Storage;
 namespace GameVault.Infrastructure.Notes;
 
-public sealed record NoteExportEntry(string GameName, NoteDocument Note, PlaySession? Session, string Context);
+public sealed record NoteExportEntry(string GameName, NoteDocument Note, PlaySession? Session, string Context, int Rating = 0);
 public sealed record NoteExportCatalog(NoteExportEntry[] Entries, string[] Warnings);
 public sealed record NoteExportResult(string[] Paths, string[] Failures);
 public delegate void NoteWriter(Stream output, IReadOnlyList<NoteExportEntry> entries);
@@ -27,7 +27,8 @@ public static class NoteExports
                 if (row.Note.Value is NoteDocument note && row.Note.State == DocumentState.Ready)
                     entries.Add(new(name, note, row.Session, row.Context));
             }
-            if (notes.Review is { State: DocumentState.Ready, Value: NoteDocument review }) entries.Add(new(name, review, null, "Game review"));
+            if (notes.Review is { State: DocumentState.Ready, Value: NoteDocument review })
+                entries.Add(new(name, review, null, "Game review", (await store.LoadRatingAsync(game.Id)).Value?.HalfStars ?? 0));
         }
         return new(Sort(entries).ToArray(), warnings.Distinct().ToArray());
     }
@@ -47,6 +48,7 @@ public static class NoteExports
             lines.Add($"Recorded duration: {session.DurationSeconds} seconds ({session.DurationSeconds / 3600}h {session.DurationSeconds / 60 % 60}m {session.DurationSeconds % 60}s)");
         }
         lines.Add(entry.Context);
+        if (note.SessionId is null && entry.Rating > 0) lines.Add("Rating: " + StarRating.Describe(entry.Rating));
         lines.Add("Created: " + note.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture));
         lines.Add("Updated: " + note.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture));
         return string.Join("\n", lines);

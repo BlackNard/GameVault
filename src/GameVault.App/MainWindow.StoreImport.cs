@@ -40,7 +40,7 @@ public partial class MainWindow
             {
                 busy = true;
                 initializing = true;
-                Search.Text = ""; StatusFilter.SelectedIndex = 0; RemovedFilter.IsChecked = false;
+                Search.Text = ""; StatusFilter.SelectedIndex = 0; ratingFilter = GameVault.Core.RatingFilters.Any; RemovedFilter.IsChecked = false;
                 initializing = false;
                 foreach (var id in changed) await discovery.ScanAsync(id);
                 await RefreshLibrary(changed[^1]);

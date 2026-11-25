@@ -22,7 +22,7 @@ public partial class MainWindow
             if (view.ImportedIds.Count > 0)
             {
                 initializing = true;
-                Search.Text = ""; StatusFilter.SelectedIndex = 0; RemovedFilter.IsChecked = false;
+                Search.Text = ""; StatusFilter.SelectedIndex = 0; ratingFilter = GameVault.Core.RatingFilters.Any; RemovedFilter.IsChecked = false;
                 initializing = false;
                 await RefreshLibrary(view.ImportedIds[^1]);
                 ShowToast($"{view.ImportedIds.Count} game(s) imported", "Check that each game's program path is still right.");
