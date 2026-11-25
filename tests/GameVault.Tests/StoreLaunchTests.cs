@@ -58,9 +58,12 @@ public sealed class StoreLaunchTests : IAsyncLifetime
         var otherExe = Path.Combine(root, "other.exe"); var otherTarget = Path.Combine(root, "otheractual.exe"); File.WriteAllText(otherExe, "fixture"); File.WriteAllText(otherTarget, "fixture");
         var other = (await new LibraryService(paths, store).SaveAsync(new(null, "Other", otherExe, root, []))).Profile;
         activation.Resolver = (exe, _) => activation.Plan with { TargetExecutablePath = exe == otherExe ? otherTarget : target };
-        var first = service.RunAsync(profile.Id); await Requested(); await service.RunAsync(other.Id);
-        Assert.Equal(LaunchPhase.Failed, service.GetState(other.Id).Phase); Assert.Equal(1, activation.Requests);
-        await service.DisposeAsync(); await first;
+        // The first launch must still be waiting for its game when the second is tried. The shared service gives up after 150 ms, which a slow build
+        // machine can exceed, releasing the store identity; this one waits long enough (it is disposed as soon as the check is done).
+        await using var patient = new LaunchService(paths, store, processes, pollInterval: TimeSpan.FromMilliseconds(5), storeStartupTimeout: TimeSpan.FromMinutes(1), storeLauncher: activation);
+        var first = patient.RunAsync(profile.Id); await Requested(); await patient.RunAsync(other.Id);
+        Assert.Equal(LaunchPhase.Failed, patient.GetState(other.Id).Phase); Assert.Equal(1, activation.Requests);
+        await patient.DisposeAsync(); await first;
     }
     [Fact] public async Task CancellationDuringStoreStartupCreatesNoHistory()
     {
