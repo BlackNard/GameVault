@@ -35,6 +35,53 @@ public sealed class SaveDiscoveryTests:IDisposable
         result=await service.ScanAsync(id);Assert.Equal(SaveDiscoveryPhase.NeedsConfirmation,result.Phase);
         Assert.DoesNotContain(result.Document.Value!.Sources,s=>s.Selected);await Assert.ThrowsAsync<IOException>(()=>service.ConfirmAsync(id,selected.Id));
     }
+    private GameProfile Rockstar(string name,string exe)=>Profile with{Name=name,ExecutablePath=Path.Combine(root,"installed",name,exe),WorkingDirectory=Path.Combine(root,"installed",name)};
+
+    [Fact] public async Task GtaIvSavesUnderRockstarGamesAreFoundOnceTheFirstSaveExists()
+    {
+        await Seed(Rockstar("Grand Theft Auto IV - The Complete Edition","GTAIV.exe"));
+        var profiles=Path.Combine(Env.Documents,"Rockstar Games","GTA IV","Profiles");
+        Save(Path.Combine(profiles,"1A2B3C4D"),"settings.cfg");                    // settings alone are not a save
+        var waiting=await Service.ScanAsync(id);Assert.Equal(SaveDiscoveryPhase.WaitingForSave,waiting.Phase);
+        Assert.DoesNotContain(waiting.Document.Value!.Sources,s=>s.Selected);
+        Save(Path.Combine(profiles,"1A2B3C4D"),"SGTA400");
+        var found=await Service.ScanAsync(id);Assert.Equal(SaveDiscoveryPhase.SourcesFound,found.Phase);
+        Assert.Equal(profiles,Assert.Single(found.Document.Value!.Sources,s=>s.Selected).Path);
+        Assert.Single(await Service.RequireVerifiedSourcesAsync(id));
+    }
+
+    [Fact] public async Task TwoGtaIvLocationsWithSavesNeedConfirmation()
+    {
+        await Seed(Rockstar("GTA IV","GTAIV.exe"));
+        Save(Path.Combine(Env.Documents,"Rockstar Games","GTA IV","Profiles","AA"),"SGTA400");
+        var older=Path.Combine(Env.Local,"Rockstar Games","GTA IV","savegames");Save(Path.Combine(older,"user_ee000000"),"SGTA401");
+        var result=await Service.ScanAsync(id);Assert.Equal(SaveDiscoveryPhase.NeedsConfirmation,result.Phase);
+        var pick=result.Document.Value!.Sources.Single(s=>s.Path==older);
+        Assert.Equal(older,Assert.Single((await Service.ConfirmAsync(id,pick.Id)).Document.Value!.Sources,s=>s.Selected).Path);
+    }
+
+    [Theory]
+    [InlineData("Grand Theft Auto V Legacy","GTA5.exe","GTA V","SGTA50000")]
+    [InlineData("My copy","RDR2.exe","Red Dead Redemption 2","SRDR30000")]
+    [InlineData("Red Dead Redemption 2","launcher.exe","Red Dead Redemption 2","SRDR30001")]
+    public async Task OtherRockstarGamesAreFoundByProgramOrTitle(string name,string exe,string folder,string file)
+    {
+        await Seed(Rockstar(name,exe));
+        var profiles=Path.Combine(Env.Documents,"Rockstar Games",folder,"Profiles");Save(Path.Combine(profiles,"BB"),file);
+        var result=await Service.ScanAsync(id);Assert.Equal(SaveDiscoveryPhase.SourcesFound,result.Phase);
+        Assert.Equal(profiles,Assert.Single(result.Document.Value!.Sources,s=>s.Selected).Path);
+    }
+
+    [Fact] public async Task ViceCityIsNotMistakenForGtaFiveAndGtaVSettingsAreNotASave()
+    {
+        await Seed(Rockstar("Grand Theft Auto Vice City","gta-vc.exe"));
+        Save(Path.Combine(Env.Documents,"Rockstar Games","GTA V","Profiles","CC"),"SGTA50000");
+        var result=await Service.ScanAsync(id);Assert.DoesNotContain(result.Document.Value!.Sources,s=>s.Path.Contains("GTA V"+Path.DirectorySeparatorChar,StringComparison.Ordinal));
+        Assert.False(SaveCandidateRules.PayloadMatches("CC/pc_settings.bin","save"));
+        Assert.True(SaveCandidateRules.PayloadMatches("CC/SGTA50015","save"));
+        Assert.False(SaveCandidateRules.PayloadMatches("CC/SGTAabc","save"));
+    }
+
     [Fact] public async Task ManualOverridesArePreferredAndIncompleteSetsCannotFeedBackups()
     {
         var a=Path.Combine(root,"manual","one.sav");var b=Path.Combine(root,"manual","two.sav");Save(Path.GetDirectoryName(a)!,"one.sav");

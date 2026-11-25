@@ -224,6 +224,11 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] Two quick double-clicks open one GameVault only.
 - [ ] A copy in another folder still starts on its own.
 
+## 8q. Rockstar game saves (issue #73)
+
+- [ ] Grand Theft Auto IV: play, save at a safehouse, close the game. The Saves tab shows the Rockstar save folder selected (or asks to confirm when two exist), and a dated backup appears. **Back up now** works and a restore brings the save back.
+- [ ] Before the first save it says it is waiting, without an empty backup.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.
