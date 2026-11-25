@@ -33,10 +33,9 @@ public sealed class SplashRulesTests : IDisposable
         Assert.Equal(SplashPreferences.Default, SplashPreferences.Parse("[1,2]"));
         Assert.Equal(SplashPreferences.Default, SplashPreferences.Parse("{\"schemaVersion\":1}"));
         var full = SplashPreferences.Parse("{\"schemaVersion\":1,\"theme\":\"Vice City\",\"reduceMotion\":true,\"showSplash\":false}");
-        Assert.Equal(new SplashPreferences("Vice City", false, true), full);
+        Assert.Equal(new SplashPreferences("Vice City", true), full);      // an old "showSplash": false is ignored
         Assert.Equal("Midnight", SplashPreferences.Parse("{\"theme\":\"No such theme\"}").Theme);
         Assert.Equal("Midnight", SplashPreferences.Parse("{\"theme\":5}").Theme);
-        Assert.True(SplashPreferences.Parse("{\"showSplash\":\"no\"}").Show);                            // anything but an explicit false keeps it on
     }
 
     [Fact]
@@ -53,7 +52,6 @@ public sealed class SplashRulesTests : IDisposable
         await new AppDataStore(paths).SaveSettingsAsync(first.Settings.Value with { ShowSplash = false });
         var text = await File.ReadAllTextAsync(Path.Combine(paths.Data, "settings.json"));
         var preferences = SplashPreferences.Parse(text);                                                 // the startup code reads the very same file
-        Assert.False(preferences.Show);
         Assert.Equal("Crimson", preferences.Theme);
         var reopened = await new AppDataStore(paths).InitializeAsync();
         Assert.False(reopened.Settings.Value!.ShowSplash);

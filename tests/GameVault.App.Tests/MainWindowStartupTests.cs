@@ -136,7 +136,7 @@ public sealed class MainWindowStartupTests
             foreach (var entry in GameVault.Core.SettingsCatalog.Entries.Where(e => e.Category == category.Key)) Assert.Contains(entry.Target, inside);
         }
         // Every option that existed before is still somewhere in Settings.
-        foreach (var name in new[] { "BrowseThemesButton", "StartupSplashChoice", "CloseToTrayChoice", "BackupNotificationsChoice", "MetadataFields", "FetchAllInfoButton", "CancelFetchAllButton",
+        foreach (var name in new[] { "BrowseThemesButton", "CloseToTrayChoice", "BackupNotificationsChoice", "MetadataFields", "FetchAllInfoButton", "CancelFetchAllButton",
                      "DownloadSaveDatabaseButton", "SavedViewsManager", "BackupGuide", "DefaultBackupLocation", "DataBackupBulky", "BackUpDataButton", "RestoreDataButton", "ImportOldFolderButton",
                      "CaptureSettings", "CheckForUpdatesButton", "UpdateNowButton", "OpenReleasePageButton", "CheckForUpdatesChoice", "AutoUpdateChoice", "DiagnosticsGameNames", "DiagnosticsButton", "ProfilesPath",
                      "SettingsSearch", "SettingsMenu", "SettingsResults" })

@@ -110,7 +110,7 @@ Use a clean copy of the app (extract the clean ZIP from `outputs/Archives` into 
 - [ ] Starting GameVault shows a small centred window with the logo, "GameVault" and "Loading your library…" right away, then the main window appears; the splash is not in the taskbar and does not take focus from what you were doing.
 - [ ] It looks right in two or three themes (switch the theme, restart).
 - [ ] It stays about a second even on a fast start, and no longer than the real start-up on a slow one.
-- [ ] Settings > Background behaviour: untick "Show a small startup window…", restart: no splash. Tick it again: it returns.
+- [ ] The startup window always appears; Settings has no switch for it (also for an older settings file that had it turned off). The Settings sidebar reaches the bottom of the window.
 - [ ] With Windows "Show animations" off or reduce motion set, the bar does not animate.
 - [ ] Start a second copy while one is running: the splash closes before the "could not open its application folder" message.
 

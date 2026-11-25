@@ -8,6 +8,7 @@ public sealed record StoredDocument<T>(T? Value, DocumentState State, string? Me
     public bool IsReadOnly => State is not (DocumentState.Ready or DocumentState.Missing);
 }
 
+// ShowSplash is no longer used (the startup window is always shown); it stays so that settings files which contain it still load.
 public sealed record AppSettings(int SchemaVersion, string Theme, int DefaultBackupLimit,
     bool KeepAllBackups, bool ReduceMotion, bool CloseToTray = true, bool NotifyBackupFailures = true, bool WelcomeDismissed = false, bool ShowSplash = true, bool CheckForUpdates = true, bool AutoUpdate = true)
 {
