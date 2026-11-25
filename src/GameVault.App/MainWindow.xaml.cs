@@ -62,6 +62,7 @@ public partial class MainWindow : Window
         settingsReadOnly = snapshot.Settings.IsReadOnly;
         InitializeComponent();
         HeroRating.Chosen += HeroRatingChosen;
+        InitializeSettingsPages();
         lifetime=new(Hide,RestoreWindow,PrepareToQuitAsync,QuitRuntimeAsync);
         ThemePalette.Apply(this, settings.Theme);
         CloseToTrayChoice.IsChecked=settings.CloseToTray;BackupNotificationsChoice.IsChecked=settings.NotifyBackupFailures;StartupSplashChoice.IsChecked=settings.ShowSplash;CheckForUpdatesChoice.IsChecked=settings.CheckForUpdates;AutoUpdateChoice.IsChecked=settings.AutoUpdate;
