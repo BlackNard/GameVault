@@ -11,8 +11,7 @@ public partial class MainWindow
 {
     private sealed record OverviewRow(LibraryItemView Item, string Detail, string PrimaryLabel, bool PrimaryEnabled, CaptureMedia? Media = null);
 
-    private sealed record CaptureLine(CaptureMedia Media, string Kind, string When, bool CanOpen);
-    private sealed record CaptureGroup(LibraryItemView Item, string Summary, CaptureLine[] Lines, string More)
+    private sealed record CaptureGroup(LibraryItemView Item, string Summary, CaptureCard[] Cards, string More)
     {
         public Visibility MoreVisibility => More.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
     }
@@ -66,13 +65,11 @@ public partial class MainWindow
                     if (media.Length == 0) continue;
                     var videos = media.Count(m => m.Kind == CaptureMediaKind.Video);
                     var shots = media.Length - videos;
-                    var lines = media.Take(MaxCapturesPerGame).Select(m => new CaptureLine(m, m.Kind == CaptureMediaKind.Video ? "Recording" : "Screenshot",
-                        m.CapturedUtc.ToLocalTime().ToString("d MMM yyyy · HH:mm", System.Globalization.CultureInfo.CurrentCulture) + (m.Status == CaptureMediaStatus.Complete ? "" : " · incomplete"),
-                        m.Status == CaptureMediaStatus.Complete)).ToArray();
-                    groups.Add(new CaptureGroup(item, $"{media.Length} capture(s) · {shots} screenshot(s) · {videos} recording(s)", lines,
-                        media.Length > lines.Length ? $"+ {media.Length - lines.Length} older. Open the game's Media tab to see all." : ""));
+                    var cards = media.Take(MaxCapturesPerGame).Select(CardFor).ToArray();
+                    groups.Add(new CaptureGroup(item, $"{media.Length} capture(s) · {shots} screenshot(s) · {videos} recording(s)", cards,
+                        media.Length > cards.Length ? $"+ {media.Length - cards.Length} older. Open the game's Media tab to see all." : ""));
                 }
-                groups = [.. groups.OrderByDescending(g => g.Lines[0].Media.CapturedUtc)];
+                groups = [.. groups.OrderByDescending(g => g.Cards[0].Media.CapturedUtc)];
             }
         }
         catch (Exception error) when (IsExpected(error))
@@ -99,19 +96,9 @@ public partial class MainWindow
         BackUpNow(sender, e);
     }
 
-    private async void CaptureLineOpenClicked(object sender, RoutedEventArgs e)
+    private void CaptureGroupFolderClicked(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.DataContext is not CaptureLine line || capture is null) return;
-        try
-        {
-            var current = (await capture.ListMediaAsync(line.Media.ProfileId)).SingleOrDefault(m => m.Id == line.Media.Id && m.Status == CaptureMediaStatus.Complete)
-                ?? throw new IOException("This capture is no longer available.");
-            Process.Start(new ProcessStartInfo(current.FilePath) { UseShellExecute = true });
-        }
-        catch (Exception error) when (IsExpected(error) || error is System.ComponentModel.Win32Exception)
-        {
-            ShowToast("Could not open the capture", error.Message, true);
-        }
+        if ((sender as FrameworkElement)?.DataContext is CaptureGroup group) OpenCaptureFolder(group.Item.Game.Id);
     }
 
     private async void CaptureGroupOpenGameClicked(object sender, RoutedEventArgs e)

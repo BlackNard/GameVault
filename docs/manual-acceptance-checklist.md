@@ -188,6 +188,13 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] The game page shows a **Your rating** card next to Total playtime as soon as it opens; clicking its stars saves and matches the Review tab; **Sort: Highest rated** and the **Rating** filter work; adding or importing a game clears the rating filter.
 - [ ] Review export contains the rating; the rating survives restart, data backup/restore and import from an old folder. The stars look right in several themes.
 
+## 8l. Capture gallery (issue #60)
+
+- [ ] A game's **Media** tab shows thumbnails for screenshots and recordings (recordings show length and file name); the grid refits when the window is resized and scrolls smoothly with many captures.
+- [ ] Clicking a screenshot previews it inside GameVault; Previous/Next and the arrow keys move; Escape and Close return. **Open in default app** and **Show in File Explorer** work.
+- [ ] Clicking a recording opens it in the default video player (for example VLC). **Show in File Explorer** selects the file; right-click offers Copy file path; **Open captures folder** opens the game's folder.
+- [ ] The **Captures** page shows the same tiles per game with **Open folder**. Unfinished captures are marked and cannot be opened; NVIDIA App copies are labelled.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.
