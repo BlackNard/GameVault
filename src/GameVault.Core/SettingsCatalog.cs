@@ -1,7 +1,7 @@
 namespace GameVault.Core;
 
-/// <summary>A page of Settings (issue #56).</summary>
-public sealed record SettingsCategory(string Key, string Title, string Description);
+/// <summary>A page of Settings (issue #56). <paramref name="Icon"/> is a Windows symbol-font character; <paramref name="StartsGroup"/> draws a divider above it.</summary>
+public sealed record SettingsCategory(string Key, string Title, string Description, string Icon, bool StartsGroup = false);
 
 /// <summary>One option the Settings search can find. <paramref name="Target"/> is the name of the control on that page.</summary>
 public sealed record SettingsEntry(string Category, string Title, string Target, string Keywords)
@@ -22,13 +22,13 @@ public static class SettingsCatalog
 
     public static readonly IReadOnlyList<SettingsCategory> Categories =
     [
-        new(Appearance, "Appearance", "How GameVault looks and starts."),
-        new(General, "General", "What GameVault does while it runs in the background."),
-        new(Library, "Library and game info", "Where information about your games comes from, and your saved views."),
-        new(Backups, "Backups and data", "Where save backups go, and backing up, restoring or importing your library."),
-        new(Capture, "Capture", "Screenshots, recordings and their shortcuts."),
-        new(Updates, "Updates", "New versions of GameVault."),
-        new(Advanced, "Advanced", "Help with problems, and where your profiles are stored.")
+        new(Appearance, "Appearance", "How GameVault looks and starts.", "\uE790"),
+        new(General, "General", "What GameVault does while it runs in the background.", "\uE713"),
+        new(Library, "Library and game info", "Where information about your games comes from, and your saved views.", "\uE8F1", true),
+        new(Backups, "Backups and data", "Where save backups go, and backing up, restoring or importing your library.", "\uE74E"),
+        new(Capture, "Capture", "Screenshots, recordings and their shortcuts.", "\uE722"),
+        new(Updates, "Updates", "New versions of GameVault.", "\uE895", true),
+        new(Advanced, "Advanced", "Help with problems, and where your profiles are stored.", "\uE90F")
     ];
 
     public static readonly IReadOnlyList<SettingsEntry> Entries =

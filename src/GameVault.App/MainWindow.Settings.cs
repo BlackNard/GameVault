@@ -30,6 +30,7 @@ public partial class MainWindow
         };
         foreach (var (key, page) in pages) page.Visibility = key == settingsCategory ? Visibility.Visible : Visibility.Collapsed;
         var category = SettingsCatalog.Categories.First(c => c.Key == settingsCategory);
+        CategoryTitle.Text = category.Title;
         CategoryDescription.Text = category.Description;
         selectingCategory = true;
         SettingsMenu.SelectedItem = category;

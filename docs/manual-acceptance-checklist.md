@@ -212,7 +212,7 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 
 ## 8o. Settings categories and search (issue #56)
 
-- [ ] Settings shows a category list (Appearance, General, Library and game info, Backups and data, Capture, Updates, Advanced); each page shows only its options and every old option is there and works.
+- [ ] Settings looks like a store launcher's settings: a full-height sidebar with icons and dividers, a page title, rows with controls on the right and switches. It shows a category list (Appearance, General, Library and game info, Backups and data, Capture, Updates, Advanced); each page shows only its options and every old option is there and works.
 - [ ] Search (for example "tray", "shortcut", "zip") lists matches; Enter or a click opens the page with that option in view; Escape clears.
 - [ ] The last page is shown when returning to Settings; Back/Forward move between pages; Ctrl+K "Settings: Updates" opens it; **How backups work** opens the guide.
 - [ ] Readable in several themes, usable with the keyboard, and at a narrow window width.
