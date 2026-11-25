@@ -73,3 +73,7 @@ Data/backup-destinations.json stores schema1 global/per-game roots and prior roo
 Operations hold the per-app backup-store lock and each registered external store lock. Offline or corrupt historical stores block mutations conservatively until resolved; available history can still be listed with warnings. Reparse paths, overlaps with games/live saves or the app folder, and unavailable destinations are rejected. An external disk is never silently replaced by portable storage. Data/Profiles import retains the mappings while external files remain at their chosen absolute locations.
 
 A game whose cover the player removed has a `cover-removed.marker` file in its profile folder: automatic cover lookups skip it, and choosing a new cover deletes it.
+
+## Importing from an old folder
+
+`ProfileImporter` (Settings > GameVault data) adds profiles from another GameVault folder. It only reads the source, refuses the current library, links, and profile or statistics documents that are not valid for this version, and never overwrites a game with the same ID or program. Each game is copied to `.import-staging-<id>` beside `Profiles`, checked, then moved into place. Settings and backup destinations are not imported; backups kept in external folders stay there.

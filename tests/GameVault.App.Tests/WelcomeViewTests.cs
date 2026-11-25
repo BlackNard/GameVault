@@ -26,15 +26,15 @@ public sealed class WelcomeViewTests
     }
 
     [Fact]
-    public void The_embedded_welcome_offers_the_four_ways_in_and_a_skip_and_each_button_raises_its_action() => InSta(() =>
+    public void The_embedded_welcome_offers_the_five_ways_in_and_a_skip_and_each_button_raises_its_action() => InSta(() =>
     {
         var view = new WelcomeView("Midnight", embedded: true);
         var chosen = new List<WelcomeAction>();
         view.ActionChosen += (_, action) => chosen.Add(action);
-        Assert.Equal(5, view.Buttons.Count);
+        Assert.Equal(6, view.Buttons.Count);
         Assert.All(view.Buttons, b => Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(b))));
         foreach (var button in view.Buttons) button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        Assert.Equal([WelcomeAction.AddGame, WelcomeAction.ImportFromStores, WelcomeAction.ChooseTheme, WelcomeAction.DownloadSaveDatabase, WelcomeAction.Skip],
+        Assert.Equal([WelcomeAction.AddGame, WelcomeAction.ImportFromStores, WelcomeAction.ChooseTheme, WelcomeAction.DownloadSaveDatabase, WelcomeAction.ImportOldFolder, WelcomeAction.Skip],
             chosen.OrderBy(a => a == WelcomeAction.Skip).ToArray());
         Assert.Contains(view.Buttons, b => (string)b.Content == "Skip for now");
     });

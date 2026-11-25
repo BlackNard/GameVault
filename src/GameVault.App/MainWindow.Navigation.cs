@@ -111,6 +111,7 @@ public partial class MainWindow
    MatchPickerView editor=>editor.CanLeaveAsync,
    ThemePickerView editor=>editor.CanLeaveAsync,
    WelcomeView editor=>editor.CanLeaveAsync,
+   ProfileImportView editor=>editor.CanLeaveAsync,
    _=>throw new ArgumentException("The inline editor must provide a navigation guard.",nameof(view))
   });
   activeInlineEditor=session;
