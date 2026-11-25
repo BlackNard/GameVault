@@ -198,6 +198,11 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 
 - [ ] After the first start, **Open captures folder** shows date-named folders (for example `2026-11-18 22-45`) instead of long IDs, all captures are still listed and open, and a new screenshot and recording go into a date-named folder. Folder cards on the Captures page show the cover cleanly.
 
+## 8n. Adding a game that has a removed profile
+
+- [ ] Remove a game, then add the same program again: the question offers **Yes** (restore the old profile), **No** (a new, fresh profile; the old one stays in Removed games) and **Cancel** (back to the form, nothing changed).
+- [ ] After **No**, restoring the old profile is refused while the new one is in the library, and works after removing the new one.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

@@ -15,7 +15,7 @@ public sealed class ArchivedProfileAddFlowTests
         var result = await GameEditorSaveFlow.SaveAsync(Draft, [3, 2, 1],
             (_, _) => throw new DuplicateGameException(Saved.Id, true),
             id => Task.FromResult(new GameSaveResult(id == Saved.Id ? Saved : throw new InvalidOperationException(), null)),
-            () => Task.FromResult(true));
+            () => Task.FromResult(RemovedProfileChoice.Restore));
         Assert.True(result!.WasRestored);
         Assert.Equal(Saved, result.Saved.Profile);
         Assert.Equal("Saved title", result.Saved.Profile.Name);
@@ -31,11 +31,32 @@ public sealed class ArchivedProfileAddFlowTests
         var result = await GameEditorSaveFlow.SaveAsync(draft, null,
             (_, _) => throw new DuplicateGameException(Saved.Id, true),
             _ => { archived = false; return Task.FromResult(new GameSaveResult(Saved, null)); },
-            () => Task.FromResult(false));
+            () => Task.FromResult(RemovedProfileChoice.Cancel));
         Assert.Null(result);
         Assert.True(archived);
         Assert.Equal("Unsaved title", draft.Name);
         Assert.Equal([@"C:\DraftSaves"], draft.SaveSources);
+    }
+
+    [Fact]
+    public async Task RefusingTheRestoreAddsAFreshProfileFromTheForm()
+    {
+        var png = new byte[] { 4 };
+        var attempts = new List<GameDraft>();
+        var result = await GameEditorSaveFlow.SaveAsync(Draft, png,
+            (draft, cover) =>
+            {
+                attempts.Add(draft);
+                return draft.BesideRemoved
+                    ? Task.FromResult(new GameSaveResult(Saved with { Id = Guid.NewGuid(), Name = draft.Name, BackupLimit = cover![0] }, null))
+                    : throw new DuplicateGameException(Saved.Id, true);
+            },
+            _ => throw new Xunit.Sdk.XunitException("The old profile must stay removed."),
+            () => Task.FromResult(RemovedProfileChoice.AddNew));
+        Assert.False(result!.WasRestored);
+        Assert.NotEqual(Saved.Id, result.Saved.Profile.Id);
+        Assert.Equal("Unsaved title", result.Saved.Profile.Name);
+        Assert.Equal([false, true], attempts.Select(a => a.BesideRemoved));
     }
 
     [Theory]
@@ -70,7 +91,7 @@ public sealed class ArchivedProfileAddFlowTests
         await Assert.ThrowsAsync<IOException>(() => GameEditorSaveFlow.SaveAsync(Draft, null,
             (_, _) => throw new DuplicateGameException(Saved.Id, true),
             _ => throw new IOException("Profile became read-only"),
-            () => Task.FromResult(true)));
+            () => Task.FromResult(RemovedProfileChoice.Restore)));
         Assert.Equal("Unsaved title", Draft.Name);
     }
 }

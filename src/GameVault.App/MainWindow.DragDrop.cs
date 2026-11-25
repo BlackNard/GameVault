@@ -84,7 +84,7 @@ public partial class MainWindow
 
     private async Task OpenDroppedDuplicateAsync(string? executable)
     {
-        var match = items.FirstOrDefault(i => i.Game.Profile is { } p && string.Equals(p.ExecutablePath, executable, StringComparison.OrdinalIgnoreCase));
+        var match = items.Where(i => i.Game.Profile is { } p && string.Equals(p.ExecutablePath, executable, StringComparison.OrdinalIgnoreCase)).OrderBy(i => i.Game.Profile!.IsArchived).FirstOrDefault();      // the one in the library first
         if (match is null) return;
         if (match.Game.Profile?.IsArchived == true) { ShowToast("It is in Removed profiles", "Open Removed profiles in the library to restore it.", false); return; }
         await NavigateToAsync(NavRoute.Game(match.Game.Id, "Overview"));
