@@ -59,8 +59,17 @@ public static class SaveCandidateRules
             Add(Path.Combine(env.Documents,"Dead Space (2023)","settings"),remake?SaveSourceOrigin.KnownRule:SaveSourceOrigin.Suggestion,
                 "Dead Space (2023): known saves/settings location"+(remake?"":"; confirm the game version"),"any",true);
         }
+        // Rockstar games save under a short name, not the game's title (issue #73).
+        foreach(var title in RockstarTitle.All.Where(t=>t.Matches(Normalize(exe),normalized)))
+        {
+            Add(Path.Combine(env.Documents,"Rockstar Games",title.Folder,"Profiles"),SaveSourceOrigin.KnownRule,title.Folder+": Rockstar profile saves","save",true);
+            // Copies that run without the Rockstar launcher keep the same files under the replacement service's own folder.
+            Add(Path.Combine(env.Roaming,"Goldberg SocialClub Emu Saves",title.Folder),SaveSourceOrigin.KnownRule,title.Folder+": saves of installations without the Rockstar launcher","save",true);
+            if(title.LocalSaves)Add(Path.Combine(env.Local,"Rockstar Games",title.Folder,"savegames"),SaveSourceOrigin.KnownRule,title.Folder+": saves of older installations","save",true);
+        }
         foreach(var name in names)
         {
+            Add(Path.Combine(env.Documents,"Rockstar Games",name,"Profiles"),SaveSourceOrigin.Suggestion,"Game-named Rockstar profile folder; confirmation required","save");
             foreach(var root in new[]{env.SavedGames,Path.Combine(env.Documents,"My Games"),env.Documents})
                 Add(Path.Combine(root,name),SaveSourceOrigin.Suggestion,"Game-named folder candidate; confirmation required","save");
             Add(Path.Combine(env.Local,name,"Saved","SaveGames"),SaveSourceOrigin.Suggestion,"Game-named Unreal save folder; confirmation required","save");
@@ -77,12 +86,31 @@ public static class SaveCandidateRules
         return new(candidates.DistinctBy(c=>SaveSourcePolicy.Canonical(c.Path),StringComparer.OrdinalIgnoreCase).Take(96).ToArray(),warnings.Take(64).ToArray());
         void Add(string path,SaveSourceOrigin origin,string evidence,string payload,bool known=false)=>candidates.Add(new(path,origin,evidence,payload,known));
     }
+    /// <summary>A Rockstar game recognised by its program or title, and the folder it saves under.</summary>
+    private sealed record RockstarTitle(string Folder,string[] Programs,Func<string,bool> Titled,bool LocalSaves=false)
+    {
+        public static readonly RockstarTitle[] All=
+        [
+            new("GTA IV",["gtaiv","eflc","launchgtaiv","playgtaiv","launcheflc"],n=>n.StartsWith("grandtheftautoiv",StringComparison.Ordinal)||n.StartsWith("gtaiv",StringComparison.Ordinal)||n.EndsWith("episodesfromlibertycity",StringComparison.Ordinal),true),
+            new("GTA V",["gta5","playgtav"],n=>n is "grandtheftautov" or "grandtheftautovlegacy" or "grandtheftautovpremiumedition" or "gtav" or "gtavlegacy"),
+            new("GTAV Enhanced",["gta5enhanced"],n=>n is "grandtheftautovenhanced" or "gtavenhanced"),
+            new("Red Dead Redemption 2",["rdr2"],n=>n is "reddeadredemption2" or "rdr2")
+        ];
+        public bool Matches(string program,HashSet<string> titles)=>Programs.Contains(program)||titles.Any(Titled);
+    }
     private static string Normalize(string value)=>new(value.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
     private static bool SafeName(string value)=>!string.IsNullOrWhiteSpace(value)&&value.Length<=120&&value.IndexOfAny(Path.GetInvalidFileNameChars())<0&&
         value is not "." and not ".."&&Normalize(value).Length>=3&&!new[]{"game","games","documents","savedgames","appdata","public","user","users","bin","binaries","win64","windows","steam"}.Contains(Normalize(value));
     public static bool PayloadMatches(string path,string kind)=>kind switch
     {
         "bin"=>Path.GetExtension(path).Equals(".bin",StringComparison.OrdinalIgnoreCase),
-        "save"=>new[]{".sav",".save",".savegame",".dat",".bin",".deadspacesaved",".json"}.Contains(Path.GetExtension(path),StringComparer.OrdinalIgnoreCase),_=>true
+        "save"=>IsRockstarSave(path)||!Path.GetFileName(path).Equals("pc_settings.bin",StringComparison.OrdinalIgnoreCase)&&
+            new[]{".sav",".save",".savegame",".dat",".bin",".deadspacesaved",".json"}.Contains(Path.GetExtension(path),StringComparer.OrdinalIgnoreCase),_=>true
     };
+    /// <summary>Rockstar save files have no extension: SGTA400 (GTA IV), SGTA50000 (GTA V), SRDR30000 (Red Dead Redemption 2).</summary>
+    private static bool IsRockstarSave(string path)
+    {
+        var name=Path.GetFileName(path);
+        return name.Length is >=7 and <=12&&(name.StartsWith("SGTA",StringComparison.OrdinalIgnoreCase)||name.StartsWith("SRDR",StringComparison.OrdinalIgnoreCase))&&name.Skip(4).All(char.IsAsciiDigit);
+    }
 }
