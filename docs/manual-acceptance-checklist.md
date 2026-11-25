@@ -233,6 +233,12 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 
 - [ ] Backup history (empty and with backups): the Refresh button is normal size, retention is one compact card, the empty message sits in a card, Pin/Restore/Open folder sit directly under the list, recovery copies show only when there are some, and it reads well at a narrow window.
 
+## 8s. Game page essentials (issue #76)
+
+- [ ] A game's Overview shows only: a short description (**Read more** / **Show less**), release date, developer and genres, **How long to beat** cards with your progress and the HowLongToBeat link, your tags with **Edit tags**, and closed sections.
+- [ ] **More details**, **Store tags, features and languages**, **Full description**, **System requirements**, **Links and store screenshots** and **Manage game information** open on demand, stay open when you move to another game, and hold everything that was on the page before. Refresh info, Edit description and Not the right game? still work.
+- [ ] A game whose backup failed shows a warning with **Open Saves**; a healthy game shows none. Games with little information have no empty sections. Readable in several themes and at a narrow window.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

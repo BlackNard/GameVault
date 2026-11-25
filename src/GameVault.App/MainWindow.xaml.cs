@@ -63,6 +63,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         HeroRating.Chosen += HeroRatingChosen;
         InitializeSettingsPages();
+        RememberSection(ManageInfo, "manage");
         lifetime=new(Hide,RestoreWindow,PrepareToQuitAsync,QuitRuntimeAsync);
         ThemePalette.Apply(this, settings.Theme);
         CloseToTrayChoice.IsChecked=settings.CloseToTray;BackupNotificationsChoice.IsChecked=settings.NotifyBackupFailures;CheckForUpdatesChoice.IsChecked=settings.CheckForUpdates;AutoUpdateChoice.IsChecked=settings.AutoUpdate;
@@ -173,7 +174,7 @@ public partial class MainWindow : Window
             {
                 summarizedGame=item.Game;
                 DetailSaves.Text="Checking save sources…";_=RefreshSourceSummary(profile.Id);
-                BackupNotice.Text="Checking backup history…";LastBackup.Text="";_=RefreshBackupSummary(profile.Id);
+                BackupNotice.Text="Checking backup history…";LastBackup.Text="";AttentionCard.Visibility=Visibility.Collapsed;_=RefreshBackupSummary(profile.Id);
             }
             ArchiveButton.Content = profile.IsArchived ? "Restore to library" : "Remove from library";
             var launch = launches.GetState(profile.Id);
@@ -510,6 +511,10 @@ public partial class MainWindow : Window
     private void ApplyBackupSummary(BackupResult result)
     {
         BackupNotice.Text=result.Message;
+        // The overview only speaks up when there is something to do.
+        var attention=result.Phase is BackupPhase.Blocked or BackupPhase.Failed;
+        AttentionCard.Visibility=attention?Visibility.Visible:Visibility.Collapsed;
+        AttentionText.Text=attention?"The last save backup needs attention. "+result.Message:"";AttentionText.ToolTip=attention?result.Message:null;
         if(result.Phase==BackupPhase.Working&&result.LastSuccess is null)return;
         LastBackup.Text=result.LastSuccess is CompletedBackup backup?$"Last verified backup: {backup.Manifest.CreatedAt.ToLocalTime():g}\n{backup.Manifest.Files.Length} file(s) · {backup.Manifest.Files.Sum(f=>f.Size):N0} bytes\n{backup.Directory}":"No verified backup available.";
     }
