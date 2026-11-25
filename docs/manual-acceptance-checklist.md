@@ -198,6 +198,13 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 
 - [ ] After the first start, **Open captures folder** shows date-named folders (for example `2026-11-18 22-45`) instead of long IDs, all captures are still listed and open, and a new screenshot and recording go into a date-named folder. Folder cards on the Captures page show the cover cleanly.
 
+## 8m. Faster online cover search (issue #58)
+
+- [ ] Edit game > Find artwork online > **Search Google Images**: results appear without a second click.
+- [ ] Only cover-shaped pictures show, each labelled with its size; the filter list switches to any big-enough portrait or all results.
+- [ ] One click on a picture opens the crop preview of the full-size image; **Use this cover** saves it. A picture that cannot be used says why.
+- [ ] Scrolling further, searching another title and Google's consent page (if shown) still behave; if sizes are unavailable the older click then Preview steps still work.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

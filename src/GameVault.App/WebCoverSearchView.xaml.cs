@@ -26,7 +26,38 @@ public partial class WebCoverSearchView : UserControl, IDisposable
     {
         InitializeComponent();
         Query.Text = title;
-        Loaded += (_, _) => { loaded = true; Query.Focus(); };
+        Loaded += (_, _) =>
+        {
+            if (loaded) return;
+            loaded = true; Query.Focus();
+            // Opening this page is the search: no second click for the game's own name.
+            if (SearchOnOpen && !string.IsNullOrWhiteSpace(Query.Text)) Search(this, new RoutedEventArgs());
+        };
+    }
+
+    /// <summary>Tests turn this off so that no browser is started.</summary>
+    internal bool SearchOnOpen { get; set; } = true;
+
+    private WebCoverFilter Filter => FilterChoice.SelectedIndex switch { 1 => WebCoverFilter.BigEnough, 2 => WebCoverFilter.Everything, _ => WebCoverFilter.CoverShape };
+
+    private async void FilterChanged(object sender, SelectionChangedEventArgs e) => await ApplyFilterAsync();
+
+    private async Task ApplyFilterAsync()
+    {
+        if (disposed || browser?.CoreWebView2 is not { } core) return;
+        try
+        {
+            var result = await core.ExecuteScriptAsync(WebCoverResults.FilterScript(Filter));
+            if (disposed || IsBusy || selection.Source is not null) return;
+            using var counts = System.Text.Json.JsonDocument.Parse(result);
+            if (counts.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object) return;
+            var shown = counts.RootElement.GetProperty("shown").GetInt32();
+            var hidden = counts.RootElement.GetProperty("hidden").GetInt32();
+            if (shown + hidden == 0) Notice.Text = "Sizes are not available on this page, so every result is shown. Click an image, then choose Preview selected image.";
+            else if (shown == 0) Notice.Text = $"None of the {hidden} results fit this filter. Choose a wider one in the list next to Search, or change the title.";
+            else Notice.Text = $"Click a picture to see it as a cover. {shown} result(s) shown" + (hidden > 0 ? $", {hidden} that do not fit are hidden." : ".");
+        }
+        catch (Exception error) when (error is InvalidOperationException or System.Runtime.InteropServices.COMException or ArgumentException or System.Text.Json.JsonException or KeyNotFoundException) { }
     }
 
     private void QueryKeyDown(object sender, KeyEventArgs e)
@@ -97,6 +128,11 @@ public partial class WebCoverSearchView : UserControl, IDisposable
             if (!Uri.TryCreate(e.Uri, UriKind.Absolute, out var uri) || !WebCoverPolicy.AllowsNavigation(uri))
             { e.Cancel = true; Notice.Text = "This page is outside Google Images. Stay in the image search and click a full image to select it, or Browse a local image."; }
         };
+        core.NavigationCompleted += async (_, _) =>
+        {
+            // The result data can arrive a moment after the page: look again shortly after.
+            await ApplyFilterAsync(); await Task.Delay(700); await ApplyFilterAsync(); await Task.Delay(1800); await ApplyFilterAsync();
+        };
         core.HistoryChanged += (_, _) => { if (!disposed) BrowserBack.IsEnabled = core.CanGoBack; };
         core.NewWindowRequested += (_, e) => { e.Handled = true; Notice.Text = "Opening another window is unavailable. Select the image inside Google Images, or Browse a local image."; };
         core.DownloadStarting += (_, e) => { e.Cancel = true; e.Handled = true; Notice.Text = "Use Preview selected image, or the image's Preview as cover menu, to download a PNG or JPEG for cropping."; };
@@ -119,6 +155,18 @@ public partial class WebCoverSearchView : UserControl, IDisposable
             var point = e.GetPosition(control);
             var payload = await core.ExecuteScriptAsync(WebCoverSelection.HitTestScript(point.X, point.Y, control.ZoomFactor));
             if (disposed || browser != control || !selection.Complete(operation, payload)) return;
+            if (selection.Source is { } picked && selection.Size is var (width, height))
+            {
+                if (!WebCoverResults.Fits(width, height))
+                {
+                    SelectionNotice.Text = $"That picture is {width} × {height}: " + (height <= width ? "not a portrait shape." : "too small for a cover (at least 600 × 900).");
+                    UpdatePreviewButton();
+                    return;
+                }
+                // A fitting original: go straight to the crop preview.
+                await SelectImageAsync(picked);
+                return;
+            }
             SelectionNotice.Text = selection.Source is { } source
                 ? $"Image selected from {source.IdnHost}. Choose Preview selected image to check its size and crop."
                 : "No downloadable image found at that click. Open the full image preview and click the image itself, or right-click it and choose Preview as cover.";
