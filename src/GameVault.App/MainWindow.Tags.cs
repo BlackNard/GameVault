@@ -43,6 +43,8 @@ public partial class MainWindow
     {
         TagsButton.Content = selectedTags.Count == 0 ? "Tags ▾" : $"Tags ({selectedTags.Count}) ▾";
         SortButton.Content = "Sort: " + LibrarySortOrder.Label(sortOrder) + " ▾";
+        RatingButton.Content = (ratingFilter == RatingFilters.Any ? "Rating" : RatingFilters.Label(ratingFilter)) + " ▾";
+        RatingButton.Visibility = items.Any(i => i.Game.Rating > 0) || ratingFilter != RatingFilters.Any ? Visibility.Visible : Visibility.Collapsed;
         TagsButton.Visibility = TagRules.AllTags(gameTags.Values).Length > 0 || selectedTags.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 

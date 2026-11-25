@@ -25,7 +25,7 @@ public partial class NotesView : UserControl
     public NotesView(ApplicationPaths paths,AppDataStore store,Guid gameId,string theme,Func<bool>? isGameActive=null)
     {
         this.paths=paths;this.store=store;this.gameId=gameId;this.theme=theme;this.isGameActive=isGameActive??(()=>false);
-        InitializeComponent();StatusChoice.SelectedValuePath="Tag";StatusChoice.ItemsSource=Enum.GetValues<GameStatus>().Select(s=>new ComboBoxItem{Tag=s,Content=LibraryItemView.StatusText(s)}).ToArray();
+        InitializeComponent();Rating.Chosen+=RatingChosen;StatusChoice.SelectedValuePath="Tag";StatusChoice.ItemsSource=Enum.GetValues<GameStatus>().Select(s=>new ComboBoxItem{Tag=s,Content=LibraryItemView.StatusText(s)}).ToArray();
         Loaded+=async(_,_)=>await Reload();
         PreviewKeyDown+=async(_,e)=>{if(e.Key==Key.S&&Keyboard.Modifiers.HasFlag(ModifierKeys.Control)){e.Handled=true;if(!busy&&CanEdit)await Save();}};
     }
@@ -44,7 +44,7 @@ public partial class NotesView : UserControl
         try
         {
             history=await store.LoadHistoryAsync(gameId);summary=SessionHistory.Build(history,TimeZoneInfo.Local);
-            catalog=await store.LoadNotesAsync(gameId);GameHeading.Text=catalog.Profile.Value?.Name??"Unavailable game profile";
+            catalog=await store.LoadNotesAsync(gameId);await LoadRating();GameHeading.Text=catalog.Profile.Value?.Name??"Unavailable game profile";
             Warnings.Text=string.Join("\n",catalog.Warnings.Concat(summary.Warnings).Distinct());
             var previous=selected?.Row.Id;changing=true;StatusChoice.SelectedValue=catalog.Profile.Value?.Status;
             rows=catalog.Sessions.Select(s=>new SessionRow(s,summary.Sessions.SingleOrDefault(h=>h.Session.Id==s.Id))).ToArray();
@@ -63,7 +63,7 @@ public partial class NotesView : UserControl
             "Play a session, then refresh to write a note.":selected.Started+" → "+selected.Ended+" · "+selected.Duration+"\n"+selected.Context;
         NoteTitle.Text=editor.Title;NoteBody.Text=editor.Body;if(!CanEdit)editor.IsReadMode=true;
         SaveStatus.Text=editor.IsDirty?"Unsaved changes":Document?.Message??(editor.Saved is null?"No saved note":$"Saved · {editor.Saved.UpdatedAt.ToLocalTime():g}");
-        SaveButton.Content=review?"Save review":"Save note";changing=false;Render();
+        SaveButton.Content=review?"Save review":"Save note";RatingPanel.Visibility=review?Visibility.Visible:Visibility.Collapsed;changing=false;Render();
     }
     private void Render()
     {
@@ -78,6 +78,25 @@ public partial class NotesView : UserControl
     private void DraftChanged(object sender,TextChangedEventArgs e)
     {
         if(changing)return;editor.Title=NoteTitle.Text;editor.Body=NoteBody.Text;SaveStatus.Text=editor.IsDirty?"Unsaved changes":"Saved";Render();
+    }
+    private async Task LoadRating()
+    {
+        var stored=await store.LoadRatingAsync(gameId);
+        Rating.Value=stored.Value?.HalfStars??0;
+        Rating.IsEnabled=!stored.IsReadOnly&&catalog?.Profile is {State:DocumentState.Ready,Value.IsArchived:false};
+        RatingStatus.Text=stored.Message??"Your rating is saved as soon as you choose it. Click the same stars again to clear it.";
+    }
+    private async void RatingChosen(object? sender,int halfStars)
+    {
+        if(busy)return;SetBusy(true);
+        try
+        {
+            await store.SaveRatingAsync(gameId,halfStars);
+            Rating.Value=halfStars;RatingStatus.Text=halfStars==0?"Rating cleared.":"Rating saved.";
+            GameDataChanged?.Invoke(this,EventArgs.Empty);
+        }
+        catch(Exception e)when(Expected(e)){RatingStatus.Text="The rating could not be saved. "+e.Message;}
+        finally{SetBusy(false);}
     }
     private void ReadNote(object sender,RoutedEventArgs e){editor.IsReadMode=true;Render();}
     private void EditNote(object sender,RoutedEventArgs e){if(CanEdit){editor.IsReadMode=false;Render();NoteBody.Focus();}}
@@ -118,7 +137,7 @@ public partial class NotesView : UserControl
             var answer=await InlinePrompts.ShowAsync(this,"This entry has unsaved changes.\n\nYes: save before exporting.\nNo: export saved notes only (keep this draft).\nCancel: return to the note.","Export notes",MessageBoxButton.YesNoCancel,MessageBoxResult.Cancel);
             if(answer==MessageBoxResult.Cancel||(answer==MessageBoxResult.Yes&&!await Save()))return;
         }
-        NoteExportEntry? entry=editor.Saved is NoteDocument saved?new(GameHeading.Text,saved,review?null:selected?.Row.Session,review?"Game review":selected?.Context??"Session metadata unavailable"):null;
+        NoteExportEntry? entry=editor.Saved is NoteDocument saved?new(GameHeading.Text,saved,review?null:selected?.Row.Session,review?"Game review":selected?.Context??"Session metadata unavailable",review?Rating.Value:0):null;
         var warning=Document?.IsReadOnly==true?Document.Message??"Recovered/protected entry: exported read-only copy.":null;
         exportView=new NoteExportWindow(paths,store,gameId,theme,entry,warning);
         exportView.Completed+=(_,_)=>CloseExportView();

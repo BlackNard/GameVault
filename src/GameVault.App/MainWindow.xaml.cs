@@ -132,8 +132,8 @@ public partial class MainWindow : Window
         var search = Search.Text.Trim();
         var matching = items.Where(i => (i.Game.Profile?.IsArchived ?? false) == removed &&
             (search.Length == 0 || i.Name.Contains(search, StringComparison.OrdinalIgnoreCase)) &&
-            (filter == "All" || i.Game.Profile?.Status.ToString() == filter) && TagRules.HasAll(TagsOf(i.Game.Id), selectedTags));
-        var visible = LibrarySortOrder.Apply(matching, sortOrder, i => i.Name, i => i.LastPlayedAt, i => i.Game.PlayedSeconds).ToArray();
+            (filter == "All" || i.Game.Profile?.Status.ToString() == filter) && TagRules.HasAll(TagsOf(i.Game.Id), selectedTags) && RatingFilters.Matches(ratingFilter, i.Game.Rating));
+        var visible = LibrarySortOrder.Apply(matching, sortOrder, i => i.Name, i => i.LastPlayedAt, i => i.Game.PlayedSeconds, i => i.Game.Rating).ToArray();
         if(GameList.ItemsSource is not LibraryItemView[] current || !current.SequenceEqual(visible))GameList.ItemsSource=visible;
         GameList.SelectedItem = visible.FirstOrDefault(i => i.Game.Id == selected) ?? visible.FirstOrDefault();
         LibrarySummary.Text = $"{visible.Length} {(removed ? "removed profiles" : "games")} · stored on your device";
@@ -155,7 +155,7 @@ public partial class MainWindow : Window
         if(item is not null)_=RefreshHeroCoverAsync(item);else {GameHeroCover.Source=null;heroCoverGame=null;heroCoverRequest?.Cancel();}
         DetailTitle.Text = item?.Name ?? "A home for every game";
         DetailState.Text = item is null ? "Select a game to see its details or choose Add game to get started." :
-            string.Join("\n", new[] { item.Status, item.Availability, item.Game.Warning }.Where(s => !string.IsNullOrWhiteSpace(s)));
+            string.Join("\n", new[] { item.Status, item.Game.Rating > 0 ? "Your rating: " + StarRating.Text(item.Game.Rating) : null, item.Availability, item.Game.Warning }.Where(s => !string.IsNullOrWhiteSpace(s)));
         DetailFields.Visibility = item?.Game.Profile is not null ? Visibility.Visible : Visibility.Collapsed;
         if(item is null)summarizedGame=null;
         if (item?.Game.Profile is GameProfile profile)
@@ -309,7 +309,7 @@ public partial class MainWindow : Window
                 if (profile is null)
                 {
                     initializing = true;
-                    Search.Text = ""; StatusFilter.SelectedIndex = 0; RemovedFilter.IsChecked = false;
+                    Search.Text = ""; StatusFilter.SelectedIndex = 0; RemovedFilter.IsChecked = false; ratingFilter = RatingFilters.Any;
                     initializing = false;
                 }
                 if (!editor.WasRestored) await discovery.ScanAsync(result.Profile.Id);

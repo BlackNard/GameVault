@@ -155,7 +155,7 @@ public partial class MainWindow
                 {
                     // The game is hidden by the current search or filter: show everything of its kind so it can be selected.
                     initializing = true;
-                    Search.Text = ""; StatusFilter.SelectedIndex = 0; RemovedFilter.IsChecked = item.Game.Profile?.IsArchived == true;
+                    Search.Text = ""; StatusFilter.SelectedIndex = 0; ratingFilter = GameVault.Core.RatingFilters.Any; RemovedFilter.IsChecked = item.Game.Profile?.IsArchived == true;
                     initializing = false;
                     ApplyFilters(item.Game.Id);
                 }

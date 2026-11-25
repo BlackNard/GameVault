@@ -48,20 +48,22 @@ public static class LibrarySortOrder
     public const string Name = "Name";
     public const string LastPlayed = "LastPlayed";
     public const string MostPlayed = "MostPlayed";
-    public static readonly string[] All = [Name, LastPlayed, MostPlayed];
+    public const string Rating = "Rating";
+    public static readonly string[] All = [Name, LastPlayed, MostPlayed, Rating];
 
     public static string Normalize(string? sort) => All.FirstOrDefault(s => string.Equals(s, sort, StringComparison.OrdinalIgnoreCase)) ?? Name;
 
-    public static string Label(string sort) => sort switch { LastPlayed => "Recently played", MostPlayed => "Most played", _ => "Name" };
+    public static string Label(string sort) => sort switch { LastPlayed => "Recently played", MostPlayed => "Most played", Rating => "Highest rated", _ => "Name" };
 
     /// <summary>Orders games by the chosen sort; name order breaks ties so the order is always stable.</summary>
-    public static IEnumerable<T> Apply<T>(IEnumerable<T> games, string sort, Func<T, string> name, Func<T, DateTimeOffset?> lastPlayed, Func<T, long?> playedSeconds)
+    public static IEnumerable<T> Apply<T>(IEnumerable<T> games, string sort, Func<T, string> name, Func<T, DateTimeOffset?> lastPlayed, Func<T, long?> playedSeconds, Func<T, int>? rating = null)
     {
         var byName = games.OrderBy(name, StringComparer.OrdinalIgnoreCase);
         return Normalize(sort) switch
         {
             LastPlayed => games.OrderByDescending(g => lastPlayed(g) ?? DateTimeOffset.MinValue).ThenBy(name, StringComparer.OrdinalIgnoreCase),
             MostPlayed => games.OrderByDescending(g => playedSeconds(g) ?? 0).ThenBy(name, StringComparer.OrdinalIgnoreCase),
+            Rating => games.OrderByDescending(g => rating?.Invoke(g) ?? 0).ThenBy(name, StringComparer.OrdinalIgnoreCase),
             _ => byName
         };
     }

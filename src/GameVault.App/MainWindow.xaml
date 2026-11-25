@@ -87,6 +87,7 @@
         <RadioButton GroupName="StatusChips" Tag="NotStarted" Content="Not started" Style="{StaticResource ChipRadio}" Checked="StatusChipChecked"/>
         <ToggleButton x:Name="ChipRemoved" Content="Removed" Style="{StaticResource ChipToggle}" Checked="RemovedChipChanged" Unchecked="RemovedChipChanged" ToolTip="Show removed games (their data is kept)"/>
         <Button x:Name="TagsButton" Content="Tags ▾" Style="{StaticResource ChipButton}" Click="TagsButtonClicked" Visibility="Collapsed" ToolTip="Filter by tag or category" AutomationProperties.Name="Filter by tags"/>
+        <Button x:Name="RatingButton" Content="Rating ▾" Style="{StaticResource ChipButton}" Click="RatingButtonClicked" ToolTip="Filter by your rating" AutomationProperties.Name="Filter by rating"/>
         <Button x:Name="SortButton" Content="Sort: Name ▾" Style="{StaticResource ChipButton}" Click="SortButtonClicked" ToolTip="Sort order" AutomationProperties.Name="Sort order"/>
         <Button x:Name="ViewsButton" Content="Views ▾" Style="{StaticResource ChipButton}" Click="ViewsButtonClicked" ToolTip="Saved filter views" AutomationProperties.Name="Saved views"/>
        </WrapPanel>
