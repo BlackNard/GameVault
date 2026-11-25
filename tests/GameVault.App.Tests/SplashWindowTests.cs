@@ -75,7 +75,7 @@ public sealed class SplashWindowTests
         Assert.Contains("SplashTiming.RemainingDelay(", app);
         Assert.True(app.IndexOf("splash.CloseOnce()", StringComparison.Ordinal) < app.IndexOf("MainWindow.Show()", StringComparison.Ordinal));
         Assert.True(app.IndexOf("splash?.CloseOnce()", StringComparison.Ordinal) < app.IndexOf("GameVault could not start", StringComparison.Ordinal), "Close it before the error dialog.");
-        Assert.Contains("StartupSplashChoice", Source("MainWindow.xaml"));
-        Assert.Contains("SplashPreferenceChanged", Source("MainWindow.Splash.cs"));
+        Assert.DoesNotContain("preferences.Show", app);                                  // the startup window is always shown
+        Assert.DoesNotContain("StartupSplashChoice", Source("MainWindow.xaml"));          // and there is no switch for it
     }
 }

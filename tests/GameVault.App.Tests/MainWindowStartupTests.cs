@@ -122,16 +122,25 @@ public sealed class MainWindowStartupTests
     }
 
     [Fact]
-    public void Settings_has_no_section_menu_and_editors_open_in_a_side_drawer()
+    public void Settings_has_category_pages_with_a_search_and_editors_open_in_a_side_drawer()
     {
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
-        XNamespace ns = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
         var window = Root();
         var names = window.Descendants().Select(e => (string?)e.Attribute(x + "Name")).Where(n => n is not null).ToHashSet();
         var settings = window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "SettingsPanel");
-        var tags = settings.Descendants(ns + "Button").Where(e => (string?)e.Attribute("Click") == "SettingsSectionClicked").Select(e => e.Attribute("Tag")!.Value).ToArray();
-        Assert.Empty(tags);   // the settings page has no left section menu or search box
-        Assert.DoesNotContain("SettingsSearchBox", names);
+        // Every option the search knows is on the page its category says, and every page exists.
+        foreach (var category in GameVault.Core.SettingsCatalog.Categories)
+        {
+            var page = settings.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "Cat" + char.ToUpperInvariant(category.Key[0]) + category.Key[1..]);
+            var inside = page.Descendants().Select(e => (string?)e.Attribute(x + "Name")).ToHashSet();
+            foreach (var entry in GameVault.Core.SettingsCatalog.Entries.Where(e => e.Category == category.Key)) Assert.Contains(entry.Target, inside);
+        }
+        // Every option that existed before is still somewhere in Settings.
+        foreach (var name in new[] { "BrowseThemesButton", "CloseToTrayChoice", "BackupNotificationsChoice", "MetadataFields", "FetchAllInfoButton", "CancelFetchAllButton",
+                     "DownloadSaveDatabaseButton", "SavedViewsManager", "BackupGuide", "DefaultBackupLocation", "DataBackupBulky", "BackUpDataButton", "RestoreDataButton", "ImportOldFolderButton",
+                     "CaptureSettings", "CheckForUpdatesButton", "UpdateNowButton", "OpenReleasePageButton", "CheckForUpdatesChoice", "AutoUpdateChoice", "DiagnosticsGameNames", "DiagnosticsButton", "ProfilesPath",
+                     "SettingsSearch", "SettingsMenu", "SettingsResults" })
+            Assert.Single(settings.Descendants(), e => (string?)e.Attribute(x + "Name") == name);
         var drawer = window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "DrawerLayer");
         Assert.Equal("Collapsed", (string?)drawer.Attribute("Visibility"));
         Assert.Contains(drawer.Descendants(), e => (string?)e.Attribute(x + "Name") == "EditorHost");

@@ -7,6 +7,8 @@ public sealed record NavRoute(NavKind Kind, Guid? GameId = null, string? Section
 {
  public static readonly NavRoute Library = new(NavKind.Library);
  public static readonly NavRoute Settings = new(NavKind.Settings);
+ /// <summary>One page of Settings; <see cref="Settings"/> alone means the page last shown.</summary>
+ public static NavRoute SettingsPage(string key) => new(NavKind.Settings, null, key);
  public static readonly NavRoute Backups = new(NavKind.Backups);
  public static readonly NavRoute Captures = new(NavKind.Captures);
  /// <summary>One game's folder on the Captures page.</summary>
@@ -57,7 +59,7 @@ public static class NavBreadcrumb
  {
   switch (route.Kind)
   {
-   case NavKind.Settings: return "Settings";
+   case NavKind.Settings: return SettingsCatalog.IsKnown(route.Section) ? "Settings › " + SettingsCatalog.Title(route.Section) : "Settings";
    case NavKind.Backups: return "Backups";
    case NavKind.Captures: return route.GameId is null ? "Captures" : "Captures › " + (string.IsNullOrWhiteSpace(gameName) ? "Game" : gameName);
    case NavKind.Game:

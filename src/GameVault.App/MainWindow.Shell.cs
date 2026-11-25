@@ -79,7 +79,7 @@ public partial class MainWindow
     // ---------- history ----------
     private NavRoute CurrentRoute()
     {
-        if (SettingsPanel.Visibility == Visibility.Visible) return NavRoute.Settings;
+        if (SettingsPanel.Visibility == Visibility.Visible) return NavRoute.SettingsPage(settingsCategory);
         if (OverviewVisible) return overviewKind == NavKind.Backups ? NavRoute.Backups : captureFolder is Guid folder ? NavRoute.CapturesOf(folder) : NavRoute.Captures;
         if (GameList.SelectedItem is LibraryItemView item && (GamePage.Visibility == Visibility.Visible || notesView is not null))
         {
@@ -140,6 +140,7 @@ public partial class MainWindow
                 return true;
             case NavKind.Settings:
                 if (!await LeaveNotes()) return false;
+                if (SettingsCatalog.IsKnown(route.Section)) { settingsCategory = route.Section!; ApplySettingsCategory(); }
                 SetNavigation(false);
                 return true;
             case NavKind.Backups:
@@ -245,6 +246,7 @@ public partial class MainWindow
             yield return new PaletteEntry("Game", item.Name, "", Go(NavRoute.Game(item.Game.Id, "Overview")));
         yield return new PaletteEntry("Go to", "Library", "", Go(NavRoute.Library));
         yield return new PaletteEntry("Go to", "Settings", "", Go(NavRoute.Settings));
+        foreach (var page in SettingsCatalog.Categories) yield return new PaletteEntry("Go to", "Settings: " + page.Title, page.Description, Go(NavRoute.SettingsPage(page.Key)));
         yield return new PaletteEntry("Go to", "Backups", "", Go(NavRoute.Backups));
         yield return new PaletteEntry("Go to", "Captures", "", Go(NavRoute.Captures));
         yield return new PaletteEntry("Action", "Add game", "", (Func<Task>)(() => { AddGame(this, new RoutedEventArgs()); return Task.CompletedTask; }));

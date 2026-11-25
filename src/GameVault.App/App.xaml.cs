@@ -135,13 +135,10 @@ public partial class App : Application
         try
         {
             var preferences = SplashPreferences.Parse(ReadSettingsText(paths));
-            if (preferences.Show)
-            {
-                splash = new SplashWindow(preferences.Theme, preferences.ReduceMotion);
-                splash.Show();
-                await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.Render);   // let it paint before the real work starts
-                splashShownAt = DateTimeOffset.UtcNow;
-            }
+            splash = new SplashWindow(preferences.Theme, preferences.ReduceMotion);
+            splash.Show();
+            await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.Render);   // let it paint before the real work starts
+            splashShownAt = DateTimeOffset.UtcNow;
         }
         catch (Exception error) when (error is InvalidOperationException or System.ComponentModel.Win32Exception or System.Runtime.InteropServices.COMException)
         {

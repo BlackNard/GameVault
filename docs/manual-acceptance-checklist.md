@@ -110,7 +110,7 @@ Use a clean copy of the app (extract the clean ZIP from `outputs/Archives` into 
 - [ ] Starting GameVault shows a small centred window with the logo, "GameVault" and "Loading your library…" right away, then the main window appears; the splash is not in the taskbar and does not take focus from what you were doing.
 - [ ] It looks right in two or three themes (switch the theme, restart).
 - [ ] It stays about a second even on a fast start, and no longer than the real start-up on a slow one.
-- [ ] Settings > Background behaviour: untick "Show a small startup window…", restart: no splash. Tick it again: it returns.
+- [ ] The startup window always appears; Settings has no switch for it (also for an older settings file that had it turned off). The Settings sidebar reaches the bottom of the window.
 - [ ] With Windows "Show animations" off or reduce motion set, the bar does not animate.
 - [ ] Start a second copy while one is running: the splash closes before the "could not open its application folder" message.
 
@@ -209,6 +209,13 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 
 - [ ] Remove a game, then add the same program again: the question offers **Yes** (restore the old profile), **No** (a new, fresh profile; the old one stays in Removed games) and **Cancel** (back to the form, nothing changed).
 - [ ] After **No**, restoring the old profile is refused while the new one is in the library, and works after removing the new one.
+
+## 8o. Settings categories and search (issue #56)
+
+- [ ] Settings looks like a store launcher's settings: a full-height sidebar with icons and dividers, a page title, rows with controls on the right and switches. It shows a category list (Appearance, General, Library and game info, Backups and data, Capture, Updates, Advanced); each page shows only its options and every old option is there and works.
+- [ ] Search (for example "tray", "shortcut", "zip") lists matches; Enter or a click opens the page with that option in view; Escape clears.
+- [ ] The last page is shown when returning to Settings; Back/Forward move between pages; Ctrl+K "Settings: Updates" opens it; **How backups work** opens the guide.
+- [ ] Readable in several themes, usable with the keyboard, and at a narrow window width.
 
 ## 8p. Starting GameVault again (issue #69)
 
