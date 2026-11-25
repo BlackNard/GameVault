@@ -149,9 +149,10 @@ public partial class GameEditor : UserControl
             byte[]? png = newCoverBytes;
             var result = await GameEditorSaveFlow.SaveAsync(draft, png, save, restore,
                 async () => await InlinePrompts.ShowAsync(this,
-                    "This executable already has a removed profile. Restore its saved name, configuration, cover, history, notes and backups?\n\nThe entries and artwork in this Add game form will not replace the saved profile. Choose No to keep this form and leave the profile removed.",
-                    "Restore saved profile?", MessageBoxButton.YesNo, MessageBoxResult.No) == MessageBoxResult.Yes);
-            if (result is null) { ErrorNotice.Text = "Restore cancelled. Your entries are kept; the saved profile is still removed."; return; }
+                    "This program already has a removed profile.\n\nYes: restore it, with its saved name, settings, cover, playtime, notes and backups. The entries in this form are not used.\nNo: add a new, fresh profile from this form. The old one stays in Removed games.\nCancel: go back to the form.",
+                    "Restore saved profile?", MessageBoxButton.YesNoCancel, MessageBoxResult.Cancel) switch
+                { MessageBoxResult.Yes => RemovedProfileChoice.Restore, MessageBoxResult.No => RemovedProfileChoice.AddNew, _ => RemovedProfileChoice.Cancel });
+            if (result is null) { ErrorNotice.Text = "Nothing was added. Your entries are kept; the old profile is still in Removed games."; return; }
             Result = result.Saved;
             WasRestored = result.WasRestored;
             navigation.AcceptSaved(Snapshot());
@@ -183,17 +184,24 @@ public partial class GameEditor : UserControl
 
 internal sealed record GameEditorSaveOutcome(GameSaveResult Saved, bool WasRestored);
 
+/// <summary>What the player wants when the program being added belongs to a removed profile.</summary>
+internal enum RemovedProfileChoice { Restore, AddNew, Cancel }
+
 internal static class GameEditorSaveFlow
 {
     internal static async Task<GameEditorSaveOutcome?> SaveAsync(GameDraft draft, byte[]? cover,
         Func<GameDraft, byte[]?, Task<GameSaveResult>> save,
-        Func<Guid, Task<GameSaveResult>>? restore, Func<Task<bool>> confirmRestore)
+        Func<Guid, Task<GameSaveResult>>? restore, Func<Task<RemovedProfileChoice>> choose)
     {
         try { return new(await save(draft, cover), false); }
         catch (DuplicateGameException error) when (draft.Id is null && error.IsArchived && restore is not null)
         {
-            if (!await confirmRestore()) return null;
-            return new(await restore(error.ExistingId), true);
+            return await choose() switch
+            {
+                RemovedProfileChoice.Restore => new(await restore(error.ExistingId), true),
+                RemovedProfileChoice.AddNew => new(await save(draft with { BesideRemoved = true }, cover), false),
+                _ => null
+            };
         }
     }
 }

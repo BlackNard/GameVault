@@ -1,7 +1,7 @@
 namespace GameVault.Core;
 
 public sealed record GameDraft(Guid? Id, string Name, string ExecutablePath, string WorkingDirectory,
-    string[] SaveSources, GameStatus Status = GameStatus.NotStarted, bool RemoveCover = false);
+    string[] SaveSources, GameStatus Status = GameStatus.NotStarted, bool RemoveCover = false, bool BesideRemoved = false);
 public sealed record LibraryGame(Guid Id, GameProfile? Profile, bool IsReadOnly, bool ExecutableMissing,
     string? CoverFile, long? PlayedSeconds, string? Warning, DateTimeOffset? LastPlayedAt = null, string? HeroFile = null, int Rating = 0);
 public sealed record LibrarySnapshot(LibraryGame[] Games, string[] Warnings);
