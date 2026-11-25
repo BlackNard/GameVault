@@ -50,6 +50,18 @@ public sealed class SaveDiscoveryTests:IDisposable
         Assert.Single(await Service.RequireVerifiedSourcesAsync(id));
     }
 
+    [Fact] public async Task GtaIvSavesOfAnInstallationWithoutTheRockstarLauncherAreFound()
+    {
+        // The layout seen on a real installation: %APPDATA%/Goldberg SocialClub Emu Saves/GTA IV/<profile>/SGTA400, with settings elsewhere.
+        await Seed(Rockstar("Grand Theft Auto IV - The Complete Edition","GTAIV.exe"));
+        Save(Path.Combine(Env.Local,"Rockstar Games","GTA IV","Settings"),"SETTINGS.CFG");
+        var saves=Path.Combine(Env.Roaming,"Goldberg SocialClub Emu Saves","GTA IV");
+        Save(Path.Combine(saves,"0F74F4C4"),"SGTA400");Save(Path.Combine(saves,"0F74F4C4"),"ControlMap.dat");
+        var found=await Service.ScanAsync(id);Assert.Equal(SaveDiscoveryPhase.SourcesFound,found.Phase);
+        Assert.Equal(saves,Assert.Single(found.Document.Value!.Sources,s=>s.Selected).Path);
+        Assert.Single(await Service.RequireVerifiedSourcesAsync(id));
+    }
+
     [Fact] public async Task TwoGtaIvLocationsWithSavesNeedConfirmation()
     {
         await Seed(Rockstar("GTA IV","GTAIV.exe"));

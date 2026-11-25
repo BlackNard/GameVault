@@ -63,6 +63,8 @@ public static class SaveCandidateRules
         foreach(var title in RockstarTitle.All.Where(t=>t.Matches(Normalize(exe),normalized)))
         {
             Add(Path.Combine(env.Documents,"Rockstar Games",title.Folder,"Profiles"),SaveSourceOrigin.KnownRule,title.Folder+": Rockstar profile saves","save",true);
+            // Copies that run without the Rockstar launcher keep the same files under the replacement service's own folder.
+            Add(Path.Combine(env.Roaming,"Goldberg SocialClub Emu Saves",title.Folder),SaveSourceOrigin.KnownRule,title.Folder+": saves of installations without the Rockstar launcher","save",true);
             if(title.LocalSaves)Add(Path.Combine(env.Local,"Rockstar Games",title.Folder,"savegames"),SaveSourceOrigin.KnownRule,title.Folder+": saves of older installations","save",true);
         }
         foreach(var name in names)
