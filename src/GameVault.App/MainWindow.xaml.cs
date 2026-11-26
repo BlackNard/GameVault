@@ -93,7 +93,7 @@ public partial class MainWindow : Window
         busy = true; UpdateButtons();
         try
         {
-            recoveryNotices = await launches.RecoverAsync(); await RefreshLibrary();
+            recoveryNotices = await launches.RecoverAsync(); await RefreshLibrary(); _ = RefreshSteamHoursAtStartAsync();
             _ = StartupInfoAsync();
             // Automatic discovery follows session signals; never block startup by scanning every game.
         }
@@ -184,6 +184,7 @@ public partial class MainWindow : Window
         UpdateTagsUi(item);
         _ = RefreshAboutAsync(item);
         _ = RefreshPlayActionsAsync(item);
+        _ = RefreshSteamAsync(item);
         UpdateButtons();
         _=RefreshBackupDestinationsAsync();
         if(gameSection=="Media"&&!libraryVisible)_=RefreshCaptureMediaAsync();
@@ -243,6 +244,7 @@ public partial class MainWindow : Window
                 DetailTime.Text = selected.Played;
                 SessionElapsed.Text = selected.SessionTime;
                 SessionWarning.Text = selected.SessionWarning ?? "";
+                ApplySteamTotal();
             }
         });
     }

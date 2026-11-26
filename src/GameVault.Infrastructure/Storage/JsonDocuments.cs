@@ -86,6 +86,17 @@ internal sealed class JsonDocuments(ManagedPaths paths, Action<string>? beforeCo
         }
     }
 
+    /// <summary>Removes a readable document and its previous copy. A damaged or newer document is never deleted.</summary>
+    public void Delete<T>(string file, Func<T, bool> valid) where T : class
+    {
+        RequireWritable(Read(file, valid));
+        paths.Check(file);
+        paths.Check(file + ".bak");
+        // The copy goes first, so an interrupted removal cannot bring an older document back.
+        File.Delete(file + ".bak");
+        File.Delete(file);
+    }
+
     public static void RequireWritable<T>(StoredDocument<T> document)
     {
         if (document.IsReadOnly) throw new IOException(document.Message ?? "This document is read-only and needs recovery.");

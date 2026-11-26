@@ -27,6 +27,14 @@ public sealed class StoreLaunchTests : IAsyncLifetime
         Assert.False(run.IsCompleted); processes.Game!.Exit(); await run;
         Assert.True(ended!.ConfirmedExit); Assert.Equal(SessionState.Completed, Assert.Single(await store.LoadSessionJournalsAsync(profile.Id)).Document.Value!.State);
     }
+    [Fact] public async Task ASessionStartedThroughSteamIsRememberedAsOne()
+    {
+        activation.OnLaunch = () => processes.Game = new(80, DateTime.UtcNow.Ticks);
+        var run = service.RunAsync(profile.Id); await Running(); processes.Game!.Exit(); await run;
+        var origins = (await store.LoadSessionOriginsAsync(profile.Id)).Value!;
+        Assert.Equal(Assert.Single(await store.LoadSessionJournalsAsync(profile.Id)).Id, Assert.Single(origins.Steam));
+        Assert.Empty(origins.Other);
+    }
     [Fact] public async Task TimeoutDoesNotCreateHistoryOrPromoteStatus()
     {
         await service.RunAsync(profile.Id); Assert.Equal(LaunchPhase.Failed, service.GetState(profile.Id).Phase);

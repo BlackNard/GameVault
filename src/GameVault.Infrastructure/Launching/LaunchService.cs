@@ -144,7 +144,7 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
                 var requestedUtcTicks = DateTime.UtcNow.Ticks;
                 storeLauncher.RequestLaunch(storePlan);
                 using var actual = await FindStoreTarget(targetPath, before, requestedUtcTicks, token).ConfigureAwait(false);
-                await ObserveAsync(id, targetPath, actual, actual, null, token).ConfigureAwait(false);
+                await ObserveAsync(id, targetPath, actual, actual, null, token, storePlan.Provider == StoreProvider.Steam).ConfigureAwait(false);
                 SetState(new(id, LaunchPhase.Stopped, StopMessage(id)));
                 StartAfterExitHook(id, configuration.Value?.AfterExit);
                 return;
@@ -232,7 +232,7 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
         throw new IOException("The actual game process was not found within 30 seconds. Check Launch settings. The launched program was left open if still running.");
     }
 
-    private async Task ObserveAsync(Guid id, string targetPath, IGameProcess starter, IGameProcess observed, SessionJournal? recovered, CancellationToken token)
+    private async Task ObserveAsync(Guid id, string targetPath, IGameProcess starter, IGameProcess observed, SessionJournal? recovered, CancellationToken token, bool throughSteam = false)
     {
         var exited = false;
         using var timerStop = new CancellationTokenSource();
@@ -242,7 +242,13 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
             string? warning = null;
             try
             {
-                if (recovered is null) await recorder.BeginAsync(id, targetPath, observed, starter.RecoveryGroupName).ConfigureAwait(false);
+                if (recovered is null)
+                {
+                    var sessionId = await recorder.BeginAsync(id, targetPath, observed, starter.RecoveryGroupName).ConfigureAwait(false);
+                    // Steam counts what it started, so the combined total must know which sessions those were (a missing note only affects that sum).
+                    try { await store.RecordSessionOriginAsync(id, sessionId, throughSteam).ConfigureAwait(false); }
+                    catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+                }
                 else await recorder.ResumeAsync(recovered, observed, starter.RecoveryGroupName).ConfigureAwait(false);
                 NotifySession(id);
                 timer = SampleLoop(id, timerStop.Token);

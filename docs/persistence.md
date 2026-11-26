@@ -85,3 +85,7 @@ A game whose cover the player removed has a `cover-removed.marker` file in its p
 ## Rating
 
 `Profiles/<game>/rating.json` (schema 1: game id and half stars 0 to 10; 0 or a missing file means not rated). It is a separate document so older versions ignore it.
+
+## Steam hours
+
+`Profiles/<game>/steam-link.json` (schema 1) holds the Steam app id, the Steam account folder the figure came from, Steam's name for the game, whether the player confirmed the match, the program it was linked for, the minutes Steam recorded and when they were read. Unlinking deletes it and its `.bak`. `session-origins.json` lists which recorded sessions were started through Steam and which were not, so the combined total never counts the same time twice; `statistics.json` is never changed. Both are separate documents, so older versions ignore them.

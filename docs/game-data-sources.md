@@ -54,3 +54,11 @@ Screenshots are only loaded from the store when you press **Show screenshots**. 
 Average time other players needed (main story, main story with extras, completionist, all play styles) comes from the game's **HowLongToBeat** page. HowLongToBeat has no public API and its search is closed to programs, so GameVault reads the game page by **id only**. The id comes from Wikidata (the Steam, GOG or title match above) or an earlier lookup, and is stored with the game. One request per game, a 1.5 second gap, a timeout and a size cap, no cookies, no redirects, and the client says plainly that it is GameVault. The data is unofficial and the page can change: any problem is a quiet "no times" and never affects anything else; a game whose id is known but whose times could not be read is tried again after a week. The times are shown as "average time other players needed", never mixed up with your own playtime.
 
 Checked live on 2026-11-22: TEKKEN 8 (4.2 h main, 17.5 h completionist), Resident Evil 2 (8.9 h) and Dead Space (12.2 h), each found through its Steam id.
+
+## Steam hours (issue #62)
+
+Hours come only from Steam's own files on the PC, read-only: `userdata/<account>/config/localconfig.vdf` (`Software/Valve/Steam/apps/<id>/Playtime`, minutes). No sign-in, key or web request. They are read when a game is linked and again when GameVault starts.
+
+Linking guards: a program inside a Steam install folder (its `appmanifest`) links to that app. Any other copy can be linked only to the app id the information lookup found, and only when the profile name equals Steam's title (ignoring case, spaces and punctuation); the public store page is asked for that id so both games are shown side by side before the player confirms. One Steam game links to one library game. Renaming the game or changing its program checks the link again; a link that no longer matches stops counting.
+
+Total: time Steam also saw (sessions started through Steam) is covered by the larger of Steam's figure and GameVault's record; other time is added. Sessions recorded before this feature, and typed-in adjustments, count as seen by Steam only for a link proven by the install folder.
