@@ -91,6 +91,7 @@ public sealed partial class AppDataStore
         }
         managed.EnsureDirectory(Path.Combine(folder, "Backups"));
         documents.Write(profileFile, profile, p => StorageValidation.Profile(p, profile.Id));
+        if (current.Value is { } before) TrackCompletion(profile.Id, before.Status, profile.Status);
         // Renaming a game renames its folder; if the folder is in use it keeps the old name and is renamed on a later save or start.
         ProfileFolders.Normalize(paths, profile.Id, profile.Name);
     });

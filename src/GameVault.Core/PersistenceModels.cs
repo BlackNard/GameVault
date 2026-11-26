@@ -29,3 +29,6 @@ public sealed record GameStatistics(int SchemaVersion, Guid GameId, PlaySession[
 
 public sealed record StoredGame(Guid Id, StoredDocument<GameProfile> Profile, StoredDocument<GameStatistics> Statistics);
 public sealed record AppDataSnapshot(StoredDocument<AppSettings> Settings, StoredGame[] Games, string[] Warnings);
+
+/// <summary>The day a game became Completed (Profiles/&lt;game&gt;/completion.json).</summary>
+public sealed record GameCompletion(int SchemaVersion, Guid GameId, DateTimeOffset CompletedAt);

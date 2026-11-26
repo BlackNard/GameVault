@@ -170,6 +170,9 @@
        </StackPanel>
        <TextBlock x:Name="AboutNotice" Foreground="{DynamicResource AppWarning}" TextWrapping="Wrap" Margin="0,8,0,0"/>
        <StackPanel x:Name="AboutDetails" Margin="0,10,0,0"/>
+       <Expander x:Name="GameStatsSection" Header="Statistics" Style="{DynamicResource QuietExpander}" Visibility="Collapsed" Expanded="GameStatsExpanded">
+        <ContentControl x:Name="GameStatsHost" Focusable="False" Margin="0,10,0,4"/>
+       </Expander>
        <Expander x:Name="SteamSection" Header="Steam hours" Style="{DynamicResource QuietExpander}" Visibility="Collapsed">
         <StackPanel Margin="0,10,0,4">
          <TextBlock x:Name="SteamStatus" TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,0,0,10" AutomationProperties.LiveSetting="Polite"/>

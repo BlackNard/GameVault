@@ -34,6 +34,7 @@ public sealed partial class AppDataStore
         if(!Enum.IsDefined(status)) throw new ArgumentException("Choose a supported game status.");
         var game=LoadProfile(id); EnsureInactive(game); var profile=game.Profile.Value! with { Status=status };
         documents.Write(Path.Combine(Folder(id),"profile.json"),profile,p=>StorageValidation.Profile(p,id));
+        TrackCompletion(id,game.Profile.Value!.Status,status);
     });
     private void EnsureInactive(StoredGame game)
     {

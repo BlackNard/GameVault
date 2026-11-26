@@ -6,7 +6,7 @@ using GameVault.Infrastructure.Library;
 
 namespace GameVault.App;
 
-// The Statistics page (ticket #61).
+// The Statistics page and the statistics section of a game's page (ticket #61).
 public partial class MainWindow
 {
     private StatisticsView? statisticsView;
@@ -37,5 +37,36 @@ public partial class MainWindow
             if (revision == statisticsRevision) statisticsView.Show(data, DateOnly.FromDateTime(DateTime.Now), CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek);
         }
         catch (Exception error) when (IsExpected(error) || error is IOException) { if (revision == statisticsRevision) statisticsView.ShowProblem(error.Message); }
+    }
+
+    private Guid gameStatsFor;
+
+    /// <summary>Shown for a game with recorded play; the figures are read only when the section is opened.</summary>
+    private void RefreshGameStats(LibraryItemView? item)
+    {
+        var id = item?.Game.Id ?? Guid.Empty;
+        if (id != gameStatsFor) { gameStatsFor = id; GameStatsSection.IsExpanded = false; GameStatsHost.Content = null; }
+        GameStatsSection.Visibility = item?.Game is { Profile: not null, PlayedSeconds: > 0 } ? Visibility.Visible : Visibility.Collapsed;
+        if (GameStatsSection.IsExpanded) _ = LoadGameStatsAsync(id);
+    }
+
+    private async void GameStatsExpanded(object sender, RoutedEventArgs e)
+    {
+        if (ReferenceEquals(e.OriginalSource, GameStatsSection)) await LoadGameStatsAsync(gameStatsFor);
+    }
+
+    private async Task LoadGameStatsAsync(Guid id)
+    {
+        try
+        {
+            var service = new StatisticsService(store, SteamHoursLinks);
+            var game = await Task.Run(() => service.LoadGameAsync(id, TimeZoneInfo.Local));
+            if (gameStatsFor != id || game is null) return;
+            GameStatsHost.Content = StatisticsView.GameSummary(game, DateOnly.FromDateTime(DateTime.Now), CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek);
+        }
+        catch (Exception error) when (IsExpected(error) || error is IOException)
+        {
+            if (gameStatsFor == id) GameStatsHost.Content = new System.Windows.Controls.TextBlock { Text = "Statistics could not be read. " + error.Message, TextWrapping = TextWrapping.Wrap };
+        }
     }
 }
