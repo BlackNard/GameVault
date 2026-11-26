@@ -27,7 +27,7 @@ jobs:
       GAMEVAULT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Check out source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -45,7 +45,7 @@ jobs:
           else { ./scripts/audit-commit-emails.ps1 }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Install pinned .NET SDK
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
           cache: true
@@ -60,7 +60,7 @@ jobs:
         run: ./scripts/audit-release-source.ps1
       - name: Keep test evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pull-request-test-evidence
           path: artifacts/test-results-*/*.trx
@@ -79,7 +79,7 @@ jobs:
       GAMEVAULT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Check out source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -97,7 +97,7 @@ jobs:
           else { ./scripts/audit-commit-emails.ps1 }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Install pinned .NET SDK
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
           cache: true
@@ -131,7 +131,7 @@ jobs:
         shell: pwsh
         run: ./scripts/package-release.ps1
       - name: Keep verified private draft assets
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: private-draft-assets
           path: artifacts/release-*/*
@@ -139,7 +139,7 @@ jobs:
           retention-days: 7
       - name: Keep test and synthetic performance evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: phase-one-automated-evidence
           path: artifacts/test-results-*/*.trx
@@ -147,7 +147,7 @@ jobs:
           retention-days: 7
       - name: Keep synthetic installer lifecycle evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: installer-lifecycle-evidence
           path: |
@@ -167,11 +167,11 @@ jobs:
       DOTNET_NOLOGO: '1'
     steps:
       - name: Check out source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install pinned .NET SDK
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
           cache: true
@@ -195,7 +195,7 @@ jobs:
         run: dotnet test tests/GameVault.App.Tests/GameVault.App.Tests.csproj -c Release --no-build --no-restore --filter FullyQualifiedName~CaptureEncodeProbeTests --logger trx --results-directory artifacts/capture-encode-probe --blame-hang-timeout 90s
       - name: Keep capture probe evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: capture-encode-probe-evidence
           path: artifacts/capture-encode-probe/**
@@ -212,11 +212,11 @@ jobs:
       DOTNET_NOLOGO: '1'
     steps:
       - name: Check out source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install pinned .NET SDK
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
           cache: true
@@ -233,7 +233,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Performance harness failed.' }
       - name: Keep synthetic performance evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: performance-harness-evidence
           path: artifacts/performance-harness.txt
@@ -251,11 +251,11 @@ jobs:
       actions: read
     steps:
       - name: Check out source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install pinned .NET SDK
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
       - name: Download, verify and smoke-test exact draft asset
@@ -268,7 +268,7 @@ jobs:
         run: ./scripts/smoke-draft-release.ps1 -ReleaseId $env:GAMEVAULT_DRAFT_RELEASE_ID
       - name: Keep exact draft smoke evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: exact-draft-asset-smoke-evidence
           path: artifacts/draft-asset-smoke/*
