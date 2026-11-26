@@ -239,6 +239,15 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] **More details**, **Store tags, features and languages**, **Full description**, **System requirements**, **Links and store screenshots** and **Manage game information** open on demand, stay open when you move to another game, and hold everything that was on the page before. Refresh info, Edit description and Not the right game? still work.
 - [ ] A game whose backup failed shows a warning with **Open Saves**; a healthy game shows none. Games with little information have no empty sections. Readable in several themes and at a narrow window.
 
+## 8t. Steam hours (issue #62)
+
+- [ ] A game installed by Steam: open **Steam hours** on its page, **Link Steam hours…**, **Link**. The hours match what Steam shows; the top card shows the total with **GameVault** and **Steam** under it.
+- [ ] With two Steam accounts that played it, you must pick one before **Link** is enabled.
+- [ ] A copy outside Steam with the same name (after Refresh info): both games are shown side by side and **Yes, same game** links it. With a different name it cannot be linked.
+- [ ] The total equals the **GameVault** figure plus the **Steam** figure, and **How long to beat** progress uses it. After playing and restarting GameVault, each figure is up to date.
+- [ ] Rename a linked non-Steam copy: the section says it needs attention and the Steam hours are not counted. **Unlink** removes them; your sessions are unchanged.
+- [ ] A game with no Steam match shows no Steam section.
+
 ## 8u. Confirm the save folder (issue #84)
 
 - [ ] A game whose save folder was only found by name: the alert, bell, game page and Saves tab say **Confirm the save folder** (not that the backup failed), and **Manage save sources** stands out. **Review** on the alert opens Manage save sources.

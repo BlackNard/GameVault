@@ -22,7 +22,7 @@ public partial class MainWindow
         service.FactsUpdated += (_, id) =>
         {
             if (Dispatcher.HasShutdownStarted) return;
-            _ = Dispatcher.InvokeAsync(() => { if (GameList.SelectedItem is LibraryItemView open && open.Game.Id == id) _ = RefreshAboutAsync(open); });
+            _ = Dispatcher.InvokeAsync(() => { if (GameList.SelectedItem is LibraryItemView open && open.Game.Id == id) { _ = RefreshAboutAsync(open); _ = RefreshSteamAsync(open); } });
         };
         return service;
     }
