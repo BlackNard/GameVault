@@ -139,6 +139,7 @@ public partial class MainWindow
     private void RenderTimeToBeat(GameMetadataDocument? document, long? playedSeconds)
     {
         var times = document?.Get(MetadataField.TimeToBeat)?.Times;
+        shownTimes = (times, aboutFor, playedSeconds);
         TimeToBeatCards.Children.Clear();
         TimeToBeatBlock.Visibility = times is { HasAny: true } ? Visibility.Visible : Visibility.Collapsed;
         if (times is not { HasAny: true }) return;
@@ -159,12 +160,21 @@ public partial class MainWindow
         Card("Main + extras", times.PlusSeconds);
         Card("Completionist", times.CompleteSeconds);
         Card("All play styles", times.AllSeconds);
-        var progress = GameOverviewRules.Progress(playedSeconds, times.MainSeconds, times.AllSeconds);
-        TimeProgressBar.Visibility = TimeProgressText.Visibility = progress is null ? Visibility.Collapsed : Visibility.Visible;
-        if (progress is { } own) { TimeProgressBar.Value = own.Share; TimeProgressText.Text = own.Text; }
+        ShowTimeProgress();
         var link = times.Url is { } url && GameMetadataDocument.SafeLink(url) ? url : null;
         TimeToBeatLink.Tag = TimeToBeatLink.ToolTip = link;
         TimeToBeatLink.Visibility = link is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private (BeatTimes? Times, Guid Game, long? Played) shownTimes;
+
+    /// <summary>Your progress against the averages; with an active Steam link it uses the combined total, like the card at the top.</summary>
+    private void ShowTimeProgress()
+    {
+        if (shownTimes.Times is not { HasAny: true } times) return;
+        var progress = GameOverviewRules.Progress(ShownPlayedSeconds(shownTimes.Game, shownTimes.Played), times.MainSeconds, times.AllSeconds);
+        TimeProgressBar.Visibility = TimeProgressText.Visibility = progress is null ? Visibility.Collapsed : Visibility.Visible;
+        if (progress is { } own) { TimeProgressBar.Value = own.Share; TimeProgressText.Text = own.Text; }
     }
 
     private void TimeToBeatLinkClicked(object sender, RoutedEventArgs e)

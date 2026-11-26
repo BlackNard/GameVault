@@ -66,9 +66,13 @@ public partial class MainWindow
         }
     }
 
+    private long? ShownPlayedSeconds(Guid game, long? recorded) =>
+        game == steamFor && steamState?.Totals is { } totals ? totals.TotalSeconds : recorded;
+
     /// <summary>With an active link the top card shows the combined total, with both figures under it.</summary>
     private void ApplySteamTotal()
     {
+        ShowTimeProgress();
         if (GameList.SelectedItem is not LibraryItemView selected || selected.Game.Id != steamFor || steamState?.Totals is not { } totals)
         {
             HeroPlaytimeDetail.Visibility = Visibility.Collapsed;
