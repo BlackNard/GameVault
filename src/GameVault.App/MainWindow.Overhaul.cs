@@ -144,6 +144,7 @@ public partial class MainWindow
         Mark(SettingsNav, route.Kind == NavKind.Settings);
         Mark(BackupsNav, route.Kind == NavKind.Backups);
         Mark(CapturesNav, route.Kind == NavKind.Captures);
+        Mark(StatisticsNav, route.Kind == NavKind.Statistics);
     }
 
     private async void RecentClicked(object sender, RoutedEventArgs e)

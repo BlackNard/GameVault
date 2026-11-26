@@ -209,7 +209,7 @@ public partial class MainWindow : Window
         GamePage.Visibility=Visibility.Collapsed;
         LibraryPanel.Visibility = showLibrary ? Visibility.Visible : Visibility.Collapsed;
         SettingsPanel.Visibility = showLibrary ? Visibility.Collapsed : Visibility.Visible;
-        OverviewPanel.Visibility = Visibility.Collapsed;
+        OverviewPanel.Visibility = StatisticsPanel.Visibility = Visibility.Collapsed;
         if(!showLibrary){_=RefreshBackupDestinationsAsync();RefreshSavedViewsManager();RefreshMetadataSettingsUi();RefreshSaveDatabaseStatus();}
         else if(IsLoaded)RestoreLibraryFocus();
         LibraryNav.SetResourceReference(Control.BorderBrushProperty, showLibrary ? "AppAccent" : "AppLine");
