@@ -20,7 +20,7 @@ public sealed class BackupService
     internal BackupService(ApplicationPaths paths,AppDataStore store,SaveDiscoveryService discovery,GameOperationLeases leases,Func<Guid,Task<bool>> isRunning,Action<string>? checkpoint)
     {this.paths=paths;this.store=store;this.discovery=discovery;this.leases=leases;this.isRunning=isRunning;this.checkpoint=checkpoint;storage=new(paths);}
     public bool IsWorking(Guid id)=>current.TryGetValue(id,out var value)&&value.Phase==BackupPhase.Working;
-    public Task<BackupResult> ReadAsync(Guid id)=>Task.Run(()=>
+    public Task<BackupResult> ReadAsync(Guid id)=>Task.Run(async()=>
     {
         if(current.TryGetValue(id,out var live)&&live.Phase==BackupPhase.Working)return live;
         try
@@ -28,6 +28,9 @@ public sealed class BackupService
             var latest=storage.Latest(id,default);var status=storage.ReadStatus(id);
             if(status.IsReadOnly)return new BackupResult(id,BackupPhase.Failed,status.Message??"Backup status needs recovery.",latest);
             if(latest is null&&status.Value?.Phase is BackupPhase.Complete or BackupPhase.Unchanged)return new(id,BackupPhase.Failed,"The previous backup is no longer available. No verified snapshot was found.");
+            // A request to confirm a folder is over once there is nothing left to confirm.
+            if(SaveConfirmation.IsNeeded(status.Value?.Message)&&(await discovery.ReadAsync(id).ConfigureAwait(false)).Phase!=SaveDiscoveryPhase.NeedsConfirmation)
+                return new(id,latest is null?BackupPhase.None:BackupPhase.Complete,latest is null?"No verified backup yet. Choose Back up now.":"Verified backup available.",latest);
             return new(id,status.Value?.Phase??(latest is null?BackupPhase.None:BackupPhase.Complete),status.Value?.Message??(latest is null?"No verified backup yet.":"Verified backup available."),latest);
         }
         catch(Exception e)when(Expected(e)){return new(id,BackupPhase.Failed,"Backup history needs attention. "+e.Message);}
@@ -60,6 +63,7 @@ public sealed class BackupService
                 }
             }
         }
+        catch(SaveConfirmationRequiredException e){result=new(id,BackupPhase.Failed,e.Message,last);}
         catch(Exception e)when(Expected(e)||e is OperationCanceledException)
         {result=new(id,BackupPhase.Failed,e is OperationCanceledException?"Backup canceled; earlier snapshots were preserved. Retry when ready.":"Backup could not finish. Earlier snapshots were preserved. Retry after resolving the source or storage problem. "+e.Message,last);}
         try{await Task.Run(()=>storage.WriteStatus(result)).ConfigureAwait(false);}

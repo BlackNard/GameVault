@@ -39,7 +39,9 @@ internal sealed class TrayIconHost:IDisposable
     public void Notify(BackupAlert alert)
     {
         if(!Available)return;balloonGameId=alert.GameId;
-        icon.ShowBalloonTip(8000,"GameVault backup needs attention",Clean(alert.GameName,80)+": saves were not backed up. Click to review save locations or retry in GameVault.",Forms.ToolTipIcon.Warning);
+        var confirm=GameVault.Core.SaveConfirmation.IsNeeded(alert.Message);
+        icon.ShowBalloonTip(8000,confirm?"GameVault: "+GameVault.Core.SaveConfirmation.Title:"GameVault backup needs attention",
+            Clean(alert.GameName,80)+(confirm?": click to confirm its save folder so it can be backed up.":": saves were not backed up. Click to review save locations or retry in GameVault."),Forms.ToolTipIcon.Warning);
     }
     private static string Clean(string value,int limit)=>new string(value.Replace('&',' ').Where(c=>!char.IsControl(c)).Take(limit).ToArray());
     public void Dispose()

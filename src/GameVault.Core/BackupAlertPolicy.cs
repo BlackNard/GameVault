@@ -1,6 +1,14 @@
 namespace GameVault.Core;
 
 public sealed record BackupAlert(Guid GameId,string GameName,string Message,DateTimeOffset CreatedAt);
+/// <summary>Nothing is broken: a save folder was found and only waits for the player's OK. The message itself is the marker, so the stored status keeps its
+/// existing shape and older versions still read it.</summary>
+public static class SaveConfirmation
+{
+    public const string Title="Confirm the save folder";
+    public const string Message=Title+". GameVault found it and needs your OK before it can back up: open Saves, then Manage save sources.";
+    public static bool IsNeeded(string? message)=>message==Message;
+}
 // Accessed by the UI dispatcher; no shell calls or timers are owned here.
 public sealed class BackupAlertPolicy
 {
