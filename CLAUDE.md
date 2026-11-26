@@ -40,6 +40,7 @@ PDFsharp stays at 6.2.3: it is the last release checked to be MIT-licensed, and 
   - Game page (`MainWindow.Metadata`, `.AboutDetails`, `GameOverviewRules`): only the essentials show by default; everything else sits in `QuietExpander` sections that remember their state per run.
   - Settings (`MainWindow.Settings`, `Core/SettingsCatalog`): category pages with a search. A new option goes on a `Cat<Key>` page **and** into `SettingsCatalog.Entries` with the control's name; a test checks both.
   - Rating (`StarRating`, `StarRatingControl`), capture gallery (`CaptureGallery`, `CaptureTile`, `ShellMedia` for Windows thumbnails, `MediaFolders`), online cover search filtering (`Artwork/WebCoverResults`: reads Google's result page, degrades to the plain page), profile import from another folder (`ProfileImporter`: add-only, never writes to the source), removing a cover (`cover-removed.marker` stops automatic lookups until Refresh info).
+  - Steam hours (`SteamHours`, `SteamLocalData`, `SteamHoursService`, `MainWindow.SteamHours`): read-only from Steam's `localconfig.vdf`; link guards are described in `docs/game-data-sources.md`. The total is GameVault plus Steam time (the owner's choice, even where Steam also counted a session). Never print Steam account identifiers.
   - Two library games can never share a program; a removed profile with that program may be restored or left beside a new one (`GameDraft.BesideRemoved`).
 - `GameVault.Capture`: lazy native capture backend (ScreenRecorderLib 7.0.1). Missing prerequisites must degrade gracefully and never block startup.
 
@@ -53,7 +54,7 @@ Data/settings.json  Data/backup-destinations.json  Data/capture-preferences.json
 Cache/ (downloaded save-location manifest)  Logs/gamevault.log  Logs/running.marker (exists while the app runs; a leftover means the last run ended unexpectedly)
 Profiles/<game name>/          (older GUID-named folders are renamed once at startup; the ID lives in profile.json and .gamevault-id)
   profile.json  statistics.json  launch.json?  save-discovery.json  capture-source.json?  metadata.json?  cover.png  hero.jpg|png?
-  rating.json?  cover-removed.marker?
+  rating.json?  cover-removed.marker?  steam-link.json?
   Sessions/  Corrections/  Notes/Sessions/  Notes/review.json  Media/<date and time>/ (hidden .session-id inside)  Backups/<dated-backup>/
 ```
 

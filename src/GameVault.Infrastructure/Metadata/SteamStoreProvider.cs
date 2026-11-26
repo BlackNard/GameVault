@@ -67,6 +67,18 @@ public sealed class SteamStoreProvider : IMatchSearchProvider, IDisposable
         };
     }
 
+    /// <summary>Name, developers and release year of one app, or null when Steam has no such app. Only the id is sent.</summary>
+    public async Task<SteamAppSummary?> SummaryAsync(string appId, CancellationToken cancellationToken)
+    {
+        if (!ValidId(appId)) return null;
+        var json = await GetBytesAsync($"https://store.steampowered.com/api/appdetails?appids={appId}&l=english", cancellationToken).ConfigureAwait(false);
+        if (Parse(json, appId) is not { } data) return null;
+        using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 16 });
+        var name = document.RootElement.GetProperty(appId).GetProperty("data").TryGetProperty("name", out var text) && text.ValueKind == JsonValueKind.String ? text.GetString() : null;
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 200) return null;
+        return new(appId, name.Trim(), data.Developers ?? [], data.ReleaseDate?.Year, $"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{appId}/header.jpg");
+    }
+
     private static bool ValidId(string? id) => id is { Length: > 0 and <= 10 } && id.All(char.IsAsciiDigit);
 
     /// <summary>Normalised title for matching: no trademark signs, case, spaces or punctuation.</summary>

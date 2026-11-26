@@ -140,7 +140,7 @@
       </Border>
       <TextBlock x:Name="LaunchNotice" Foreground="{DynamicResource AppAccent}" Margin="0,12,0,0" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
       <WrapPanel Margin="0,14,0,0">
-       <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppLine}" BorderThickness="1" CornerRadius="12" Padding="16,10" MinWidth="170" Margin="0,0,12,0"><StackPanel><TextBlock Text="Total playtime" Foreground="{DynamicResource AppMuted}" FontSize="12"/><TextBlock Text="{Binding Text, ElementName=DetailTime}" FontSize="20" FontWeight="SemiBold"/></StackPanel></Border>
+       <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppLine}" BorderThickness="1" CornerRadius="12" Padding="16,10" MinWidth="170" Margin="0,0,12,0"><StackPanel><TextBlock Text="Total playtime" Foreground="{DynamicResource AppMuted}" FontSize="12"/><TextBlock Text="{Binding Text, ElementName=DetailTime}" FontSize="20" FontWeight="SemiBold"/><TextBlock x:Name="HeroPlaytimeDetail" Visibility="Collapsed" Foreground="{DynamicResource AppMuted}" FontSize="12" Margin="0,2,0,0"/></StackPanel></Border>
        <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppLine}" BorderThickness="1" CornerRadius="12" Padding="16,10" MinWidth="170"><StackPanel><TextBlock Text="Latest session" Foreground="{DynamicResource AppMuted}" FontSize="12"/><TextBlock Text="{Binding Text, ElementName=SessionElapsed}" FontSize="20" FontWeight="SemiBold"/></StackPanel></Border>
        <Border x:Name="HeroRatingCard" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppLine}" BorderThickness="1" CornerRadius="12" Padding="16,10" MinWidth="170" Margin="12,0,0,0"><StackPanel><TextBlock Text="Your rating" Foreground="{DynamicResource AppMuted}" FontSize="12"/><local:StarRatingControl x:Name="HeroRating" HorizontalAlignment="Left" Margin="-3,0,0,0" ToolTip="Click a star to rate; click the same rating again to clear it"/></StackPanel></Border>
       </WrapPanel></StackPanel>
@@ -169,6 +169,19 @@
        </StackPanel>
        <TextBlock x:Name="AboutNotice" Foreground="{DynamicResource AppWarning}" TextWrapping="Wrap" Margin="0,8,0,0"/>
        <StackPanel x:Name="AboutDetails" Margin="0,10,0,0"/>
+       <Expander x:Name="SteamSection" Header="Steam hours" Style="{DynamicResource QuietExpander}" Visibility="Collapsed">
+        <StackPanel Margin="0,10,0,4">
+         <TextBlock x:Name="SteamStatus" TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,0,0,10" AutomationProperties.LiveSetting="Polite"/>
+         <WrapPanel x:Name="SteamCompare"/>
+         <ComboBox x:Name="SteamAccountChoice" Width="360" HorizontalAlignment="Left" Visibility="Collapsed" Margin="0,0,0,10" SelectionChanged="SteamAccountChosen" AutomationProperties.Name="Steam account"/>
+         <WrapPanel>
+          <Button x:Name="SteamFindButton" Content="Link Steam hours…" Click="SteamFindClicked" Margin="0,0,10,6"/>
+          <Button x:Name="SteamLinkButton" Content="Link" Style="{StaticResource PrimaryButton}" Click="SteamLinkClicked" Visibility="Collapsed" Margin="0,0,10,6"/>
+          <Button x:Name="SteamCancelButton" Content="Cancel" Click="SteamCancelClicked" Visibility="Collapsed" Margin="0,0,10,6"/>
+          <Button x:Name="SteamUnlinkButton" Content="Unlink" Click="SteamUnlinkClicked" Visibility="Collapsed" Margin="0,0,0,6" ToolTip="Remove the Steam hours from this game. Your recorded sessions stay as they are."/>
+         </WrapPanel>
+        </StackPanel>
+       </Expander>
        <Expander x:Name="ManageInfo" Header="Manage game information" Style="{DynamicResource QuietExpander}">
         <StackPanel Margin="0,10,0,4">
          <WrapPanel>
