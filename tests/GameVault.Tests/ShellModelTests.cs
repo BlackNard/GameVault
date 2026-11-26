@@ -73,6 +73,7 @@ public sealed class ShellModelTests
     [InlineData(NavKind.Settings, null, "Settings")]
     [InlineData(NavKind.Backups, null, "Backups")]
     [InlineData(NavKind.Captures, null, "Captures")]
+    [InlineData(NavKind.Statistics, null, "Statistics")]
     [InlineData(NavKind.Game, "Overview", "Library › TEKKEN 8")]
     [InlineData(NavKind.Game, "Sessions", "Library › TEKKEN 8 › Sessions & notes")]
     [InlineData(NavKind.Game, "Saves", "Library › TEKKEN 8 › Saves")]

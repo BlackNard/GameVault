@@ -3,10 +3,10 @@ namespace GameVault.Infrastructure.Storage;
 public sealed partial class AppDataStore
 {
     private const string CorrectionPrefix = "GameVault session correction ";
-    public Task<HistoryData> LoadHistoryAsync(Guid id) => Run(() =>
+    public Task<HistoryData> LoadHistoryAsync(Guid id, bool includeJournals = true) => Run(() =>
     {
         var game=LoadProfile(id); var warnings=new List<string>(); StoredSession[] journals=[]; TimeCorrection[] corrections=[];
-        try { journals=LoadSessions(id); } catch(Exception e) when(e is IOException or UnauthorizedAccessException) { warnings.Add("Session journals cannot be read safely. "+e.Message); }
+        try { if(includeJournals) journals=LoadSessions(id); } catch(Exception e) when(e is IOException or UnauthorizedAccessException) { warnings.Add("Session journals cannot be read safely. "+e.Message); }
         try { corrections=ReadCorrections(id); } catch(Exception e) when(e is IOException or UnauthorizedAccessException) { warnings.Add(e.Message); }
         if(game.Profile.Message is string message) warnings.Add(message);
         warnings.AddRange(journals.Where(j=>j.Document.Message is not null).Select(j=>j.Document.Message!));

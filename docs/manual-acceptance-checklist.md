@@ -253,6 +253,13 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] A game whose save folder was only found by name: the alert, bell, game page and Saves tab say **Confirm the save folder** (not that the backup failed), and **Manage save sources** stands out. **Review** on the alert opens Manage save sources.
 - [ ] After confirming, the old request disappears from the game page, and **Back up now** makes a backup.
 
+## 8v. Statistics, first stage (issue #61)
+
+- [ ] **Statistics** in the sidebar (and in Ctrl+K) opens the page; Back/Forward and the other sidebar pages work from it.
+- [ ] Today, week, month, year and All time show believable figures against your sessions; the week starts on your Windows first day. Steam hours appear only in All time.
+- [ ] **Most played** lists the right games; clicking one opens it; a removed game is marked and still counted.
+- [ ] Streaks, the three hours charts (hover a bar for its figure) and **Compare months or years** read correctly in several themes and a narrow window.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.
