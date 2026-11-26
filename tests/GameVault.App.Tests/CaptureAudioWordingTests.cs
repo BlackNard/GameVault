@@ -51,9 +51,12 @@ public sealed class CaptureAudioWordingTests
             }
             var box = All<CheckBox>(view).Distinct().Single();
             Assert.Equal("Record game audio (Windows 11)", box.Content);
-            var notes = All<TextBlock>(view).Distinct().Select(t => t.Text).ToArray();
-            Assert.Contains(notes, t => t.Contains("Unchecked means the video is silent") && t.Contains("never the microphone"));
-            Assert.DoesNotContain(notes, t => t.Contains("Record only this game's audio"));
+            var help = System.Windows.Automation.AutomationProperties.GetHelpText(box);
+            Assert.Contains("Off means the video is silent", help);
+            Assert.Contains("never the microphone", help);
+            Assert.DoesNotContain("Record only this game's audio", help);
+            // Only short texts are shown; the explanations are on hover.
+            Assert.All(All<TextBlock>(view).Distinct(), t => Assert.True(t.Text.Length <= 110, t.Text));
         } catch (Exception e) { failure = e; } });
         thread.SetApartmentState(ApartmentState.STA); thread.Start();
         Assert.True(thread.Join(TimeSpan.FromSeconds(20)));
