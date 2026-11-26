@@ -1,14 +1,14 @@
 name: Windows verification and private draft assets
 
+# Pull requests run only the quick `verify` job. The long checks (installer, capture probe, performance) and the release bundle run when a release is
+# prepared: dispatch this workflow on main with no input. Dispatch it with `draft_release_id` to smoke-test that draft.
 on:
   workflow_dispatch:
     inputs:
       draft_release_id:
-        description: 'Optional unpublished private draft ID to download and smoke-test'
+        description: 'Leave empty to run the full release checks; give an unpublished draft ID to smoke-test only that draft'
         required: false
         type: string
-  push:
-    branches: [main, 'feature/**']
   pull_request:
     branches: [main]
 
@@ -16,8 +16,60 @@ permissions:
   contents: read
 
 jobs:
-  # Build, tests, installer and release-bundle checks. The PR gate is the `verify` job below.
+  # The pull request check: personal-address audit, restore/build/tests/publish and the source audit.
+  verify:
+    if: github.event_name == 'pull_request'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      GAMEVAULT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Check that commits expose no personal e-mail address
+        shell: pwsh
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          # After a force-push the "before" commit no longer exists; then fall back to the last 50 commits instead of failing.
+          $beforeUsable = $false
+          if ($env:PUSH_BEFORE -and $env:PUSH_BEFORE -notmatch '^0+$') { git cat-file -e "$($env:PUSH_BEFORE)^{commit}" 2>$null; $beforeUsable = ($LASTEXITCODE -eq 0) }
+          if ($env:PR_BASE) { ./scripts/audit-commit-emails.ps1 -Range "$($env:PR_BASE)..$($env:GAMEVAULT_HEAD_SHA)" }
+          elseif ($beforeUsable) { ./scripts/audit-commit-emails.ps1 -Range "$($env:PUSH_BEFORE)..$($env:GAMEVAULT_HEAD_SHA)" }
+          else { ./scripts/audit-commit-emails.ps1 }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            **/packages.lock.json
+            global.json
+      - name: Build, test, and verify self-contained publish
+        shell: pwsh
+        run: ./scripts/verify.ps1
+      - name: Audit reachable source history
+        shell: pwsh
+        run: ./scripts/audit-release-source.ps1
+      - name: Keep test evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: pull-request-test-evidence
+          path: artifacts/test-results-*/*.trx
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Release checks: build, tests, installer and release bundle.
   build:
+    if: github.event_name == 'workflow_dispatch' && inputs.draft_release_id == ''
     name: Build, test, installer and release bundle
     runs-on: windows-latest
     timeout-minutes: 20
@@ -105,8 +157,9 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # Independent of the release bundle, so it runs in parallel with `verify`.
+  # Release check, in parallel with the bundle.
   capture-encode-probe:
+    if: github.event_name == 'workflow_dispatch' && inputs.draft_release_id == ''
     runs-on: windows-latest
     timeout-minutes: 20
     env:
@@ -149,8 +202,9 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # The slowest step by far; independent of the release bundle, so it runs in parallel with `verify`.
+  # Release check, the slowest one, in parallel with the bundle.
   performance-harness:
+    if: github.event_name == 'workflow_dispatch' && inputs.draft_release_id == ''
     runs-on: windows-latest
     timeout-minutes: 20
     env:
@@ -186,26 +240,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # The single required PR check: passes only when every parallel job above passed.
-  verify:
-    needs: [build, capture-encode-probe, performance-harness]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Require every verification job to have succeeded
-        shell: bash
-        env:
-          RESULTS: ${{ join(needs.*.result, ' ') }}
-        run: |
-          echo "Job results: $RESULTS"
-          for r in $RESULTS; do
-            if [ "$r" != "success" ]; then echo "A verification job did not succeed ($r)."; exit 1; fi
-          done
-
   draft-asset-smoke:
     if: github.event_name == 'workflow_dispatch' && inputs.draft_release_id != ''
-    needs: verify
     runs-on: windows-latest
     timeout-minutes: 15
     # GitHub draft visibility requires push access. Script only reads an existing
