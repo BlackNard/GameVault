@@ -61,4 +61,4 @@ Hours come only from Steam's own files on the PC, read-only: `userdata/<account>
 
 Linking guards: a program inside a Steam install folder (its `appmanifest`) links to that app. Any other copy can be linked only to the app id the information lookup found, and only when the profile name equals Steam's title (ignoring case, spaces and punctuation); the public store page is asked for that id so both games are shown side by side before the player confirms. One Steam game links to one library game. Renaming the game or changing its program checks the link again; a link that no longer matches stops counting.
 
-Total: time Steam also saw (sessions started through Steam) is covered by the larger of Steam's figure and GameVault's record; other time is added. Sessions recorded before this feature, and typed-in adjustments, count as seen by Steam only for a link proven by the install folder.
+Total: GameVault's recorded time plus Steam's figure (the owner's choice). A session started through Steam appears in both, so it counts in each.

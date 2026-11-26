@@ -16,15 +16,12 @@ public sealed class SessionRecorder
     private readonly Dictionary<Guid, (long Awake, DateTimeOffset Utc)> endpoints = [];
     public SessionRecorder(AppDataStore store, IPlaytimeClock clock) { this.store = store; this.clock = clock; }
 
-    /// <returns>The new session's id.</returns>
-    public async Task<Guid> BeginAsync(Guid gameId, string executable, IGameProcess process, string? groupName = null)
+    public async Task BeginAsync(Guid gameId, string executable, IGameProcess process, string? groupName = null)
     {
         var now = clock.UtcNow;
         var awake = clock.AwakeTicks;
-        var sessionId = Guid.NewGuid();
-        await BeginCore(new(1, gameId, sessionId, now, now, 0, SessionState.Active,
+        await BeginCore(new(1, gameId, Guid.NewGuid(), now, now, 0, SessionState.Active,
             process.Identity.Id, process.Identity.CreatedUtcTicks, executable, groupName ?? process.RecoveryGroupName, 0), awake).ConfigureAwait(false);
-        return sessionId;
     }
 
     public Task ResumeAsync(SessionJournal journal, IGameProcess process, string? groupName = null)

@@ -217,42 +217,15 @@ public sealed class SteamHoursTests : IDisposable
         new(1, game, "100", "111", "Alpha", confirmed, @"C:\games\alpha.exe", minutes, DateTimeOffset.UnixEpoch);
 
     [Fact]
-    public void TimePlayedThroughSteamIsNotCountedTwice()
+    public void TheTotalAddsSteamHoursToGameVaultHours()
     {
-        var game = Guid.NewGuid(); var viaSteam = Guid.NewGuid(); var direct = Guid.NewGuid();
-        var statistics = Played(game, 0, (viaSteam, 3600), (direct, 1800));
-        var origins = new SessionOrigins(1, game, [viaSteam], [direct]);
-        Assert.Equal(new PlaytimeTotals(5400, 6000, 7800), SteamHours.Totals(Link(game, false, 100), statistics, origins));
-        // Steam's figure is older than GameVault's own record: the larger of the two is used.
-        Assert.Equal(new PlaytimeTotals(5400, 600, 5400), SteamHours.Totals(Link(game, false, 10), statistics, origins));
-        // What was recorded as direct stays added, even when the link is for a copy outside Steam.
-        Assert.Equal(new PlaytimeTotals(5400, 6000, 7800), SteamHours.Totals(Link(game, true, 100), statistics, origins));
-    }
-
-    [Fact]
-    public void TimeOfUnknownOriginFollowsTheKindOfLink()
-    {
+        // The owner's choice (ticket #62): both figures are added, for any kind of link.
         var game = Guid.NewGuid();
-        var statistics = Played(game, 600, (Guid.NewGuid(), 3600));
-        // Program inside Steam: Steam saw that time already (typed-in adjustments included).
-        Assert.Equal(6000, SteamHours.Totals(Link(game, false, 100), statistics, null).TotalSeconds);
-        // A copy outside Steam: Steam never saw it.
-        Assert.Equal(10200, SteamHours.Totals(Link(game, true, 100), statistics, null).TotalSeconds);
+        var statistics = Played(game, 600, (Guid.NewGuid(), 3600), (Guid.NewGuid(), 1800));
+        Assert.Equal(new PlaytimeTotals(6000, 6000, 12000), SteamHours.Totals(Link(game, false, 100), statistics));
+        Assert.Equal(new PlaytimeTotals(6000, 6000, 12000), SteamHours.Totals(Link(game, true, 100), statistics));
         var negative = Played(game, -4000, (Guid.NewGuid(), 3600));
-        Assert.Equal(6000, SteamHours.Totals(Link(game, false, 100), negative, null).TotalSeconds);
-    }
-
-    [Fact]
-    public async Task SessionOriginsAreRememberedOnce()
-    {
-        var game = await AddAsync("Alpha", installedExe);
-        var steamSession = Guid.NewGuid(); var direct = Guid.NewGuid();
-        await store.RecordSessionOriginAsync(game.Id, steamSession, true);
-        await store.RecordSessionOriginAsync(game.Id, direct, false);
-        await store.RecordSessionOriginAsync(game.Id, steamSession, true);
-        var origins = (await store.LoadSessionOriginsAsync(game.Id)).Value!;
-        Assert.Equal([steamSession], origins.Steam);
-        Assert.Equal([direct], origins.Other);
+        Assert.Equal(new PlaytimeTotals(0, 6000, 6000), SteamHours.Totals(Link(game, false, 100), negative));
     }
 
     // ---------- keeping the figure up to date, unlinking, backups ----------

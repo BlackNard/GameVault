@@ -29,8 +29,7 @@ public sealed class SteamHoursService(AppDataStore store, SteamLocalData steam, 
             return new(link, false, null, $"This game no longer matches “{link.SteamName}” on Steam, so Steam hours are not counted. Unlink it, then link it again.");
         if (await HolderAsync(link.AppId, id).ConfigureAwait(false) is { } other)
             return new(link, false, null, $"“{other}” is linked to the same Steam game. Unlink one of them.");
-        var origins = (await store.LoadSessionOriginsAsync(id).ConfigureAwait(false)).Value;
-        return new(link, true, SteamHours.Totals(link, statistics, origins), null);
+        return new(link, true, SteamHours.Totals(link, statistics), null);
     }
 
     /// <summary>Whether it is worth showing the Steam section at all. Local files only.</summary>

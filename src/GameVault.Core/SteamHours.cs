@@ -11,13 +11,6 @@ public sealed record SteamLink(int SchemaVersion, Guid GameId, string AppId, str
         value.SteamName is { Length: > 0 and <= 200 } && value.ExecutablePath is { Length: > 0 and <= 1000 } && value.Minutes is >= 0 and <= 60_000_000;
 }
 
-/// <summary>How each recorded session was started (Profiles/&lt;game&gt;/session-origins.json): Steam counts the ones started through it.</summary>
-public sealed record SessionOrigins(int SchemaVersion, Guid GameId, Guid[] Steam, Guid[] Other)
-{
-    public static bool IsValid(SessionOrigins value, Guid gameId) => value is { SchemaVersion: 1, Steam: not null, Other: not null } && value.GameId == gameId &&
-        value.Steam.Concat(value.Other).Distinct().Count() == value.Steam.Length + value.Other.Length;
-}
-
 public sealed record PlaytimeTotals(long GameVaultSeconds, long SteamSeconds, long TotalSeconds);
 
 /// <summary>What the Steam store says about one app, shown so the player can compare it with their profile.</summary>
@@ -44,21 +37,12 @@ public static class SteamHours
     }
 
     /// <summary>
-    /// GameVault and Steam hours, and a total that never counts the same time twice: time Steam also saw is covered by the larger of the two figures,
-    /// time Steam did not see is added. Time of unknown origin (older sessions, typed-in adjustments) counts as seen by Steam only for a proven link.
+    /// GameVault and Steam hours, and their sum as the total (the owner's choice, issue #62). Time that Steam also recorded is therefore in both figures.
     /// </summary>
-    public static PlaytimeTotals Totals(SteamLink link, GameStatistics statistics, SessionOrigins? origins)
+    public static PlaytimeTotals Totals(SteamLink link, GameStatistics statistics)
     {
-        var steamIds = origins?.Steam.ToHashSet() ?? [];
-        var otherIds = origins?.Other.ToHashSet() ?? [];
-        long seen = 0, unseen = 0, unknown = statistics.Adjustments.Sum(a => a.Seconds);
-        foreach (var session in statistics.Sessions)
-            if (steamIds.Contains(session.Id)) seen += session.DurationSeconds;
-            else if (otherIds.Contains(session.Id)) unseen += session.DurationSeconds;
-            else unknown += session.DurationSeconds;
-        var recorded = seen + unseen + unknown;
-        if (link.Confirmed) unseen += unknown; else seen += unknown;
+        var recorded = Math.Max(0, statistics.Sessions.Sum(s => s.DurationSeconds) + statistics.Adjustments.Sum(a => a.Seconds));
         var steam = link.Minutes * 60;
-        return new(Math.Max(0, recorded), steam, Math.Max(0, Math.Max(steam, Math.Max(0, seen)) + unseen));
+        return new(recorded, steam, recorded + steam);
     }
 }
