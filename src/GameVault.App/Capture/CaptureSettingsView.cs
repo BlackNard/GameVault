@@ -7,8 +7,7 @@ public sealed class CaptureSettingsView:UserControl
 {
     private readonly ComboBox resolution=new(){Width=130,HorizontalAlignment=HorizontalAlignment.Left};
     private readonly ComboBox rate=new(){Width=100,HorizontalAlignment=HorizontalAlignment.Left};
-    private readonly CheckBox audio=new(){Content="Record game audio (Windows 11)",Margin=new(0,8,0,2)};
-    private readonly TextBlock audioNote=new(){Text="Unchecked means the video is silent. Only the game's own sound is recorded: never other apps, never the microphone.",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,8),Opacity=0.8};
+    private readonly CheckBox audio=new(){Content="Record game audio (Windows 11)",FontSize=14.5};
     private readonly Dictionary<CaptureCommand,(ComboBox Modifier,ComboBox Key)> shortcuts=[];
     private readonly StackPanel inputs=new();
     private readonly TextBlock notice=new(){TextWrapping=TextWrapping.Wrap,Margin=new(0,8,0,8)};
@@ -17,27 +16,32 @@ public sealed class CaptureSettingsView:UserControl
     public event EventHandler? InstallRuntimeRequested;
     public CaptureSettingsView()
     {
-        inputs.Children.Add(new TextBlock{Text="Capture and shortcuts",FontSize=22,FontWeight=FontWeights.SemiBold,Margin=new(0,0,0,12)});
-        inputs.Children.Add(new TextBlock{Text="PNG screenshots · MP4 H.264 video. Microphone capture is never enabled.",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,12)});
-        inputs.Children.Add(new TextBlock{Text="These settings are for GameVault's own recorder. On a PC with NVIDIA App, a game can record with NVIDIA instead (choose it on the game's Media tab); GameVault then copies the clips into that game's profile.",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,12)});
-        inputs.Children.Add(new TextBlock{Text="Shortcuts only work while a tracked game is running. If your GPU overlay (NVIDIA, AMD), Steam or Xbox Game Bar uses the same keys, choose different ones here.",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,12)});
         resolution.ItemsSource=new[]{"720p","1080p"};rate.ItemsSource=new[]{"30 fps","60 fps"};
-        inputs.Children.Add(new Label{Content="Video size"});inputs.Children.Add(resolution);inputs.Children.Add(new Label{Content="Frame rate"});inputs.Children.Add(rate);
-        inputs.Children.Add(new TextBlock{Text="60 fps costs roughly twice the GPU time of 30 fps. If a game stutters while GameVault records, choose 30 fps, or record with NVIDIA App (game's Media tab).",TextWrapping=TextWrapping.Wrap,Margin=new(0,4,0,0),Opacity=0.8});
-        inputs.Children.Add(audio);inputs.Children.Add(audioNote);
+        System.Windows.Automation.AutomationProperties.SetName(resolution,"Video size");System.Windows.Automation.AutomationProperties.SetName(rate,"Frame rate");
+        inputs.Children.Add(Row("Video size",resolution,"GameVault's own recorder saves MP4 (H.264) video and PNG screenshots. A game can record with NVIDIA App instead, on its Media tab."));
+        inputs.Children.Add(Row("Frame rate",rate,"60 fps costs about twice the graphics power of 30. If a game stutters while recording, choose 30 fps or NVIDIA App.",true));
+        audio.SetResourceReference(StyleProperty,"SettingSwitch");
+        inputs.Children.Add(Framed(audio,"Only the game's own sound is recorded: never other apps, never the microphone. Off means the video is silent."));
+
+        var keys=new WrapPanel();
         foreach(var command in Enum.GetValues<CaptureCommand>())
         {
             var label=command switch{CaptureCommand.Screenshot=>"Screenshot",CaptureCommand.Recording=>"Recording toggle",_=>"Controls toggle"};
-            inputs.Children.Add(new TextBlock{Text=label,Margin=new(0,8,0,4)});
-            var modifier=new ComboBox{Width=180,Margin=new(0,0,8,0),ItemsSource=new[]{new ModChoice("Alt",1),new ModChoice("Ctrl",2),new ModChoice("Ctrl + Alt",3),new ModChoice("Ctrl + Shift",6),new ModChoice("Alt + Shift",5),new ModChoice("Ctrl + Alt + Shift",7)}};
-            var key=new ComboBox{Width=90,ItemsSource=Enumerable.Range(1,12).Select(number=>"F"+number).Concat(Enumerable.Range(0x41,26).Select(value=>((char)value).ToString())).ToArray()};
+            var modifier=new ComboBox{Width=150,Margin=new(0,0,6,0),ItemsSource=new[]{new ModChoice("Alt",1),new ModChoice("Ctrl",2),new ModChoice("Ctrl + Alt",3),new ModChoice("Ctrl + Shift",6),new ModChoice("Alt + Shift",5),new ModChoice("Ctrl + Alt + Shift",7)}};
+            var key=new ComboBox{Width=86,ItemsSource=Enumerable.Range(1,12).Select(number=>"F"+number).Concat(Enumerable.Range(0x41,26).Select(value=>((char)value).ToString())).ToArray()};
             System.Windows.Automation.AutomationProperties.SetName(modifier,label+" modifiers");System.Windows.Automation.AutomationProperties.SetName(key,label+" function key");
-            var row=new StackPanel{Orientation=Orientation.Horizontal};row.Children.Add(modifier);row.Children.Add(key);inputs.Children.Add(row);shortcuts.Add(command,(modifier,key));
+            var pair=new StackPanel{Orientation=Orientation.Horizontal};pair.Children.Add(modifier);pair.Children.Add(key);
+            var column=new StackPanel{Margin=new(0,0,18,6)};column.Children.Add(Muted(label));column.Children.Add(pair);keys.Children.Add(column);shortcuts.Add(command,(modifier,key));
         }
-        inputs.Children.Add(apply);var root=new StackPanel();root.Children.Add(inputs);notice.SetResourceReference(TextBlock.ForegroundProperty,"AppMuted");root.Children.Add(notice);
-        root.Children.Add(new TextBlock{Text="Floating controls work with windowed and borderless games. For unsupported exclusive-fullscreen/elevated games, use launcher controls or shortcuts. Monitor capture is a separate explicit choice.",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,12)});
-        var runtime=new Button{Content="Install capture runtime…",HorizontalAlignment=HorizontalAlignment.Left};runtime.Click+=(_,_)=>InstallRuntimeRequested?.Invoke(this,EventArgs.Empty);root.Children.Add(runtime);
-        root.Children.Add(new TextBlock{Text="If capture reports missing components, this opens the bundled Microsoft Visual C++ x64 setup and may ask for administrator approval. Windows N/KN also needs Microsoft's Media Feature Pack.",TextWrapping=TextWrapping.Wrap,Margin=new(0,8,0,24)});
+        var shortcutRows=new StackPanel();var heading=Title("Shortcuts",true);heading.Margin=new(0,0,0,10);shortcutRows.Children.Add(heading);shortcutRows.Children.Add(keys);
+        inputs.Children.Add(Framed(shortcutRows,"They work only while a tracked game runs. Change them if an overlay, Steam or Xbox Game Bar uses the same keys. Floating controls need a windowed or borderless game."));
+        inputs.Children.Add(apply);
+        var root=new StackPanel();root.Children.Add(inputs);notice.SetResourceReference(TextBlock.ForegroundProperty,"AppMuted");root.Children.Add(notice);
+
+        var runtime=new Button{Content="Install capture runtime…",HorizontalAlignment=HorizontalAlignment.Left,Margin=new(0,10,0,6)};runtime.Click+=(_,_)=>InstallRuntimeRequested?.Invoke(this,EventArgs.Empty);
+        SettingHelp.SetText(runtime,"Use this if capture reports missing components. Windows N and KN also need Microsoft's Media Feature Pack.");
+        var help=new StackPanel();help.Children.Add(runtime);help.Children.Add(Muted("Opens Microsoft's Visual C++ setup, which may ask for administrator approval."));
+        var troubleshooting=new Expander{Header="Troubleshooting",Content=help};troubleshooting.SetResourceReference(StyleProperty,"QuietExpander");root.Children.Add(troubleshooting);
         apply.Click+=(_,_)=>
         {
             try
@@ -54,6 +58,24 @@ public sealed class CaptureSettingsView:UserControl
         resolution.SelectedIndex=value.Height==720?0:1;rate.SelectedIndex=value.FramesPerSecond==60?1:0;audio.IsChecked=value.GameAudio;
         foreach(var (command,binding) in new[]{(CaptureCommand.Screenshot,value.Screenshot),(CaptureCommand.Recording,value.Recording),(CaptureCommand.Overlay,value.Overlay)})
         {var row=shortcuts[command];row.Modifier.SelectedItem=row.Modifier.Items.Cast<ModChoice>().FirstOrDefault(item=>item.Value==binding.Modifiers);row.Key.SelectedIndex=binding.VirtualKey>=0x70?binding.VirtualKey-0x70:12+binding.VirtualKey-0x41;}
+    }
+    private static TextBlock Muted(string text){var block=new TextBlock{Text=text,TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,4),FontSize=12.5};block.SetResourceReference(TextBlock.ForegroundProperty,"AppMuted");return block;}
+    private static StackPanel Title(string text,bool mark)
+    {
+        var line=new StackPanel{Orientation=Orientation.Horizontal,VerticalAlignment=VerticalAlignment.Center};
+        line.Children.Add(new TextBlock{Text=text,FontSize=14.5,TextWrapping=TextWrapping.Wrap});
+        if(mark){var info=new TextBlock{Text="\uE946"};info.SetResourceReference(StyleProperty,"SettingInfo");line.Children.Add(info);}
+        return line;
+    }
+    /// <summary>One option in the same card the other Settings pages use, with its explanation on hover.</summary>
+    private static Border Framed(UIElement content,string help)
+    {
+        var row=new Border{Child=content};row.SetResourceReference(StyleProperty,"SettingRow");SettingHelp.SetText(row,help);return row;
+    }
+    private static Border Row(string title,Control control,string help,bool mark=false)
+    {
+        var line=new DockPanel();DockPanel.SetDock(control,Dock.Right);control.Margin=new(16,0,0,0);line.Children.Add(control);line.Children.Add(Title(title,mark));
+        return Framed(line,help);
     }
     public void SetNotice(string text)=>notice.Text=text;
     public void SetEditingEnabled(bool enabled)=>inputs.IsEnabled=enabled;

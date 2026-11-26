@@ -21,6 +21,19 @@ public sealed class SettingsCatalogTests
     [InlineData("auto update", "Install updates automatically")]
     public void SearchFindsOptionsByTitleOrKeyword(string query, string expected) => Assert.Equal(expected, SettingsCatalog.Search(query)[0].Title);
 
+    // The explanations moved to hover help (issue #77); the search must still find an option by their wording.
+    [Theory]
+    [InlineData("silent microphone", "Recorder, video and audio")]
+    [InlineData("stutters", "Recorder, video and audio")]
+    [InlineData("xbox overlay", "Capture shortcuts")]
+    [InlineData("runtime administrator", "Capture troubleshooting")]
+    [InlineData("cover automatically", "Game information sources")]
+    [InlineData("replaced", "Restore from a backup")]
+    [InlineData("replace the whole library", "Restore from a backup")]
+    [InlineData("redacted", "Diagnostics package")]
+    public void SearchStillFindsOptionsByTheHiddenExplanations(string query, string expected) =>
+        Assert.Contains(SettingsCatalog.Search(query), entry => entry.Title == expected);
+
     [Fact]
     public void SearchNeedsEveryWordAndNothingTypedFindsNothing()
     {

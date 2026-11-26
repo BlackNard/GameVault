@@ -181,6 +181,7 @@ public partial class MainWindow
         try { current = await Metadata.LoadSettingsAsync(); readOnly = await Metadata.SettingsReadOnlyAsync(); }
         catch (Exception error) when (IsExpected(error)) { current = MetadataSettings.Default; readOnly = true; }
         MetadataFields.Children.Clear();
+        MetadataFieldRows.Children.Clear();
         var capable = Metadata.CapableProviders();
         var names = Metadata.Providers.ToDictionary(p => p.Id, p => p.DisplayName);
 
@@ -189,11 +190,14 @@ public partial class MainWindow
             try { await Metadata.SaveSettingsAsync(next); current = next; }
             catch (Exception error) when (IsExpected(error)) { ShowToast("Could not save the settings", error.Message, true); }
         }
-        var onlyEmpty = new CheckBox { Content = "Only fill fields that are empty (never replace a value that is already there)", IsChecked = current.OnlyFillEmpty, IsEnabled = !readOnly, Margin = new Thickness(0, 0, 0, 8) };
+        var onlyEmpty = new CheckBox { Content = "Only fill empty fields", IsChecked = current.OnlyFillEmpty, IsEnabled = !readOnly, Margin = new Thickness(0, 0, 0, 8) };
+        SettingHelp.SetText(onlyEmpty, "A value that is already there is never replaced.");
         onlyEmpty.Click += (_, _) => Save(current with { OnlyFillEmpty = onlyEmpty.IsChecked == true });
-        var onDisk = new CheckBox { Content = "Measure install size as size on disk (whole 4 KB clusters)", IsChecked = current.SizeOnDisk, IsEnabled = !readOnly, Margin = new Thickness(0, 0, 0, 12) };
+        var onDisk = new CheckBox { Content = "Measure install size on disk", IsChecked = current.SizeOnDisk, IsEnabled = !readOnly, Margin = new Thickness(0, 0, 0, 12) };
+        SettingHelp.SetText(onDisk, "Counts whole 4 KB clusters, as Windows does.");
         onDisk.Click += (_, _) => Save(current with { SizeOnDisk = onDisk.IsChecked == true });
-        var automatic = new CheckBox { Content = "Look up information and a missing Steam cover automatically for new games and games that have none yet", IsChecked = current.AutoFetch, IsEnabled = !readOnly, Margin = new Thickness(0, 0, 0, 8) };
+        var automatic = new CheckBox { Content = "Look up information automatically", IsChecked = current.AutoFetch, IsEnabled = !readOnly, Margin = new Thickness(0, 0, 0, 8) };
+        SettingHelp.SetText(automatic, "Also fetches a missing Steam cover, for new games and games without information. Your own text is never replaced.");
         automatic.Click += (_, _) => Save(current with { AutoFetch = automatic.IsChecked == true });
         MetadataFields.Children.Add(automatic);
         MetadataFields.Children.Add(onlyEmpty);
@@ -232,7 +236,7 @@ public partial class MainWindow
                 only.SetResourceReference(TextBlock.ForegroundProperty, "AppMuted");
                 row.Children.Add(only);
             }
-            MetadataFields.Children.Add(row);
+            MetadataFieldRows.Children.Add(row);
         }
     }
 

@@ -267,6 +267,13 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] The **Activity calendar** (hover a day) and **Year in review** read correctly, also in a narrow window and another theme.
 - [ ] A game's Overview has a **Statistics** section once it has recorded play.
 
+## 8x. Less text in Settings (issue #77)
+
+- [ ] Every Settings page shows option names and controls; hovering a row (or reaching its control with Tab) shows a short explanation. The ⓘ marks are on the options where it matters.
+- [ ] What is sent or replaced is still written on the page: update check, game information lookups, save-location download and its licence, restoring a backup.
+- [ ] **Capture** is laid out in rows with the three shortcuts side by side; **Apply capture settings** still works; **Troubleshooting** holds the runtime install.
+- [ ] Information sources and saved views open on demand; the Settings search still finds options by words such as "microphone" or "overlay".
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

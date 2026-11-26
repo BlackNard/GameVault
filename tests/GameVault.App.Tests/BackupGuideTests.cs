@@ -41,9 +41,10 @@ public sealed class BackupGuideTests
     {
         var xaml = Source("MainWindow.xaml");
         Assert.Contains("x:Name=\"AutoUpdateChoice\"", xaml);
-        var hint = xaml[xaml.IndexOf("x:Name=\"AutoUpdateHint\"", StringComparison.Ordinal)..];
-        hint = hint[..hint.IndexOf("/>", StringComparison.Ordinal)];
-        Assert.Contains("Turned off: nothing downloads or installs by itself", hint);
+        // The explanation is the hover help of that row.
+        var hint = xaml[xaml.LastIndexOf("SettingHelp.Text=", xaml.IndexOf("x:Name=\"AutoUpdateChoice\"", StringComparison.Ordinal), StringComparison.Ordinal)..];
+        hint = hint[..hint.IndexOf("<CheckBox", StringComparison.Ordinal)];
+        Assert.Contains("Off: nothing downloads or installs by itself", hint);
         Assert.Contains("Update now", hint);
     }
 
