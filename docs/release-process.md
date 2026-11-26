@@ -4,7 +4,7 @@ GameVault releases are prepared as **unpublished drafts** and published only by 
 
 ## Automated build and evidence
 
-The Windows workflow runs locked restore/build/tests and a clean self-contained publish, includes the exact restored runtime licenses/notices, checks payload/lease boundaries, audits fetched reachable Git history, compiles setup, and performs real silent installer lifecycle checks on a disposable GitHub-hosted runner. It then runs `scripts/package-release.ps1`.
+Pull requests run only a quick check. Before a release, dispatch the Windows workflow on `main` with no input; that run does the locked restore/build/tests and a clean self-contained publish, includes the exact restored runtime licenses/notices, checks payload/lease boundaries, audits fetched reachable Git history, compiles setup, and performs real silent installer lifecycle checks on a disposable GitHub-hosted runner. It then runs `scripts/package-release.ps1`.
 
 Packaging requires identical verification run IDs across app and lifecycle reports, a matching clean source audit, the exact lifecycle-tested installer SHA-256, and matching per-file publish/installer hashes. A stale or modified report/payload fails packaging. Every bundle has a fresh directory; no seeded local build is used.
 
@@ -40,7 +40,7 @@ Before building the commit a preview release is made from, set `GameVaultPreview
 
 ## Test the exact downloaded asset
 
-Manually dispatch the existing Windows build workflow on the intended reviewed branch with `draft_release_id` set to that draft's numeric ID. The ordinary verification job remains read-only. The separate `draft-asset-smoke` job gets contents-write scope because GitHub draft visibility requires push access; its script only reads release/asset/originating-CI metadata and does not create, update, publish or delete releases.
+Manually dispatch the existing Windows build workflow on the intended reviewed branch with `draft_release_id` set to that draft's numeric ID. A smoke run does not repeat the release checks (the draft must already come from a successful release run). The separate `draft-asset-smoke` job gets contents-write scope because GitHub draft visibility requires push access; its script only reads release/asset/originating-CI metadata and does not create, update, publish or delete releases.
 
 The smoke script:
 
