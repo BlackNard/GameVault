@@ -260,6 +260,13 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] **Most played** lists the right games; clicking one opens it; a removed game is marked and still counted.
 - [ ] Streaks, the three hours charts (hover a bar for its figure) and **Compare months or years** read correctly in several themes and a narrow window.
 
+## 8w. Statistics, second stage (issue #61)
+
+- [ ] On **Statistics**, open **Sessions and completions**, **Where the time went** and **When you play**; they follow the chosen period and their figures are believable.
+- [ ] Set a game to **Completed**: it counts as completed today. Set it back: it no longer counts.
+- [ ] The **Activity calendar** (hover a day) and **Year in review** read correctly, also in a narrow window and another theme.
+- [ ] A game's Overview has a **Statistics** section once it has recorded play.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

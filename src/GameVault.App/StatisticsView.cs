@@ -7,9 +7,9 @@ using GameVault.Infrastructure.Library;
 
 namespace GameVault.App;
 
-/// <summary>The Statistics page (ticket #61, first stage): period figures, most played games, streaks, an hours chart and a comparison of two months or years.
-/// Charts are plain WPF shapes in theme colours.</summary>
-public sealed class StatisticsView : UserControl
+/// <summary>The Statistics page (ticket #61): period figures, most played games, streaks, an hours chart and a comparison of two months or years, with
+/// further sections that open on demand. Charts are plain WPF shapes in theme colours.</summary>
+public sealed partial class StatisticsView : UserControl
 {
     private const int TopShown = 5;
     private readonly TextBlock notice = Muted("");
@@ -57,6 +57,7 @@ public sealed class StatisticsView : UserControl
         body.Children.Add(most);
         showAll.Click += (_, _) => { everyGame = !everyGame; RenderPeriod(); };
         body.Children.Add(showAll);
+        AddPeriodSections();
 
         body.Children.Add(Heading("Streaks"));
         body.Children.Add(streaks);
@@ -88,6 +89,7 @@ public sealed class StatisticsView : UserControl
         var expander = new Expander { Header = "Compare months or years", Content = compare, Margin = new Thickness(0, 22, 0, 0) };
         expander.SetResourceReference(StyleProperty, "QuietExpander");
         body.Children.Add(expander);
+        AddHistorySections();
         page.Children.Add(body);
         body.Visibility = Visibility.Collapsed;
 
@@ -118,6 +120,8 @@ public sealed class StatisticsView : UserControl
         RenderStreaks();
         RenderChart();
         FillChoices(true);
+        RenderCalendar();
+        FillReviewYears();
     }
 
     private void RenderPeriod()
@@ -139,6 +143,8 @@ public sealed class StatisticsView : UserControl
         foreach (var entry in everyGame ? stats.Top : stats.Top.Take(TopShown)) most.Children.Add(Row(entry, (double)entry.Seconds / largest));
         showAll.Visibility = stats.Top.Length > TopShown ? Visibility.Visible : Visibility.Collapsed;
         showAll.Content = everyGame ? "Show fewer" : $"Show all {stats.Top.Length} games";
+        var label = (string)periodTabs.Children.OfType<Button>().First(b => period.Equals(b.Tag)).Content;
+        RenderPeriodSections(PlayStatistics.Range(period, today, weekStart), label.ToLower(CultureInfo.CurrentCulture));
     }
 
     private FrameworkElement Row(GameTime entry, double share)
@@ -185,31 +191,14 @@ public sealed class StatisticsView : UserControl
         var bars = PlayStatistics.Chart(games, grouping, today, weekStart, grouping == ActivityGrouping.Day ? 30 : 12);
         var peak = bars.Max(b => b.Seconds);
         chartPeak.Text = peak == 0 ? "Nothing played in this time." : "Tallest bar: " + Duration(peak);
-        chart.Children.Clear();
-        chart.ColumnDefinitions.Clear();
-        chart.Width = 720;
-        chart.HorizontalAlignment = HorizontalAlignment.Left;
-        for (var i = 0; i < bars.Length; i++)
+        Bars(chart, 720, 140, [.. bars.Select((item, i) =>
         {
-            chart.ColumnDefinitions.Add(new ColumnDefinition());
-            var item = bars[i];
             var label = grouping == ActivityGrouping.Month ? item.Start.ToString("MMM", CultureInfo.CurrentCulture)
                 : grouping == ActivityGrouping.Week ? item.Start.ToString("d MMM", CultureInfo.CurrentCulture) : item.Start.Day.ToString(CultureInfo.CurrentCulture);
             var full = grouping == ActivityGrouping.Month ? item.Start.ToString("MMMM yyyy", CultureInfo.CurrentCulture) : grouping == ActivityGrouping.Week ? "Week of " + Day(item.Start) : Day(item.Start);
-            var column = new DockPanel { Background = System.Windows.Media.Brushes.Transparent, ToolTip = $"{full}: {Duration(item.Seconds)}" };
             // Thirty day numbers do not all fit: every fifth one is written, counted back from today.
-            var caption = Muted(grouping != ActivityGrouping.Day || (bars.Length - 1 - i) % 5 == 0 ? label : " ");
-            caption.FontSize = 11;
-            caption.TextAlignment = TextAlignment.Center;
-            DockPanel.SetDock(caption, Dock.Bottom);
-            column.Children.Add(caption);
-            var bar = new Border { Height = item.Seconds == 0 ? 2 : Math.Max(3, 140.0 * item.Seconds / peak), VerticalAlignment = VerticalAlignment.Bottom, CornerRadius = new CornerRadius(3, 3, 0, 0), Margin = new Thickness(2, 0, 2, 4) };
-            bar.SetResourceReference(Border.BackgroundProperty, item.Seconds == 0 ? "AppLine" : "AppAccent");
-            column.Children.Add(bar);
-            AutomationProperties.SetName(column, $"{full}: {Duration(item.Seconds)}");
-            Grid.SetColumn(column, i);
-            chart.Children.Add(column);
-        }
+            return (grouping != ActivityGrouping.Day || (bars.Length - 1 - i) % 5 == 0 ? label : " ", full, item.Seconds);
+        })]);
     }
 
     private sealed record Choice(DateOnly Start, string Label) { public override string ToString() => Label; }

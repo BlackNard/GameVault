@@ -89,3 +89,7 @@ A game whose cover the player removed has a `cover-removed.marker` file in its p
 ## Steam hours
 
 `Profiles/<game>/steam-link.json` (schema 1) holds the Steam app id, the Steam account folder the figure came from, Steam's name for the game, whether the player confirmed the match, the program it was linked for, the minutes Steam recorded and when they were read. Unlinking deletes it and its `.bak`. `statistics.json` is never changed. It is a separate document, so older versions ignore it.
+
+## Completion date
+
+`Profiles/<game>/completion.json` (schema 1: game id and when it became Completed). Written when an existing game changes to Completed and deleted when that is undone; a game added as already completed, or completed before this was recorded, has none. It is a separate document, so older versions ignore it.

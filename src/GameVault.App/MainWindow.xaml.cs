@@ -185,6 +185,7 @@ public partial class MainWindow : Window
         _ = RefreshAboutAsync(item);
         _ = RefreshPlayActionsAsync(item);
         _ = RefreshSteamAsync(item);
+        RefreshGameStats(item);
         UpdateButtons();
         _=RefreshBackupDestinationsAsync();
         if(gameSection=="Media"&&!libraryVisible)_=RefreshCaptureMediaAsync();
