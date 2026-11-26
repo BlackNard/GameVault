@@ -24,7 +24,8 @@ public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore sto
         var result=await ScanAsync(id,token).ConfigureAwait(false);
         var selected=result.Document.Value?.Sources.Where(s=>s.Selected).ToArray()??[];
         if(result.Document.State!=DocumentState.Ready||result.Phase!=SaveDiscoveryPhase.SourcesFound||selected.Length==0||selected.Any(s=>s.Access!=SaveSourceAccess.Ready))
-            throw new IOException("Save sources are not fully verified/readable. "+result.Summary);
+            throw result.Phase==SaveDiscoveryPhase.NeedsConfirmation?new SaveConfirmationRequiredException()
+                :new IOException("Save sources are not fully verified/readable. "+result.Summary);
         return selected;
     }
     private async Task<SaveDiscoveryResult> PerformAsync(Guid id,bool? automatic,Guid? confirm,bool strict,CancellationToken token)
@@ -113,10 +114,13 @@ public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore sto
         if(selected.Any(s=>s.Access is SaveSourceAccess.Missing or SaveSourceAccess.Empty))return new(stored,SaveDiscoveryPhase.WaitingForSave,"Waiting for selected saves to exist and be readable. Discovery will retry. Existing backups are kept.");
         if(selected.Length>0)return new(stored,SaveDiscoveryPhase.SourcesFound,$"{selected.Length} readable source(s) found. Backup status is shown separately in your library.");
         if(!doc.Automatic)return new(stored,SaveDiscoveryPhase.Disabled,"Automatic discovery is disabled. Choose manual sources in Edit game or enable discovery.");
-        if(doc.Sources.Any(s=>s.CanConfirm))return new(stored,SaveDiscoveryPhase.NeedsConfirmation,"Readable candidate locations need confirmation before they can be used.");
+        if(doc.Sources.Any(s=>s.CanConfirm))return new(stored,SaveDiscoveryPhase.NeedsConfirmation,SaveConfirmation.Message);
         if(doc.Warnings.Any(w=>w.StartsWith("Waiting for the game",StringComparison.Ordinal)))return new(stored,SaveDiscoveryPhase.WaitingForSave,"Waiting for the first save in a known location. Discovery will retry during play and after exit.");
         return new(stored,SaveDiscoveryPhase.Unresolved,"No verified source yet. Discovery will retry during play; use Edit game for a manual override if needed.");
     }
     private static SaveDiscoveryResult Error(StoredDocument<SaveDiscoveryDocument> stored,string message)=>new(stored,SaveDiscoveryPhase.Error,message);
     private void Publish(Guid id,SaveDiscoveryResult result)=>Changed?.Invoke(this,new(id,result));
 }
+
+/// <summary>A readable save folder was found but the player has not confirmed it yet.</summary>
+public sealed class SaveConfirmationRequiredException() : IOException(SaveConfirmation.Message);

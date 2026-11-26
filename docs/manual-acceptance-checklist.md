@@ -248,6 +248,11 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] Rename a linked non-Steam copy: the section says it needs attention and the Steam hours are not counted. **Unlink** removes them; your sessions are unchanged.
 - [ ] A game with no Steam match shows no Steam section.
 
+## 8u. Confirm the save folder (issue #84)
+
+- [ ] A game whose save folder was only found by name: the alert, bell, game page and Saves tab say **Confirm the save folder** (not that the backup failed), and **Manage save sources** stands out. **Review** on the alert opens Manage save sources.
+- [ ] After confirming, the old request disappears from the game page, and **Back up now** makes a backup.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

@@ -516,7 +516,10 @@ public partial class MainWindow : Window
         // The overview only speaks up when there is something to do.
         var attention=result.Phase is BackupPhase.Blocked or BackupPhase.Failed;
         AttentionCard.Visibility=attention?Visibility.Visible:Visibility.Collapsed;
-        AttentionText.Text=attention?"The last save backup needs attention. "+result.Message:"";AttentionText.ToolTip=attention?result.Message:null;
+        var confirm=attention&&SaveConfirmation.IsNeeded(result.Message);
+        AttentionText.Text=!attention?"":confirm?result.Message:"The last save backup needs attention. "+result.Message;AttentionText.ToolTip=attention?result.Message:null;
+        // The one button that solves it stands out.
+        if(confirm)SaveSourcesButton.SetResourceReference(StyleProperty,"PrimaryButton");else SaveSourcesButton.ClearValue(StyleProperty);
         if(result.Phase==BackupPhase.Working&&result.LastSuccess is null)return;
         LastBackup.Text=result.LastSuccess is CompletedBackup backup?$"Last verified backup: {backup.Manifest.CreatedAt.ToLocalTime():g}\n{backup.Manifest.Files.Length} file(s) · {backup.Manifest.Files.Sum(f=>f.Size):N0} bytes\n{backup.Directory}":"No verified backup available.";
     }

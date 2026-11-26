@@ -109,7 +109,8 @@ public partial class MainWindow
         {
             var id = BackupIdPrefix + alert.GameId;
             keep.Add(id);
-            PostNotice(new Notice(id, NoticeKind.BackupAttention, $"Backup needs attention: {alert.GameName}", alert.Message, alert.CreatedAt, true, "Review"),
+            var title = SaveConfirmation.IsNeeded(alert.Message) ? $"{SaveConfirmation.Title}: {alert.GameName}" : $"Backup needs attention: {alert.GameName}";
+            PostNotice(new Notice(id, NoticeKind.BackupAttention, title, alert.Message, alert.CreatedAt, true, "Review"),
                 () => ReviewBackupAlert(alert.GameId));
         }
         notices.RetainOnly(NoticeKind.BackupAttention, keep);
