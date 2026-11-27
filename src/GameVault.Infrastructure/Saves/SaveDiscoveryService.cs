@@ -6,8 +6,21 @@ public interface ISaveDiscoveryScanner { Task<SaveDiscoveryResult> ScanAsync(Gui
 public sealed record SaveDiscoveryChanged(Guid GameId,SaveDiscoveryResult Result);
 /// <summary>A scan selected folders that were not selected before, or has new ones to ask about.</summary>
 public sealed record SaveSelectionChanged(Guid GameId,string GameName,SaveSourceMapping[] NewlySelected,SaveSourceMapping[] NewlyToConfirm);
-public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore store,SaveDiscoveryEnvironment environment):ISaveDiscoveryScanner
+public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore store,SaveDiscoveryEnvironment environment,long largeFolderBytes=1L<<30):ISaveDiscoveryScanner
 {
+    // Discovery runs every few seconds during play: the game's identity and the name search are kept for a while.
+    private static readonly TimeSpan SearchKept=TimeSpan.FromMinutes(2);
+    private readonly ConcurrentDictionary<Guid,Search> searches=new();
+    private sealed record Search(string Key,long At,GameSaveIdentity Game,IReadOnlyList<string> Named);
+    /// <summary>Makes the next scan read the game's folder and search by name again.</summary>
+    public void SearchAgain(Guid id)=>searches.TryRemove(id,out _);
+    private Search Look(GameProfile profile,string fingerprint,CancellationToken token)
+    {
+        var key=fingerprint+"\n"+profile.Name;
+        if(searches.TryGetValue(profile.Id,out var kept)&&kept.Key==key&&Environment.TickCount64-kept.At<SearchKept.TotalMilliseconds)return kept;
+        var game=GameSaveIdentity.Read(profile);
+        return searches[profile.Id]=new(key,Environment.TickCount64,game,SaveFinder.NamedFolders(game,environment,token));
+    }
     private readonly ConcurrentDictionary<Guid,SemaphoreSlim> gates=new();
     public const string RejectedMessage=SaveSourceWords.Rejected;
     private const int MaxSelected=32;
@@ -106,7 +119,7 @@ public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore sto
         GameSaveIdentity? game=null;
         if(profile.SaveSources.Length==0&&enabled)
         {
-            game=GameSaveIdentity.Read(profile);var catalog=SaveFinder.Candidates(profile,game,environment,finds.Value,token);
+            var search=Look(profile,identity,token);game=search.Game;var catalog=SaveFinder.Candidates(profile,game,environment,finds.Value,search.Named,token);
             specs.AddRange(catalog.Candidates);warnings.AddRange(catalog.Warnings);known=catalog.Candidates.Any(c=>c.KnownLocation);
         }
         var mappings=new List<SaveSourceMapping>();var scores=new Dictionary<string,Scored>(StringComparer.OrdinalIgnoreCase);
@@ -115,7 +128,9 @@ public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore sto
         {
             token.ThrowIfCancellationRequested();var path=group.Key;var candidate=group.First();
             var old=previous?.Sources.FirstOrDefault(s=>s.Path.Equals(path,StringComparison.OrdinalIgnoreCase));
-            var probe=inspector.Inspect(path,token,candidate.Origin==SaveSourceOrigin.Manual?null:p=>SaveCandidateRules.PayloadMatches(p,candidate.Payload));
+            // One pass over the folder answers both whether it is ready and what kind of files it holds.
+            var contents=new Contents();
+            var probe=inspector.Inspect(path,token,candidate.Origin==SaveSourceOrigin.Manual?null:p=>contents.Add(p,candidate.Payload));
             var approved=same&&old?.Origin==SaveSourceOrigin.Confirmed;
             var origin=approved?SaveSourceOrigin.Confirmed:candidate.Origin;
             // A folder selected before stays selected while its rule is waiting, or while it keeps holding saves.
@@ -124,7 +139,7 @@ public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore sto
             var canConfirm=candidate.Origin!=SaveSourceOrigin.Manual&&probe.Access==SaveSourceAccess.Ready;
             if(canConfirm&&game is not null)
             {
-                var scored=Score(inspector,path,group.ToArray(),game,finds.Value,token);scores[path]=scored with{Kept=kept};
+                var scored=Score(path,group.ToArray(),contents,game,finds.Value,profile);scores[path]=scored with{Kept=kept};
                 canConfirm=scored.Confidence!=SaveConfidence.Low||scored.IsRule;
             }
             mappings.Add(new(old?.Id??Guid.NewGuid(),path,probe.Kind,origin,selected,probe.Access,approved?"Confirmed by you · "+candidate.Evidence:candidate.Evidence,probe.Message,
@@ -168,19 +183,36 @@ public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore sto
         bool Rejected(string path)=>rejected.Any(r=>SaveSourcePolicy.Overlaps(r,path));
     }
     private sealed record Scored(SaveConfidence Confidence,int Points,bool IsRule,string Evidence,bool Kept=false);
-    private static Scored Score(SaveSourceInspector inspector,string path,SaveCandidate[] ways,GameSaveIdentity game,SaveFindsDocument? finds,CancellationToken token)
+    /// <summary>What a folder's readable, nonempty files are, noted while it is inspected.</summary>
+    private sealed class Contents
+    {
+        public bool Known,Other,Settings;public long Bytes;
+        public bool Add(string file,string payload)
+        {
+            var matches=SaveCandidateRules.PayloadMatches(file,payload);
+            if(SaveFileNames.IsSettings(file))Settings=true;
+            else if(matches){Other=true;if(SaveFileNames.IsSave(file))Known=true;}
+            try{Bytes+=new FileInfo(file).Length;}catch(Exception e)when(e is IOException or UnauthorizedAccessException){}
+            return matches;
+        }
+    }
+    private Scored Score(string path,SaveCandidate[] ways,Contents contents,GameSaveIdentity game,SaveFindsDocument? finds,GameProfile profile)
     {
         var isRule=ways.Any(w=>w.Source==SaveCandidateSource.KnownRule);
         // A rule, a store number and the database name one game's folder, so any file there that is not a settings file counts as a save.
         var specific=ways.Any(w=>w.Source is SaveCandidateSource.KnownRule or SaveCandidateSource.StoreNumber or SaveCandidateSource.Database);
-        var payload=ways[0].Payload;
-        bool Has(Func<string,bool> test)=>inspector.Inspect(path,token,p=>test(p)).Access==SaveSourceAccess.Ready;
-        var saves=Has(p=>SaveCandidateRules.PayloadMatches(p,payload)&&(specific?!SaveFileNames.IsSettings(p):SaveFileNames.IsSave(p)));
-        var settingsOnly=!saves&&Has(SaveFileNames.IsSettings);
+        var saves=specific?contents.Other:contents.Known;
         var written=(finds?.Finds??[]).Where(f=>SaveSourcePolicy.Within(SaveSourcePolicy.Canonical(f.Path),path)).ToArray();
-        var named=path.Split(Path.DirectorySeparatorChar,StringSplitOptions.RemoveEmptyEntries).Skip(1).Any(part=>GameNameTokens.Matches(part,game.Tokens));
-        var best=ways.Select(w=>(Way:w,Facts:new SaveCandidateFacts(path,w.Source,named,saves,settingsOnly,written.Length>0,written.Select(f=>f.Sessions).DefaultIfEmpty().Max(),
-            written.Length>0&&written.All(f=>f.Shared)))).MaxBy(x=>SaveCandidateScore.Points(x.Facts));
+        // Only the part below the user folder or the installation says anything: what lies above is shared by every game there.
+        var bases=environment.BroadRoots.Append(game.InstallRoot).Where(b=>!string.IsNullOrWhiteSpace(b)&&Path.IsPathFullyQualified(b)).Select(SaveSourcePolicy.Canonical).ToArray();
+        var under=bases.Where(b=>path.Length>b.Length&&SaveSourcePolicy.Within(path,b)).MaxBy(b=>b.Length);
+        var parts=(under is null?path[Path.GetPathRoot(path)!.Length..]:path[under.Length..]).Split(Path.DirectorySeparatorChar,StringSplitOptions.RemoveEmptyEntries);
+        var named=parts.Any(part=>GameNameTokens.Matches(part,game.Tokens));
+        var inInstall=SaveSourcePolicy.Within(path,SaveSourcePolicy.Canonical(Path.GetDirectoryName(profile.ExecutablePath)!));
+        var bare=!specific&&under is not null&&!inInstall&&parts.Length==1;
+        var best=ways.Select(w=>(Way:w,Facts:new SaveCandidateFacts(path,w.Source,named,saves,!saves&&contents.Settings,written.Length>0,written.Select(f=>f.Sessions).DefaultIfEmpty().Max(),
+            written.Length>0&&written.All(f=>f.Shared)){Bare=bare,TooLarge=!specific&&contents.Bytes>largeFolderBytes}))
+            .OrderByDescending(x=>SaveCandidateScore.Of(x.Facts)).ThenByDescending(x=>SaveCandidateScore.Points(x.Facts)).First();
         return new(SaveCandidateScore.Of(best.Facts),SaveCandidateScore.Points(best.Facts),isRule,best.Way.Evidence);
     }
     /// <summary>Which found folders are used without asking. Known rules keep their own care (exactly one, otherwise the player decides); without a
@@ -193,7 +225,8 @@ public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore sto
         var chosen=ambiguous?[]:mappings.Where(m=>m.Selected&&m.Origin==SaveSourceOrigin.KnownRule&&!scores.ContainsKey(m.Path)&&m.Access==SaveSourceAccess.Ready&&
             !rejected.Any(r=>SaveSourcePolicy.Overlaps(r,m.Path))).ToList();
         var retained=chosen.Count;
-        if(rules.Length>0){if(rules.Length==1&&maySelect&&!chosen.Any(c=>SaveSourcePolicy.Overlaps(c.Path,rules[0].Path)))chosen.Add(rules[0]);}
+        // A rule already feeding backups stays even while nothing new may be selected.
+        if(rules.Length>0){if(rules.Length==1&&(maySelect||!ambiguous&&scores[rules[0].Path].Kept)&&!chosen.Any(c=>SaveSourcePolicy.Overlaps(c.Path,rules[0].Path)))chosen.Add(rules[0]);}
         else
         {
             // Folders that already feed backups come first and stay, whatever their score became.
@@ -203,7 +236,8 @@ public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore sto
         }
         return mappings.Select(m=>
         {
-            if(chosen.FindIndex(c=>c.Id==m.Id) is var at&&at>=0)return at<retained?m:m with{Selected=true,Origin=SaveSourceOrigin.KnownRule,Evidence=SaveSourceWords.FoundAutomatically+" · "+scores[m.Path].Evidence};
+            if(chosen.FindIndex(c=>c.Id==m.Id) is var at&&at>=0)return at<retained?m:m with{Selected=true,Origin=SaveSourceOrigin.KnownRule,
+                Evidence=scores[m.Path].IsRule?m.Evidence:SaveSourceWords.FoundAutomatically+" · "+scores[m.Path].Evidence};
             if(ambiguous&&m.Origin==SaveSourceOrigin.KnownRule)return m with{Selected=false};
             var overlaps=chosen.Any(c=>SaveSourcePolicy.Overlaps(c.Path,m.Path));
             if(m.Access!=SaveSourceAccess.Ready)return overlaps?m with{Selected=false}:m;          // a folder waiting for its saves stays as it was

@@ -109,7 +109,7 @@ public static class SaveCandidateRules
     }
     private static string Normalize(string value)=>new(value.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
     private static bool SafeName(string value)=>!string.IsNullOrWhiteSpace(value)&&value.Length<=120&&value.IndexOfAny(Path.GetInvalidFileNameChars())<0&&
-        value is not "." and not ".."&&Normalize(value).Length>=3&&!new[]{"game","games","documents","savedgames","appdata","public","user","users","bin","binaries","win64","windows","steam"}.Contains(Normalize(value));
+        value is not "." and not ".."&&Normalize(value).Length>=3&&!new[]{"game","games","documents","savedgames","appdata","public","user","users","bin","binaries","win64","win32","x64","x86","release","retail","windows","steam"}.Contains(Normalize(value));
     public static bool PayloadMatches(string path,string kind)=>kind switch
     {
         "bin"=>Path.GetExtension(path).Equals(".bin",StringComparison.OrdinalIgnoreCase),

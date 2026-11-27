@@ -19,6 +19,7 @@ public sealed class SaveActivityWatcher : IAsyncDisposable
     private readonly TimeSpan settle;
     private readonly object gate = new();
     private readonly Dictionary<Guid, Session> running = [];
+    private readonly HashSet<Session> watching = [];                    // running, or still settling after the game closed
     private readonly Dictionary<Guid, Task> work = [];
     private readonly CancellationTokenSource quitting = new();
     private int watchers;
@@ -47,7 +48,8 @@ public sealed class SaveActivityWatcher : IAsyncDisposable
             if (drain is not null || running.ContainsKey(state.GameId) || !enabled()) return;
             var session = new Session(state.GameId);
             running.Add(state.GameId, session);
-            if (running.Count > 1) foreach (var each in running.Values) each.Shared = true;
+            watching.Add(session);
+            if (watching.Any(other => other.Id != session.Id)) foreach (var each in watching) each.Shared = true;
             var previous = work.TryGetValue(state.GameId, out var task) ? task : Task.CompletedTask;
             session.Started = work[state.GameId] = Task.Run(async () => { await previous.ConfigureAwait(false); await StartAsync(session).ConfigureAwait(false); });
         }
@@ -105,7 +107,7 @@ public sealed class SaveActivityWatcher : IAsyncDisposable
             catch (OperationCanceledException) { }
             Stop(session);
             var written = session.Take().Where(f => File.Exists(f)).ToArray();
-            var found = SaveRootFinder.Lift(written, session.Roots).Where(Directory.Exists).ToArray();
+            var found = SaveRootFinder.Lift(written, session.Roots, session.Tokens).Where(Directory.Exists).ToArray();
             if (found.Length == 0) return;
             var now = DateTimeOffset.UtcNow;
             await store.UpdateSaveFindsAsync(session.Id, document =>
@@ -121,7 +123,9 @@ public sealed class SaveActivityWatcher : IAsyncDisposable
                 }
                 return document with { Finds = finds.Values.OrderByDescending(f => f.LastSeen).ThenByDescending(f => f.Sessions).Take(AppDataStore.MaxSaveFinds).ToArray() };
             }).ConfigureAwait(false);
-            if (!quitting.IsCancellationRequested) await scanner.ScanAsync(session.Id, quitting.Token).ConfigureAwait(false);
+            if (quitting.IsCancellationRequested) return;
+            (scanner as SaveDiscoveryService)?.SearchAgain(session.Id);              // the session may have created folders
+            await scanner.ScanAsync(session.Id, quitting.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
@@ -134,7 +138,7 @@ public sealed class SaveActivityWatcher : IAsyncDisposable
     private void Stop(Session session)
     {
         FileSystemWatcher[] stopping;
-        lock (gate) { stopping = [.. session.Watchers]; session.Watchers.Clear(); watchers -= stopping.Length; }
+        lock (gate) { stopping = [.. session.Watchers]; session.Watchers.Clear(); watchers -= stopping.Length; watching.Remove(session); }
         foreach (var watcher in stopping) watcher.Dispose();
     }
 

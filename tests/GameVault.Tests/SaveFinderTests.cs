@@ -183,6 +183,78 @@ public sealed class SaveFinderTests : IDisposable
         Assert.Equal([folder], ((GameProfile)(await Store.LoadProfileAsync(id)).Profile.Value!).SaveSources);
     }
 
+    private GameProfile Named(string name, string exe = "game.exe") => Profile with
+    {
+        Name = name, ExecutablePath = Path.Combine(root, "Games", name, exe), WorkingDirectory = Path.GetDirectoryName(Path.Combine(root, "Games", name, exe))!
+    };
+
+    [Fact]
+    public async Task APersonalFolderThatOnlySharesTheGamesNameIsAskedAbout()
+    {
+        await SeedAsync(Named("Control"), null);
+        var folder = Put(Path.Combine(Env.Documents, "Control"), "budget.json");
+        var result = await Service.ScanAsync(id);
+        Assert.Empty(Selected(result));
+        Assert.True(result.Document.Value!.Sources.Single(s => s.Path == folder).CanConfirm);
+    }
+
+    [Fact]
+    public async Task FilesTheGameWritesInItsOwnDataFolderAreAskedAbout()
+    {
+        await SeedAsync(appId: null);
+        var data = Put(Path.Combine(Install, "Data"), "assets.dat");
+        await Store.UpdateSaveFindsAsync(id, d => d with { Finds = [new(data, 1, 3, DateTimeOffset.UtcNow, false)] });
+        var result = await Service.ScanAsync(id);
+        Assert.Empty(Selected(result));
+        Assert.True(result.Document.Value!.Sources.Single(s => s.Path == data).CanConfirm);
+    }
+
+    [Fact]
+    public async Task AnotherProgramsFolderWrittenDuringPlayIsOnlyAskedAbout()
+    {
+        await SeedAsync(appId: null);
+        var other = Put(Path.Combine(Env.Roaming, "obs-studio", "basic"), "scenes.json");
+        await Store.UpdateSaveFindsAsync(id, d => d with { Finds = [new(other, 1, 4, DateTimeOffset.UtcNow, false)] });
+        Assert.Empty(Selected(await Service.ScanAsync(id)));
+    }
+
+    [Fact]
+    public async Task ALargeGuessedFolderIsAskedAbout()
+    {
+        await SeedAsync(appId: null);
+        var big = Put(Path.Combine(Env.Local, "Frostpunk", "Saved", "SaveGames"), "slot.sav", new string('s', 2000));
+        var service = new SaveDiscoveryService(Paths, Store, Env, largeFolderBytes: 1000);
+        var result = await service.ScanAsync(id);
+        Assert.Empty(Selected(result));
+        Assert.True(result.Document.Value!.Sources.Single(s => s.Path == big).CanConfirm);
+    }
+
+    [Fact]
+    public async Task TheSlowSearchIsNotRepeatedEveryFewSeconds()
+    {
+        await SeedAsync(appId: null);
+        var service = Service;
+        await service.ScanAsync(id);
+        var late = Put(Path.Combine(Env.Documents, "My Games", "Studio", "Frostpunk"), "save1.sav");
+        Assert.DoesNotContain((await service.ScanAsync(id)).Document.Value!.Sources, s => s.Path == late);
+        service.SearchAgain(id);
+        Assert.Contains((await service.ScanAsync(id)).Document.Value!.Sources, s => s.Path == late);
+    }
+
+    [Fact]
+    public async Task AKnownRuleKeepsItsSelectionAndWordsWhenFindsCannotBeRead()
+    {
+        await SeedAsync(Named("GTA IV", "GTAIV.exe"), null);
+        var saves = Put(Path.Combine(Env.Roaming, "Goldberg SocialClub Emu Saves", "GTA IV", "AA"), "SGTA400");
+        var service = Service;
+        var before = Assert.Single(Selected(await service.ScanAsync(id)));
+        Assert.Equal("Known game location", SaveSourceWords.Origin(before));
+        File.WriteAllText(Path.Combine(ProfileFolders.Resolve(Paths, id), "save-finds.json"), "{\"schemaVersion\":9}");
+        var after = Assert.Single(Selected(await service.ScanAsync(id)));
+        Assert.Equal(Path.GetDirectoryName(saves), after.Path);
+        Assert.Equal("Known game location", SaveSourceWords.Origin(after));
+    }
+
     [Fact]
     public async Task ManualPathWins()
     {

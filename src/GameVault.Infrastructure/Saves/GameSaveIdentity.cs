@@ -8,6 +8,9 @@ namespace GameVault.Infrastructure.Saves;
 /// <summary>Store numbers and publisher names read from a game's own folder. Only those values are taken; they are never logged.</summary>
 public sealed record GameSaveIdentity(string? SteamAppId, string? GogId, string? EpicApp, string? Company, string? Product, IReadOnlySet<string> Tokens)
 {
+    /// <summary>The top folder of the game's installation.</summary>
+    public string InstallRoot { get; init; } = "";
+
     private const int MaxFileBytes = 64 * 1024, MaxSubfolders = 200;
     private static readonly string[] SettingsFiles = ["hlm.ini", "steam_emu.ini", "cream_api.ini"];
     // Program folders inside an install; the identity files usually sit above them.
@@ -67,7 +70,7 @@ public sealed record GameSaveIdentity(string? SteamAppId, string? GogId, string?
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException) { }
 
         var tokens = GameNameTokens.For([profile.Name, Path.GetFileName(folder), Path.GetFileName(installRoot), Path.GetFileNameWithoutExtension(profile.ExecutablePath), product, steam]);
-        return new(steam, gog, epic, company, product, tokens);
+        return new(steam, gog, epic, company, product, tokens) { InstallRoot = installRoot };
     }
 
     private static string? ReadSmall(string path)

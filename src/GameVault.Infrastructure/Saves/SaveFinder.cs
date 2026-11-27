@@ -21,7 +21,12 @@ public static class SaveFinder
         (Base.ProgramData, @"Steam\RLD!")
     ];
 
-    public static SaveCandidateCatalog Candidates(GameProfile profile, GameSaveIdentity identity, SaveDiscoveryEnvironment env, SaveFindsDocument? finds, CancellationToken token)
+    /// <summary>The look through the user folders for folders named after the game: the slow part, so callers keep its result for a while.</summary>
+    public static IReadOnlyList<string> NamedFolders(GameSaveIdentity identity, SaveDiscoveryEnvironment env, CancellationToken token) =>
+        SearchByName([env.Roaming, env.Local, env.LocalLow, env.Documents, env.SavedGames, env.PublicDocuments], identity.Tokens, NameSearchTime, token).Found;
+
+    public static SaveCandidateCatalog Candidates(GameProfile profile, GameSaveIdentity identity, SaveDiscoveryEnvironment env, SaveFindsDocument? finds,
+        IReadOnlyList<string> namedFolders, CancellationToken token)
     {
         var rules = SaveCandidateRules.For(profile, env, identity.SteamAppId);
         var candidates = rules.Candidates.ToList();
@@ -58,8 +63,8 @@ public static class SaveFinder
                 if (GameNameTokens.Matches(product, identity.Tokens)) Existing(Path.Combine(root, product), SaveCandidateSource.PublisherFolder, "Folder named like the program");
             }
 
-        var (named, _) = SearchByName([env.Roaming, env.Local, env.LocalLow, env.Documents, env.SavedGames, env.PublicDocuments], identity.Tokens, NameSearchTime, token);
-        foreach (var folder in named) Existing(folder, SaveCandidateSource.NameSearch, "Folder named after the game");
+        token.ThrowIfCancellationRequested();
+        foreach (var folder in namedFolders) Existing(folder, SaveCandidateSource.NameSearch, "Folder named after the game");
 
         foreach (var find in finds?.Finds ?? []) Existing(find.Path, SaveCandidateSource.Activity, "Written while you played");
 

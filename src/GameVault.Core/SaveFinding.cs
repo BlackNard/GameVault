@@ -7,7 +7,13 @@ public enum SaveCandidateSource { KnownRule, StoreNumber, Database, PublisherFol
 public enum SaveConfidence { Low, Medium, High }
 
 public sealed record SaveCandidateFacts(string Path, SaveCandidateSource Source, bool NamedForGame, bool HasSaveFiles, bool OnlySettingsFiles,
-    bool WrittenDuringPlay, int SessionsSeen, bool WrittenWhileOtherGameRan);
+    bool WrittenDuringPlay, int SessionsSeen, bool WrittenWhileOtherGameRan)
+{
+    /// <summary>The folder is just a name directly inside a user folder (<c>Documents\Control</c>): it may be the player's own.</summary>
+    public bool Bare { get; init; }
+    /// <summary>A guessed folder too large to start copying without asking.</summary>
+    public bool TooLarge { get; init; }
+}
 
 public static class SaveCandidateScore
 {
@@ -29,12 +35,15 @@ public static class SaveCandidateScore
         - (f.OnlySettingsFiles ? 3 : 0)
         - (f.WrittenWhileOtherGameRan ? 4 : 0);
 
-    /// <summary>A folder with no save files is never picked or asked about, whatever else points to it.</summary>
+    /// <summary>A folder with no save files is never picked or asked about, whatever else points to it. Picking without asking also needs something
+    /// that points at this game: being written during play alone is true of other programs too.</summary>
     public static SaveConfidence Of(SaveCandidateFacts f)
     {
         if (!f.HasSaveFiles) return SaveConfidence.Low;
         var points = Points(f);
-        return points >= High ? SaveConfidence.High : points >= Medium ? SaveConfidence.Medium : SaveConfidence.Low;
+        if (points < High) return points >= Medium ? SaveConfidence.Medium : SaveConfidence.Low;
+        var askFirst = f.TooLarge || (f.Source == SaveCandidateSource.Activity && !f.NamedForGame) || (f.Bare && !f.WrittenDuringPlay);
+        return askFirst ? SaveConfidence.Medium : SaveConfidence.High;
     }
 }
 
@@ -104,7 +113,9 @@ public static class SaveFinderText
 /// <summary>Names a game's folder may carry: its titles, program, publisher's product name and store number, letters and digits only.</summary>
 public static class GameNameTokens
 {
-    private static readonly string[] Generic = ["game", "games", "documents", "savedgames", "saves", "save", "appdata", "public", "user", "users", "bin", "binaries", "win64", "windows", "steam", "launcher", "shipping"];
+    private static readonly string[] Generic = ["game", "games", "documents", "savedgames", "saves", "save", "appdata", "public", "user", "users", "bin", "binaries", "win64", "windows", "steam", "launcher", "shipping",
+        "win32", "x64", "x86", "release", "retail",
+        "unity", "unitytechnologies", "unrealengine", "unrealgame", "bootstrappackagedgame", "epicgames", "godot", "godotengine"];
 
     public static IReadOnlySet<string> For(IEnumerable<string?> names) =>
         names.Select(n => Normalize(n ?? "")).Where(n => n.Length >= 3 && !Generic.Contains(n)).ToHashSet(StringComparer.Ordinal);
@@ -145,8 +156,9 @@ public static class SaveActivityFilter
 public static class SaveRootFinder
 {
     /// <summary>One folder per top-level branch under a protected root: the narrowest one holding that branch's save files (or all its writes when none
-    /// look like saves). A protected root itself is never returned.</summary>
-    public static IReadOnlyList<string> Lift(IEnumerable<string> writtenFiles, IReadOnlyList<string> protectedRoots)
+    /// look like saves). A protected root itself is never returned, a folder named after the game is its own branch (nothing above it is taken in),
+    /// and under Steam's <c>userdata</c> each account's games are kept apart.</summary>
+    public static IReadOnlyList<string> Lift(IEnumerable<string> writtenFiles, IReadOnlyList<string> protectedRoots, IReadOnlySet<string>? tokens = null)
     {
         var branches = new Dictionary<string, List<(string File, string Root)>>(StringComparer.OrdinalIgnoreCase);
         foreach (var file in writtenFiles)
@@ -155,7 +167,10 @@ public static class SaveRootFinder
             if (root is null) continue;
             var parts = file[root.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length < 2) continue;                       // a loose file directly in a protected root points at no folder
-            var key = Path.Combine(root, parts[0]);
+            var depth = Path.GetFileName(root).Equals("userdata", StringComparison.OrdinalIgnoreCase) ? Math.Min(2, parts.Length - 1) : 1;
+            for (var i = 0; tokens is not null && i < parts.Length - 1; i++)
+                if (GameNameTokens.Matches(parts[i], tokens)) { depth = i + 1; break; }
+            var key = Path.Combine([root, .. parts[..depth]]);
             if (!branches.TryGetValue(key, out var list)) branches[key] = list = [];
             list.Add((file, root));
         }

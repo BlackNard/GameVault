@@ -106,6 +106,42 @@ public sealed class SaveFindingTests
     }
 
     [Fact]
+    public void AnUnnamedFolderWrittenAgainAndAgainIsStillOnlyAsked() =>
+        Assert.Equal(SaveConfidence.Medium, SaveCandidateScore.Of(Facts(SaveCandidateSource.Activity, saves: true, written: true, sessions: 5)));
+
+    [Fact]
+    public void AFolderThatIsJustTheGamesNameIsAskedAboutUntilTheGameWritesThere()
+    {
+        var bare = Facts(SaveCandidateSource.GameNamed, named: true, saves: true) with { Bare = true };
+        Assert.Equal(SaveConfidence.Medium, SaveCandidateScore.Of(bare));
+        Assert.Equal(SaveConfidence.High, SaveCandidateScore.Of(bare with { WrittenDuringPlay = true, SessionsSeen = 1 }));
+    }
+
+    [Fact]
+    public void AVeryLargeGuessedFolderIsNeverPickedAlone() => Assert.Equal(SaveConfidence.Medium,
+        SaveCandidateScore.Of(Facts(SaveCandidateSource.GameNamed, named: true, saves: true, written: true, sessions: 3) with { TooLarge = true }));
+
+    [Fact]
+    public void LiftStopsAtTheFolderNamedAfterTheGame() => Assert.Equal([Under("Pub", "GameA", "Saved", "SaveGames"), Under("Pub", "Launcher")],
+        SaveRootFinder.Lift([Under("Pub", "Launcher", "state.json"), Under("Pub", "GameA", "Saved", "SaveGames", "x.sav")], [R], GameNameTokens.For(["GameA"])));
+
+    [Fact]
+    public void LiftKeepsEachSteamAccountsGamesApart() => Assert.Equal([Under("userdata", "11", "99", "remote"), Under("userdata", "11", "config")],
+        SaveRootFinder.Lift([Under("userdata", "11", "config", "a.dat"), Under("userdata", "11", "99", "remote", "s.sav")], [Under("userdata")]));
+
+    [Theory]
+    [InlineData("x64")]
+    [InlineData("x86")]
+    [InlineData("Win32")]
+    [InlineData("Release")]
+    [InlineData("retail")]
+    [InlineData("Unreal Engine")]
+    [InlineData("UnrealEngine")]
+    [InlineData("BootstrapPackagedGame")]
+    [InlineData("Unity")]
+    public void ProgramFoldersAndEngineNamesAreNotAGamesName(string name) => Assert.Empty(GameNameTokens.For([name]));
+
+    [Fact]
     public void ToastWordsAreShort()
     {
         var home = Under("home");

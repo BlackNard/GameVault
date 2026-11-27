@@ -126,6 +126,20 @@ public sealed class SaveActivityWatcherTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task AGameStartedWhileTheLastOneIsStillSettlingCountsAsShared()
+    {
+        await StartAsync(first);
+        signals.End(first, true);
+        var ending = watcher.FlushAsync(first);
+        await StartAsync(second);
+        Write("Studio", "Game", "saves", "1.sav");
+        await ending.WaitAsync(Limit);
+        await EndAsync(second);
+        Assert.True(Assert.Single(await FindsAsync(first)).Shared);
+        Assert.True(Assert.Single(await FindsAsync(second)).Shared);
+    }
+
+    [Fact]
     public async Task SecondSessionCountsUp()
     {
         for (var session = 0; session < 2; session++)
