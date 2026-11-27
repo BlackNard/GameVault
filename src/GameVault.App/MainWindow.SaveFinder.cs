@@ -10,6 +10,18 @@ public partial class MainWindow
     private const string SaveNoticeIdPrefix = "saves:";
     private static readonly TimeSpan SaveScanGap = TimeSpan.FromSeconds(2);
 
+    private void WatchSavesChanged(object sender, System.Windows.RoutedEventArgs e)
+    {
+        if (initializing) return;
+        var on = WatchSavesSwitch.IsChecked == true;
+        try { SaveWatchSetting.Set(paths, on); OperationNotice.Text = on ? "Saves are watched while you play." : "Saves are no longer watched while you play."; }
+        catch (Exception error) when (IsExpected(error))
+        {
+            initializing = true; WatchSavesSwitch.IsChecked = SaveWatchSetting.IsOn(paths); initializing = false;
+            OperationNotice.Text = "The setting could not be saved. " + error.Message;
+        }
+    }
+
     private void SaveSelectionChanged(object? sender, SaveSelectionChanged change)
     {
         if (Dispatcher.HasShutdownStarted) return;

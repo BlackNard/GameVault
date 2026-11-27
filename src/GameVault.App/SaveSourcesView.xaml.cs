@@ -49,13 +49,22 @@ public partial class SaveSourcesView:UserControl
     private void BindRows()
     {
         var selected=(Sources.SelectedItem as SourceRow)?.Value.Id;var mappings=result?.Document.Value?.Sources??[];
-        var visible=mappings.Where(s=>ShowPending.IsChecked==true||s.Selected||s.CanConfirm||s.Origin==SaveSourceOrigin.KnownRule||s.Access is SaveSourceAccess.Unreadable or SaveSourceAccess.Unsafe or SaveSourceAccess.Limited)
+        var visible=mappings.Where(s=>ShowPending.IsChecked==true||s.Selected||s.CanConfirm||s.Message==SaveSourceWords.Rejected||s.Origin==SaveSourceOrigin.KnownRule||s.Access is SaveSourceAccess.Unreadable or SaveSourceAccess.Unsafe or SaveSourceAccess.Limited)
             .OrderByDescending(s=>s.Selected).ThenByDescending(s=>s.Access==SaveSourceAccess.Ready).ThenBy(s=>s.Path,StringComparer.OrdinalIgnoreCase).Select(s=>new SourceRow(s)).ToArray();
         Sources.ItemsSource=visible;Sources.SelectedItem=visible.FirstOrDefault(s=>s.Value.Id==selected)??visible.FirstOrDefault();EmptyNotice.Visibility=visible.Length==0?Visibility.Visible:Visibility.Collapsed;
     }
     private void FilterChanged(object sender,RoutedEventArgs e){if(!changing)BindRows();}
     private void SourceSelected(object sender,SelectionChangedEventArgs e)=>UpdateConfirm();
-    private void UpdateConfirm(){if(ConfirmButton is not null)ConfirmButton.IsEnabled=!busy&&result?.Document.IsReadOnly==false&&Sources.SelectedItem is SourceRow{Value.CanConfirm:true,Value.Selected:false,Value.Access:SaveSourceAccess.Ready};}
+    private void UpdateConfirm()
+    {
+        if(ConfirmButton is null||RejectButton is null||RestoreFolderButton is null)return;
+        var writable=!busy&&result?.Document.IsReadOnly==false;var row=(Sources.SelectedItem as SourceRow)?.Value;var rejected=row?.Message==SaveSourceWords.Rejected;
+        ConfirmButton.IsEnabled=writable&&row is{CanConfirm:true,Selected:false,Access:SaveSourceAccess.Ready};
+        RejectButton.IsEnabled=writable&&!rejected&&row is not null&&row.Origin!=SaveSourceOrigin.Manual&&(row.Selected||row.CanConfirm);
+        RestoreFolderButton.Visibility=rejected?Visibility.Visible:Visibility.Collapsed;RestoreFolderButton.IsEnabled=writable&&rejected;
+    }
+    private async void RejectSource(object sender,RoutedEventArgs e){if(Sources.SelectedItem is SourceRow row&&RejectButton.IsEnabled)await Act(()=>discovery.RejectAsync(GameId,row.Value.Id));}
+    private async void RestoreSource(object sender,RoutedEventArgs e){if(Sources.SelectedItem is SourceRow row&&RestoreFolderButton.IsEnabled)await Act(()=>discovery.RestoreAsync(GameId,row.Value.Path));}
     private async void ConfirmSource(object sender,RoutedEventArgs e){if(Sources.SelectedItem is SourceRow row&&ConfirmButton.IsEnabled)await Act(()=>discovery.ConfirmAsync(GameId,row.Value.Id));}
     private async void AutomaticChanged(object sender,RoutedEventArgs e){if(!changing&&!busy)await Act(()=>discovery.SetAutomaticAsync(GameId,Automatic.IsChecked==true));}
     private void EditManual(object sender,RoutedEventArgs e){if(!busy&&!isGameActive())ManualEditRequested?.Invoke(this,EventArgs.Empty);}
@@ -65,7 +74,7 @@ public partial class SaveSourcesView:UserControl
     {
         public string Path=>Value.Path;
         public string State=>$"{(Value.Selected?"Selected · ":"")}{(Value.Access==SaveSourceAccess.Ready?"Readable":Value.Access==SaveSourceAccess.NotChecked?"Not checked":Value.Access.ToString())} · {Value.Kind} · "+
-            (Value.Origin switch{SaveSourceOrigin.KnownRule=>"Known game location",SaveSourceOrigin.Suggestion=>"Needs confirmation",SaveSourceOrigin.Confirmed=>"Confirmed by you",_=>"Manual location"});
-        public string Explanation=>Value.Evidence+(Value.Message is null?"":"\n"+Value.Message);
+            SaveSourceWords.Origin(Value);
+        public string Explanation=>Value.Evidence+(Value.Message is null||Value.Message==SaveSourceWords.Rejected?"":"\n"+Value.Message);
     }
 }

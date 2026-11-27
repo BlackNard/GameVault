@@ -50,7 +50,7 @@ public partial class MainWindow : Window
         discovery = new(paths, store, saveEnvironment);
         launches = new(paths, store, new WindowsGameProcessSystem());
         discoveryCoordinator = new(launches, discovery);
-        saveWatcher = new(launches, store, discovery, _ => saveEnvironment.WatchedRoots, () => true);
+        saveWatcher = new(launches, store, discovery, _ => saveEnvironment.WatchedRoots, () => SaveWatchSetting.IsOn(paths));
         backups=new(paths,store,discovery,new GameOperationLeases(),launches.IsGameRunningAsync);
         backupCoordinator=new(launches,backups,launches.WaitForIdleAsync);
         backupHistory=new(paths,store,new(),launches.IsGameRunningAsync);
@@ -72,6 +72,7 @@ public partial class MainWindow : Window
         ThemePalette.Apply(this, settings.Theme);
         Motion.ReduceMotion = settings.ReduceMotion;
         ReduceMotionChoice.IsChecked = settings.ReduceMotion;
+        WatchSavesSwitch.IsChecked = SaveWatchSetting.IsOn(paths);
         CloseToTrayChoice.IsChecked=settings.CloseToTray;BackupNotificationsChoice.IsChecked=settings.NotifyBackupFailures;CheckForUpdatesChoice.IsChecked=settings.CheckForUpdates;AutoUpdateChoice.IsChecked=settings.AutoUpdate;
         MinHeight = Math.Min(MinHeight, SystemParameters.WorkArea.Height);
         MinWidth = Math.Min(MinWidth, SystemParameters.WorkArea.Width);

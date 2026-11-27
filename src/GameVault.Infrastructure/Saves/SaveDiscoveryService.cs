@@ -9,7 +9,7 @@ public sealed record SaveSelectionChanged(Guid GameId,string GameName,SaveSource
 public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore store,SaveDiscoveryEnvironment environment):ISaveDiscoveryScanner
 {
     private readonly ConcurrentDictionary<Guid,SemaphoreSlim> gates=new();
-    public const string RejectedMessage="Not this game's saves";
+    public const string RejectedMessage=SaveSourceWords.Rejected;
     private const int MaxSelected=32;
     public event EventHandler<SaveDiscoveryChanged>? Changed;
     public event EventHandler<SaveSelectionChanged>? SelectionChanged;
@@ -203,7 +203,7 @@ public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore sto
         }
         return mappings.Select(m=>
         {
-            if(chosen.FindIndex(c=>c.Id==m.Id) is var at&&at>=0)return at<retained?m:m with{Selected=true,Origin=SaveSourceOrigin.KnownRule,Evidence="Found automatically · "+scores[m.Path].Evidence};
+            if(chosen.FindIndex(c=>c.Id==m.Id) is var at&&at>=0)return at<retained?m:m with{Selected=true,Origin=SaveSourceOrigin.KnownRule,Evidence=SaveSourceWords.FoundAutomatically+" · "+scores[m.Path].Evidence};
             if(ambiguous&&m.Origin==SaveSourceOrigin.KnownRule)return m with{Selected=false};
             var overlaps=chosen.Any(c=>SaveSourcePolicy.Overlaps(c.Path,m.Path));
             if(m.Access!=SaveSourceAccess.Ready)return overlaps?m with{Selected=false}:m;          // a folder waiting for its saves stays as it was

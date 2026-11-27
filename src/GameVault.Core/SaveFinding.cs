@@ -63,6 +63,22 @@ public static class SaveFileNames
     }
 }
 
+/// <summary>How a folder in the Saves tab came to be listed.</summary>
+public static class SaveSourceWords
+{
+    public const string Rejected = "Not this game's saves";
+    public const string FoundAutomatically = "Found automatically";
+
+    public static string Origin(SaveSourceMapping source) =>
+        source.Message == Rejected ? Rejected : source.Origin switch
+        {
+            SaveSourceOrigin.Manual => "Chosen by you",
+            SaveSourceOrigin.Confirmed => "Confirmed by you",
+            SaveSourceOrigin.KnownRule => source.Evidence.StartsWith(FoundAutomatically, StringComparison.Ordinal) ? FoundAutomatically : "Known game location",
+            _ => source.CanConfirm ? "Needs confirmation" : "Listed only"
+        };
+}
+
 public enum SaveBackupOutcome { BackedUp, WhenClosed, NotYet }
 
 /// <summary>The short words of the save finder's notices.</summary>
