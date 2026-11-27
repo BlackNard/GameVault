@@ -167,6 +167,8 @@ public sealed partial class StatisticsView : UserControl
         row.Children.Add(name);
         var bar = new Border { Height = 8, CornerRadius = new CornerRadius(4), Width = Math.Max(4, 280 * share), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
         bar.SetResourceReference(Border.BackgroundProperty, "AppAccent");
+        // Grows each time it is drawn, so a change of period is seen.
+        bar.Loaded += (_, _) => Motion.Grow(bar, false);
         Grid.SetColumn(bar, 1);
         row.Children.Add(bar);
         var time = new TextBlock { Text = Duration(entry.Seconds), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };

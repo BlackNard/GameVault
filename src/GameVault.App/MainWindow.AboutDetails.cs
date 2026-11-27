@@ -174,7 +174,7 @@ public partial class MainWindow
         if (shownTimes.Times is not { HasAny: true } times) return;
         var progress = GameOverviewRules.Progress(ShownPlayedSeconds(shownTimes.Game, shownTimes.Played), times.MainSeconds, times.AllSeconds);
         TimeProgressBar.Visibility = TimeProgressText.Visibility = progress is null ? Visibility.Collapsed : Visibility.Visible;
-        if (progress is { } own) { TimeProgressBar.Value = own.Share; TimeProgressText.Text = own.Text; }
+        if (progress is { } own) { Motion.Progress(TimeProgressBar, own.Share); TimeProgressText.Text = own.Text; }
     }
 
     private void TimeToBeatLinkClicked(object sender, RoutedEventArgs e)

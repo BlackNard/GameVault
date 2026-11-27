@@ -69,6 +69,45 @@ public sealed class MotionTests
         Assert.IsType<RotateTransform>(turned.RenderTransform);
     });
 
+    [Fact]
+    public void CardsLiftGlowAndFadeTheirCoversThroughTheSharedMotion()
+    {
+        var window = Window();
+        var card = window.Descendants().Single(e => (string?)e.Attribute(X + "Key") == "CardTemplate");
+        Assert.Contains(card.Descendants(), e => e.Attributes().Any(a => a.Name.LocalName == "Motion.Lift"));
+        Assert.Contains(card.Descendants(), e => (string?)e.Attribute("Tag") == "Glow");
+        Assert.Contains(card.Descendants(), e => e.Attributes().Any(a => a.Name.LocalName == "Motion.Stagger"));
+        Assert.Equal(2, window.Descendants().Where(e => e.Name.LocalName == "Image")
+            .Count(e => e.Attributes().Any(a => a.Name.LocalName == "Motion.Source" && a.Value == "{Binding Cover}")));
+    }
+
+    [Fact]
+    public void ACoverIsShownAtOnceWithMotionOffAndNothingIsAddedToACard() => OnSta(() =>
+    {
+        Motion.ReduceMotion = true;
+        var image = new Image();
+        var picture = System.Windows.Media.Imaging.BitmapSource.Create(1, 1, 96, 96, PixelFormats.Bgra32, null, new byte[4], 4);
+        Motion.SetSource(image, picture);
+        Assert.Same(picture, image.Source);
+        Assert.False(image.HasAnimatedProperties);
+        var glow = new Border { Tag = "Glow", Opacity = 0 };
+        var frame = new Grid();
+        frame.Children.Add(glow);
+        Motion.Hover(frame, true);
+        Assert.Null(glow.Effect);
+        Assert.Equal(Transform.Identity, frame.RenderTransform);
+
+        Motion.ReduceMotion = false;
+        if (SystemParameters.ClientAreaAnimation)
+        {
+            Motion.Hover(frame, true);
+            Assert.NotNull(glow.Effect);
+            Assert.IsType<TranslateTransform>(frame.RenderTransform);
+        }
+        Motion.SetSource(image, null);
+        Assert.Null(image.Source);
+    });
+
     private static void OnSta(Action action)
     {
         Exception? failure = null;

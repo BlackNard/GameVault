@@ -9,7 +9,11 @@ public sealed record ThemeDefinition(
     string Id, string Name, string Tagline,
     string Chrome, string Background, string Text, string Muted, string Surface, string Raised,
     string Line, string Accent, string Primary, string PrimaryText, string Warning,
-    IReadOnlyList<string>? BackgroundGradient = null);
+    IReadOnlyList<string>? BackgroundGradient = null, string? Glow = null)
+{
+    /// <summary>The colour of the light around a hovered game card: the theme's own, or its accent.</summary>
+    public string GlowColor => Glow ?? Accent;
+}
 
 /// <summary>Every theme the app offers, in the order the picker shows them. The saved theme name is the <see cref="ThemeDefinition.Id"/>.</summary>
 public static class ThemeCatalog
@@ -27,7 +31,7 @@ public static class ThemeCatalog
         new("Vice City", "Vice City", "Neon dusk: purple fading to pink, with sunset orange.",
             Chrome: "#140828", Background: "#150a2e", Text: "#fff4fb", Muted: "#dcc0ea", Surface: "#26103f", Raised: "#3b1a5c",
             Line: "#8a43a6", Accent: "#ffb36b", Primary: "#ff4f9f", PrimaryText: "#1a0630", Warning: "#ffcf8a",
-            BackgroundGradient: ["#150a2e", "#2c1050", "#5c1a62"]),
+            BackgroundGradient: ["#150a2e", "#2c1050", "#5c1a62"], Glow: "#ff4f9f"),
         // The four game themes take their colours from the games' store cover art (dominant colours sampled from each cover).
         new("Witcher 3", "Witcher 3", "Icy fog and steel on charcoal, with the blood-red of the Wild Hunt logo.",
             Chrome: "#120b11", Background: "#150a13", Text: "#e9fbf5", Muted: "#b9c9c5", Surface: "#251b22", Raised: "#392b35",
@@ -36,11 +40,11 @@ public static class ThemeCatalog
         new("Cyberpunk 2077", "Cyberpunk 2077", "Cover-art yellow over jacket black, with neon blue and red.",
             Chrome: "#0d0708", Background: "#0e080a", Text: "#fffbe0", Muted: "#d3caa5", Surface: "#211815", Raised: "#35271f",
             Line: "#6b5a30", Accent: "#62b6ff", Primary: "#fdf802", PrimaryText: "#150b0c", Warning: "#ff6a5a",
-            BackgroundGradient: ["#0e080a", "#3a340b", "#5a520f"]),
+            BackgroundGradient: ["#0e080a", "#3a340b", "#5a520f"], Glow: "#fdf802"),
         new("Mass Effect", "Mass Effect", "The Legendary Edition cover: deep-space blue splitting into Reaper red.",
             Chrome: "#070e23", Background: "#0b1430", Text: "#f3f6ff", Muted: "#bfcbe3", Surface: "#141b36", Raised: "#25395d",
             Line: "#3d5a8f", Accent: "#5aa9ff", Primary: "#c31a1e", PrimaryText: "#ffffff", Warning: "#ff9a5a",
-            BackgroundGradient: ["#0b1430", "#2a1d3f", "#7a1727"]),
+            BackgroundGradient: ["#0b1430", "#2a1d3f", "#7a1727"], Glow: "#c31a1e"),
         new("Silent Hill 2", "Silent Hill 2", "Fog greys with the sage green of James's jacket.",
             Chrome: "#181918", Background: "#1b1c1b", Text: "#f2f1ee", Muted: "#c4c3bf", Surface: "#2a2b29", Raised: "#3a3b39",
             Line: "#646360", Accent: "#e4e1de", Primary: "#8fa89a", PrimaryText: "#101312", Warning: "#d68a63",
@@ -57,7 +61,7 @@ public static class ThemeCatalog
         new("Disco Elysium", "Disco Elysium", "Painted olive, ochre and teal-black, with halftone orange and skill-check cyan.",
             Chrome: "#0b1612", Background: "#0f1f1a", Text: "#f1ead2", Muted: "#cdc5a6", Surface: "#1d2421", Raised: "#2f3a35",
             Line: "#6b6a4a", Accent: "#46c2b6", Primary: "#e8892c", PrimaryText: "#150c03", Warning: "#ff6a3d",
-            BackgroundGradient: ["#0f1f1a", "#242925", "#514534"]),
+            BackgroundGradient: ["#0f1f1a", "#242925", "#514534"], Glow: "#e8892c"),
         new("Resident Evil 9", "Resident Evil 9", "Requiem: cold white-blue and graphite, with a red glow at the edge.",
             Chrome: "#121015", Background: "#17141a", Text: "#f4f5f8", Muted: "#c3c5cc", Surface: "#24222a", Raised: "#3a3840",
             Line: "#5c5e65", Accent: "#cfd8e6", Primary: "#e0463f", PrimaryText: "#1a0606", Warning: "#ff9a6a",

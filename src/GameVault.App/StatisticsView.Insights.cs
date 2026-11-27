@@ -137,6 +137,7 @@ public sealed partial class StatisticsView
             column.Children.Add(caption);
             var bar = new Border { Height = seconds == 0 ? 2 : Math.Max(3, height * seconds / peak), VerticalAlignment = VerticalAlignment.Bottom, CornerRadius = new CornerRadius(3, 3, 0, 0), Margin = new Thickness(2, 0, 2, 4) };
             bar.SetResourceReference(Border.BackgroundProperty, seconds == 0 ? "AppLine" : "AppAccent");
+            bar.Loaded += (_, _) => Motion.Grow(bar, true);
             column.Children.Add(bar);
             AutomationProperties.SetName(column, $"{name}: {Duration(seconds)}");
             Grid.SetColumn(column, i);
