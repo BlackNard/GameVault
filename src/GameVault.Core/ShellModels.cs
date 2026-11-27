@@ -1,6 +1,6 @@
 namespace GameVault.Core;
 
-public enum NavKind { Library, Settings, Game, Backups, Captures, Statistics }
+public enum NavKind { Library, Settings, Game, Backups, Captures, Statistics, Journal }
 
 /// <summary>A place in the app that Back and Forward can return to. Section is a game page section (Overview, Sessions, Saves, Media).</summary>
 public sealed record NavRoute(NavKind Kind, Guid? GameId = null, string? Section = null)
@@ -12,6 +12,7 @@ public sealed record NavRoute(NavKind Kind, Guid? GameId = null, string? Section
  public static readonly NavRoute Backups = new(NavKind.Backups);
  public static readonly NavRoute Captures = new(NavKind.Captures);
  public static readonly NavRoute Statistics = new(NavKind.Statistics);
+ public static readonly NavRoute Journal = new(NavKind.Journal);
  /// <summary>One game's folder on the Captures page.</summary>
  public static NavRoute CapturesOf(Guid id) => new(NavKind.Captures, id);
  public static NavRoute Game(Guid id, string? section = null) => new(NavKind.Game, id, string.IsNullOrWhiteSpace(section) ? "Overview" : section);
@@ -63,6 +64,7 @@ public static class NavBreadcrumb
    case NavKind.Settings: return SettingsCatalog.IsKnown(route.Section) ? "Settings › " + SettingsCatalog.Title(route.Section) : "Settings";
    case NavKind.Backups: return "Backups";
    case NavKind.Statistics: return "Statistics";
+   case NavKind.Journal: return "Journal";
    case NavKind.Captures: return route.GameId is null ? "Captures" : "Captures › " + (string.IsNullOrWhiteSpace(gameName) ? "Game" : gameName);
    case NavKind.Game:
     var name = string.IsNullOrWhiteSpace(gameName) ? "Game" : gameName;

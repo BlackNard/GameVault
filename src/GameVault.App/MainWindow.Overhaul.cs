@@ -156,6 +156,7 @@ public partial class MainWindow
         Mark(BackupsNav, route.Kind == NavKind.Backups);
         Mark(CapturesNav, route.Kind == NavKind.Captures);
         Mark(StatisticsNav, route.Kind == NavKind.Statistics);
+        Mark(JournalNav, route.Kind == NavKind.Journal);
     }
 
     private async void RecentClicked(object sender, RoutedEventArgs e)

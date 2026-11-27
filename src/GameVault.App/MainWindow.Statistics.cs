@@ -22,10 +22,12 @@ public partial class MainWindow
         {
             statisticsView = new StatisticsView();
             statisticsView.GameRequested += async (_, id) => await NavigateToAsync(NavRoute.Game(id, "Overview"));
+            // A day of the calendar opens what happened on it.
+            statisticsView.DayRequested += async (_, day) => { if (await NavigateToAsync(NavRoute.Journal)) await LoadJournalAsync(day); };
             StatisticsPanel.Content = statisticsView;
         }
         libraryVisible = false;
-        LibraryPanel.Visibility = SettingsPanel.Visibility = GamePage.Visibility = OverviewPanel.Visibility = Visibility.Collapsed;
+        LibraryPanel.Visibility = SettingsPanel.Visibility = GamePage.Visibility = OverviewPanel.Visibility = JournalPanel.Visibility = Visibility.Collapsed;
         StatisticsPanel.Visibility = Visibility.Visible;
         RecordRoute();
         var revision = ++statisticsRevision;

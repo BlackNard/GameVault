@@ -77,7 +77,7 @@ public partial class MainWindow
  }
  private void ShowGamePage()
  {
-  libraryVisible=false;LibraryPanel.Visibility=SettingsPanel.Visibility=OverviewPanel.Visibility=StatisticsPanel.Visibility=Visibility.Collapsed;GamePage.Visibility=Visibility.Visible;
+  libraryVisible=false;LibraryPanel.Visibility=SettingsPanel.Visibility=OverviewPanel.Visibility=StatisticsPanel.Visibility=JournalPanel.Visibility=Visibility.Collapsed;GamePage.Visibility=Visibility.Visible;
   if(GameList.SelectedItem is LibraryItemView item)_=RefreshHeroCoverAsync(item);
  }
  private async void GameTabClicked(object sender,RoutedEventArgs e)

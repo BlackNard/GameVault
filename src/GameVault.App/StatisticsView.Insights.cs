@@ -10,6 +10,8 @@ namespace GameVault.App;
 public sealed partial class StatisticsView
 {
     private readonly WrapPanel insightFigures = new();
+    /// <summary>A day of the calendar was chosen.</summary>
+    public event EventHandler<DateOnly>? DayRequested;
     private readonly TextBlock completedNames = Muted("");
     private readonly WrapPanel shares = new();
     private readonly Grid weekdayChart = new() { Height = 130 };
@@ -186,7 +188,14 @@ public sealed partial class StatisticsView
             var level = PlayStatistics.Level(day.Seconds, busiest);
             var cell = Cell(level);
             cell.ToolTip = $"{Day(day.Date)}: {Duration(day.Seconds)}";
-            if (level > 0) AutomationProperties.SetName(cell, (string)cell.ToolTip);
+            if (level > 0)
+            {
+                AutomationProperties.SetName(cell, (string)cell.ToolTip);
+                cell.Cursor = System.Windows.Input.Cursors.Hand;
+                cell.ToolTip = $"{cell.ToolTip}. Click to open the journal.";
+                var when = day.Date;
+                cell.MouseLeftButtonUp += (_, _) => DayRequested?.Invoke(this, when);
+            }
             Place(cell, i % 7 + 1, column);
         }
         var legend = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };

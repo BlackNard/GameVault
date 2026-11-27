@@ -81,6 +81,7 @@ public partial class MainWindow
     {
         if (SettingsPanel.Visibility == Visibility.Visible) return NavRoute.SettingsPage(settingsCategory);
         if (StatisticsVisible) return NavRoute.Statistics;
+        if (JournalVisible) return NavRoute.Journal;
         if (OverviewVisible) return overviewKind == NavKind.Backups ? NavRoute.Backups : captureFolder is Guid folder ? NavRoute.CapturesOf(folder) : NavRoute.Captures;
         if (GameList.SelectedItem is LibraryItemView item && (GamePage.Visibility == Visibility.Visible || notesView is not null))
         {
@@ -143,6 +144,10 @@ public partial class MainWindow
                 if (!await LeaveNotes()) return false;
                 if (SettingsCatalog.IsKnown(route.Section)) { settingsCategory = route.Section!; ApplySettingsCategory(); }
                 SetNavigation(false);
+                return true;
+            case NavKind.Journal:
+                if (!await LeaveNotes()) return false;
+                await ShowJournalAsync();
                 return true;
             case NavKind.Statistics:
                 if (!await LeaveNotes()) return false;
@@ -255,6 +260,7 @@ public partial class MainWindow
         yield return new PaletteEntry("Go to", "Backups", "", Go(NavRoute.Backups));
         yield return new PaletteEntry("Go to", "Captures", "", Go(NavRoute.Captures));
         yield return new PaletteEntry("Go to", "Statistics", "", Go(NavRoute.Statistics));
+        yield return new PaletteEntry("Go to", "Journal", "", Go(NavRoute.Journal));
         yield return new PaletteEntry("Action", "Add game", "", (Func<Task>)(() => { AddGame(this, new RoutedEventArgs()); return Task.CompletedTask; }));
         foreach (var item in visibleGames.Where(i => i.Game is { IsReadOnly: false, Profile.IsArchived: false }))
         {

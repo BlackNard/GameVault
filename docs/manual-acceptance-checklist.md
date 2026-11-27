@@ -306,6 +306,12 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] On a game's Overview, **Playthroughs** > **Add playthrough…** saves a run; **Edit** changes and deletes it; leaving with unsaved typing asks first.
 - [ ] Without typed hours a run counts the recorded sessions between its dates, shown against the time to beat; a finished run counts as a completion in Statistics.
 
+## 8ad. Journal (issue #96)
+
+- [ ] **Journal** in the sidebar lists sessions with their notes and added entries for all games, newest first; the game and period filters work.
+- [ ] **Add entry…**, **Edit** and delete work; playtime and statistics do not change because of an entry.
+- [ ] Clicking a day in the Statistics activity calendar opens the journal on that day.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.
