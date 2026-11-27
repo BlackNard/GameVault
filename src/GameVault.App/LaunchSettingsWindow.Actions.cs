@@ -84,13 +84,19 @@ public partial class LaunchSettingsWindow
             Default = new RadioButton { Content = "Play button runs this action", GroupName = "DefaultAction", IsChecked = isDefault, Margin = new Thickness(0, 0, 0, 8) },
         };
         row.Panel.SetResourceReference(Border.BorderBrushProperty, "AppLine");
-        var remove = new Button { Content = "Remove this action", HorizontalAlignment = Left };
+        SettingHelp.SetText(row.Name, "Shown in the menu next to Play.");
+        SettingHelp.SetText(row.Executable, "The program this action starts.");
+        SettingHelp.SetText(row.Arguments, "Extra text passed to the program, not through a shell. Optional.");
+        SettingHelp.SetText(row.Folder, "The folder the program starts in. Empty uses the game's folder.");
+        SettingHelp.SetText(row.Admin, "Starts it with administrator rights.");
+        SettingHelp.SetText(row.Default, "The Play button starts this instead of the game itself.");
+        var remove = new Button { Content = "Remove this action", HorizontalAlignment = Left, ToolTip = "Takes it off this list when you save" };
         remove.Click += (_, _) => { actionRows.Remove(row); ActionsHost.Children.Remove(row.Panel); if (!actionRows.Any(r => r.Default.IsChecked == true)) NoDefaultAction.IsChecked = true; UpdateAddButton(); };
         var stack = new StackPanel();
-        stack.Children.Add(Caption("Name (shown in the Play menu)")); stack.Children.Add(row.Name);
+        stack.Children.Add(Caption("Name")); stack.Children.Add(row.Name);
         stack.Children.Add(Caption("Program (.exe)")); stack.Children.Add(WithBrowse(row.Executable, "program for the play action", false));
-        stack.Children.Add(Caption("Arguments (optional)")); stack.Children.Add(row.Arguments);
-        stack.Children.Add(Caption("Working folder (optional, defaults to the game's folder)")); stack.Children.Add(WithBrowse(row.Folder, "working folder for the play action", true));
+        stack.Children.Add(Caption("Arguments")); stack.Children.Add(row.Arguments);
+        stack.Children.Add(Caption("Working folder")); stack.Children.Add(WithBrowse(row.Folder, "working folder for the play action", true));
         stack.Children.Add(row.Admin); stack.Children.Add(row.Default); stack.Children.Add(remove);
         row.Panel.Child = stack;
         actionRows.Add(row);
@@ -120,12 +126,16 @@ public partial class LaunchSettingsWindow
             Timeout = Box(label + " timeout in seconds", (hook?.TimeoutSeconds ?? 30).ToString(CultureInfo.InvariantCulture), 3),
             Wait = new CheckBox { Content = label == "Before launch" ? "Wait for it to finish before the game starts" : "Wait for it to finish (and stop it after the timeout)", IsChecked = hook?.WaitForExit ?? true, Margin = new Thickness(0, 0, 0, 8) },
         };
+        SettingHelp.SetText(editor.Executable, "The program to run. Empty runs nothing.");
+        SettingHelp.SetText(editor.Arguments, "Extra text passed to the program. Optional.");
+        SettingHelp.SetText(editor.Timeout, "1 to " + LaunchRules.MaxTimeoutSeconds + " seconds.");
+        SettingHelp.SetText(editor.Wait, "Holds the next step until this program has finished.");
         editor.Timeout.Width = 80;
         editor.Timeout.HorizontalAlignment = Left;
         editor.Panel.Children.Add(new TextBlock { Text = label, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6) });
-        editor.Panel.Children.Add(Caption("Program (.exe) – empty runs nothing")); editor.Panel.Children.Add(WithBrowse(editor.Executable, "program for " + label.ToLowerInvariant(), false));
-        editor.Panel.Children.Add(Caption("Arguments (optional)")); editor.Panel.Children.Add(editor.Arguments);
-        editor.Panel.Children.Add(Caption("Timeout (seconds, 1 to " + LaunchRules.MaxTimeoutSeconds + ")")); editor.Panel.Children.Add(editor.Timeout);
+        editor.Panel.Children.Add(Caption("Program (.exe)")); editor.Panel.Children.Add(WithBrowse(editor.Executable, "program for " + label.ToLowerInvariant(), false));
+        editor.Panel.Children.Add(Caption("Arguments")); editor.Panel.Children.Add(editor.Arguments);
+        editor.Panel.Children.Add(Caption("Timeout (seconds)")); editor.Panel.Children.Add(editor.Timeout);
         editor.Panel.Children.Add(editor.Wait);
         HooksHost.Children.Add(editor.Panel);
         return editor;

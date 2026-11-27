@@ -191,12 +191,15 @@ public partial class MainWindow
             catch (Exception error) when (IsExpected(error)) { ShowToast("Could not save the settings", error.Message, true); }
         }
         var onlyEmpty = new CheckBox { Content = "Only fill empty fields", IsChecked = current.OnlyFillEmpty, IsEnabled = !readOnly, Margin = new Thickness(0, 0, 0, 8) };
+        SettingHelp.SetText(onlyEmpty, "Keeps what a game already has.");
         SettingHelp.SetText(onlyEmpty, "A value that is already there is never replaced.");
         onlyEmpty.Click += (_, _) => Save(current with { OnlyFillEmpty = onlyEmpty.IsChecked == true });
         var onDisk = new CheckBox { Content = "Measure install size on disk", IsChecked = current.SizeOnDisk, IsEnabled = !readOnly, Margin = new Thickness(0, 0, 0, 12) };
+        SettingHelp.SetText(onDisk, "Reads the game's folder to measure its size.");
         SettingHelp.SetText(onDisk, "Counts whole 4 KB clusters, as Windows does.");
         onDisk.Click += (_, _) => Save(current with { SizeOnDisk = onDisk.IsChecked == true });
         var automatic = new CheckBox { Content = "Look up information automatically", IsChecked = current.AutoFetch, IsEnabled = !readOnly, Margin = new Thickness(0, 0, 0, 8) };
+        SettingHelp.SetText(automatic, "Fetches facts for new games; titles or store ids are sent.");
         SettingHelp.SetText(automatic, "Also fetches a missing Steam cover, for new games and games without information. Your own text is never replaced.");
         automatic.Click += (_, _) => Save(current with { AutoFetch = automatic.IsChecked == true });
         MetadataFields.Children.Add(automatic);
@@ -205,7 +208,7 @@ public partial class MainWindow
         foreach (var (field, label) in FieldLabels)
         {
             var row = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
-            var enabled = new CheckBox { Content = label, IsChecked = current.IsEnabled(field), IsEnabled = !readOnly, MinWidth = 170, VerticalAlignment = VerticalAlignment.Center };
+            var enabled = new CheckBox { Content = label, ToolTip = "Look this fact up", IsChecked = current.IsEnabled(field), IsEnabled = !readOnly, MinWidth = 170, VerticalAlignment = VerticalAlignment.Center };
             var captured = field;
             enabled.Click += (_, _) =>
             {
@@ -217,7 +220,7 @@ public partial class MainWindow
             var providers = capable[field];
             if (providers.Length > 1)
             {
-                var order = new ComboBox { Width = 260, IsEnabled = !readOnly };
+                var order = new ComboBox { Width = 260, IsEnabled = !readOnly, ToolTip = "The source asked first for this fact" };
                 var ordered = current.OrderFor(field, providers);
                 foreach (var id in providers) order.Items.Add(new ComboBoxItem { Content = "First ask: " + names[id], Tag = id });
                 order.SelectedItem = order.Items.OfType<ComboBoxItem>().First(i => (string)i.Tag == ordered[0]);

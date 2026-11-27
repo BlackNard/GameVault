@@ -85,7 +85,7 @@ public sealed class ProfileImportView : UserControl
         var panel = new Border { BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(14), Margin = new Thickness(0, 0, 0, 10) };
         panel.SetResourceReference(Border.BorderBrushProperty, "AppLine");
         var ready = game.Status == ImportStatus.Ready;
-        var select = new CheckBox { VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 4, 12, 0), IsEnabled = ready, IsChecked = ready };
+        var select = new CheckBox { ToolTip = "Copy this game into your library", VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 4, 12, 0), IsEnabled = ready, IsChecked = ready };
         AutomationProperties.SetName(select, "Import " + game.Name);
         var text = new StackPanel();
         text.Children.Add(new TextBlock { Text = game.Name, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });

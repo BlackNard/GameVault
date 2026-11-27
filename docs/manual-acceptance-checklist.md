@@ -331,6 +331,12 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] The first start of a newer version shows **What's new** once; it does not come back at the next start, and a first install never shows it. **Settings > Updates > What's new** opens it again.
 - [ ] With a newer release published, starting GameVault shows it in **Notifications** without opening Settings, also when the last check was minutes ago; offline, the start is not held up for more than a few seconds; with the check turned off nothing is asked.
 
+## 8ah. Descriptions on hover (issue #102)
+
+- [ ] Backups, game editor, launch settings, How long to beat, tags, restore, save sources, cover search, match and theme pickers, and the playthrough, journal and list forms show short names only; hovering over an item (or reaching it with Tab) shows its explanation.
+- [ ] Warnings and anything about what is sent, replaced or removed are still written on the screen.
+- [ ] Every button, switch, list choice and field whose words are not already clear shows a description on hover, greyed-out ones too.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

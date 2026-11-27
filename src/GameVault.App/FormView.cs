@@ -86,7 +86,7 @@ public sealed class FormView : UserControl
         finally { busy = false; fields.IsEnabled = saveButton.IsEnabled = cancelButton.IsEnabled = deleteButton.IsEnabled = true; }
     }
 
-    private T Add<T>(string label, T control, Func<string> value) where T : FrameworkElement
+    private T Add<T>(string label, T control, Func<string> value, string? help = null) where T : FrameworkElement
     {
         var caption = new TextBlock { Text = label, Margin = new Thickness(0, 0, 0, 4), TextWrapping = TextWrapping.Wrap };
         caption.SetResourceReference(TextBlock.ForegroundProperty, "AppMuted");
@@ -95,17 +95,18 @@ public sealed class FormView : UserControl
         control.Margin = new Thickness(0, 0, 0, 12);
         fields.Children.Add(control);
         values.Add(value);
+        if (help is not null) { SettingHelp.SetText(caption, help); SettingHelp.SetText(control, help); }
         return control;
     }
 
-    public TextBox Text(string label, string? value, int max = 200, bool lines = false)
+    public TextBox Text(string label, string? value, int max = 200, bool lines = false, string? help = null)
     {
         var box = new TextBox { Text = value ?? "", MaxLength = max };
         if (lines) { box.AcceptsReturn = true; box.TextWrapping = TextWrapping.Wrap; box.MinHeight = 110; box.VerticalScrollBarVisibility = ScrollBarVisibility.Auto; }
-        return Add(label, box, () => box.Text);
+        return Add(label, box, () => box.Text, help);
     }
 
-    public ComboBox Choice<T>(string label, IEnumerable<(T Value, string Label)> options, T selected)
+    public ComboBox Choice<T>(string label, IEnumerable<(T Value, string Label)> options, T selected, string? help = null)
     {
         var box = new ComboBox();
         foreach (var (value, text) in options)
@@ -115,24 +116,25 @@ public sealed class FormView : UserControl
             if (EqualityComparer<T>.Default.Equals(value, selected)) box.SelectedItem = item;
         }
         if (box.SelectedItem is null && box.Items.Count > 0) box.SelectedIndex = 0;
-        return Add(label, box, () => box.SelectedIndex.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        return Add(label, box, () => box.SelectedIndex.ToString(System.Globalization.CultureInfo.InvariantCulture), help);
     }
 
     public static T? Chosen<T>(ComboBox box) => box.SelectedItem is ComboBoxItem { Tag: T value } ? value : default;
 
-    public CheckBox Check(string label, bool value)
+    public CheckBox Check(string label, bool value, string? help = null)
     {
         var box = new CheckBox { Content = label, IsChecked = value, Margin = new Thickness(0, 0, 0, 12) };
         fields.Children.Add(box);
         values.Add(() => box.IsChecked == true ? "1" : "0");
+        if (help is not null) SettingHelp.SetText(box, help);
         return box;
     }
 
-    public StarRatingControl Stars(string label, int halfStars)
+    public StarRatingControl Stars(string label, int halfStars, string? help = null)
     {
         var stars = new StarRatingControl { Value = halfStars, HorizontalAlignment = HorizontalAlignment.Left };
         stars.Chosen += (_, chosen) => stars.Value = chosen;
-        return Add(label, stars, () => stars.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        return Add(label, stars, () => stars.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), help);
     }
 
     /// <summary>A date typed as 2026-11-27; empty means no date.</summary>

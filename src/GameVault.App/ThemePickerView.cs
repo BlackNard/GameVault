@@ -37,10 +37,9 @@ public sealed class ThemePickerView : UserControl
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         var header = new StackPanel();
-        header.Children.Add(new TextBlock { Text = "Themes", FontSize = 26, FontWeight = FontWeights.SemiBold });
-        var explain = new TextBlock { Text = "Each preview is drawn with that theme's own colours. Choose Use this theme and the whole app changes at once; GameVault remembers it next time.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 14) };
-        explain.SetResourceReference(TextBlock.ForegroundProperty, "AppMuted");
-        header.Children.Add(explain);
+        var title = new TextBlock { Text = "Themes", FontSize = 26, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 14) };
+        SettingHelp.SetText(title, "Each preview is drawn with that theme's own colours. Choose Use this theme and the whole app changes at once; GameVault remembers it next time.");
+        header.Children.Add(title);
         status.SetResourceReference(TextBlock.ForegroundProperty, "AppMuted");
         header.Children.Add(status);
         root.Children.Add(header);
