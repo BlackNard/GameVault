@@ -1,6 +1,6 @@
 namespace GameVault.Core;
 
-public enum NoticeKind { Update, UnexpectedExit, BackupAttention }
+public enum NoticeKind { Update, UnexpectedExit, BackupAttention, SaveFound }
 
 /// <summary>One entry of the notifications list (the bell in the title bar). <see cref="Id"/> identifies the thing it is about, so posting it again replaces it.</summary>
 public sealed record Notice(string Id, NoticeKind Kind, string Title, string? Detail, DateTimeOffset CreatedAt, bool IsProblem = false, string? ActionLabel = null);

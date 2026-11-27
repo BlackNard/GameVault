@@ -12,8 +12,16 @@ public static class ReleaseNotes
     public static IReadOnlyList<ReleaseNote> All { get; } =
     [
         new("0.1.1",
-            [],
-            ["Version numbers are now plain, like 0.1.1."]),
+            [
+                "GameVault now finds where a game saves, backs it up and tells you. \"Not this folder\" undoes a wrong pick.",
+                "When it is not sure, it asks. If it finds nothing, you can choose the folder from the notification.",
+                "A switch in Settings > Backups: Watch for saves while playing."
+            ],
+            [
+                "Saves of games set up outside a store are found by the game's Steam number.",
+                "A missing save folder now says so plainly instead of reporting a failed backup.",
+                "Version numbers are now plain, like 0.1.1."
+            ]),
         new("0.1.0-preview.8",
             [
                 "Journal: write your own entries, about a game or anything else, and export an entry to Obsidian.",

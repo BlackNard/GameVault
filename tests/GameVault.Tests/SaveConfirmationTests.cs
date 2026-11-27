@@ -11,7 +11,8 @@ public sealed class SaveConfirmationTests : IDisposable
     private readonly Guid id = Guid.NewGuid();
     private ApplicationPaths Paths => ApplicationPaths.FromRoot(Path.Combine(root, "app"));
     private AppDataStore Store => new(Paths);
-    private string Found => Path.Combine(root, "local", "Example", "Saved", "SaveGames");
+    // A folder inside the game's own folder is a likely save folder but not a certain one, so the player is asked.
+    private string Found => Path.Combine(root, "game", "saves");
     private SaveDiscoveryService Discovery => new(Paths, Store, new SaveDiscoveryEnvironment(Path.Combine(root, "user"), Path.Combine(root, "docs"),
         Path.Combine(root, "saved"), Path.Combine(root, "roam"), Path.Combine(root, "local"), Path.Combine(root, "public"), []));
     private BackupService Backups(SaveDiscoveryService discovery) => new(Paths, Store, discovery, new(), _ => Task.FromResult(false));
@@ -58,11 +59,26 @@ public sealed class SaveConfirmationTests : IDisposable
     }
 
     [Fact]
-    public async Task OtherProblemsAreStillReportedAsAFailedBackup()
+    public async Task AMissingSaveFolderSaysSoPlainly()
     {
         await SeedAsync();
         Directory.Delete(Found, true);                                  // nothing readable to confirm
         var result = await Backups(Discovery).BackUpAsync(id, true);
+        Assert.Equal(BackupPhase.Failed, result.Phase);
+        Assert.Equal("No save folder found yet. Choose the folder in the game's Saves tab.", result.Message);
+        Assert.True(SaveMissing.Is(result.Message));
+        Assert.DoesNotContain("not fully verified", result.Message);
+    }
+
+    [Fact]
+    public async Task OtherProblemsAreStillReportedAsAFailedBackup()
+    {
+        await SeedAsync();
+        var discovery = Discovery;
+        await Backups(discovery).BackUpAsync(id, true);
+        await discovery.ConfirmAsync(id, (await discovery.ReadAsync(id)).Document.Value!.Sources.Single(s => s.CanConfirm).Id);
+        File.Delete(Path.Combine(Found, "slot.sav"));                   // the chosen folder is there but holds nothing
+        var result = await Backups(discovery).BackUpAsync(id, true);
         Assert.Equal(BackupPhase.Failed, result.Phase);
         Assert.StartsWith("Backup could not finish.", result.Message);
     }

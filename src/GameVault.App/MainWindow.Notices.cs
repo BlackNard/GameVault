@@ -109,9 +109,11 @@ public partial class MainWindow
         {
             var id = BackupIdPrefix + alert.GameId;
             keep.Add(id);
-            var title = SaveConfirmation.IsNeeded(alert.Message) ? $"{SaveConfirmation.Title}: {alert.GameName}" : $"Backup needs attention: {alert.GameName}";
-            PostNotice(new Notice(id, NoticeKind.BackupAttention, title, alert.Message, alert.CreatedAt, true, "Review"),
-                () => ReviewBackupAlert(alert.GameId));
+            var missing = SaveMissing.Is(alert.Message);
+            var title = SaveConfirmation.IsNeeded(alert.Message) ? $"{SaveConfirmation.Title}: {alert.GameName}"
+                : missing ? SaveFinderText.MissingTitle(alert.GameName) : $"Backup needs attention: {alert.GameName}";
+            PostNotice(new Notice(id, NoticeKind.BackupAttention, title, alert.Message, alert.CreatedAt, true, missing ? "Choose folder…" : "Review"),
+                () => { if (missing) _ = ChooseSaveFolderAsync(alert.GameId); else ReviewBackupAlert(alert.GameId); });
         }
         notices.RetainOnly(NoticeKind.BackupAttention, keep);
     }

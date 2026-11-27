@@ -63,7 +63,7 @@ public sealed class BackupService
                 }
             }
         }
-        catch(SaveConfirmationRequiredException e){result=new(id,BackupPhase.Failed,e.Message,last);}
+        catch(Exception e)when(e is SaveConfirmationRequiredException or SaveSourceMissingException){result=new(id,BackupPhase.Failed,e.Message,last);}
         catch(Exception e)when(Expected(e)||e is OperationCanceledException)
         {result=new(id,BackupPhase.Failed,e is OperationCanceledException?"Backup canceled; earlier snapshots were preserved. Retry when ready.":"Backup could not finish. Earlier snapshots were preserved. Retry after resolving the source or storage problem. "+e.Message,last);}
         try{await Task.Run(()=>storage.WriteStatus(result)).ConfigureAwait(false);}

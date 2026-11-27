@@ -102,6 +102,10 @@ A game whose cover the player removed has a `cover-removed.marker` file in its p
 
 `Profiles/<game>/status.json` (schema 1: game id, `Backlog`, `Abandoned` or `Retired`, optional source and external id). `profile.json` keeps the closest of NotStarted, Playing, Completed and OnHold, so older versions read the game; the detail applies only while it fits that value and is removed when it changes.
 
+## Save finds
+
+`Profiles/<game>/save-finds.json` (schema 1, strict) holds the folders that had save files written while the game ran (`path`, `files`, `sessions`, `lastSeen`, `shared`: another game ran at the same time) and the folders the player rejected with "Not this folder". At most 64 of each. While it cannot be read, no folder is newly selected. Folders GameVault selects itself are stored in `save-discovery.json` with the existing origin `KnownRule`, so older versions still read it. `Data/save-watch-off.marker` turns off watching while playing.
+
 ## Playthroughs, journal and lists
 
 `Profiles/<game>/playthroughs.json` and `journal.json` (schema 1: game id and the records), and `Data/lists.json` (lists and favourites). Records may carry a source and external id for a later import. Separate documents, so older versions ignore them; the data backup includes them.

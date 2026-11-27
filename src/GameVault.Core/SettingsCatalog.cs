@@ -41,6 +41,7 @@ public static class SettingsCatalog
         new(Library, "Fetch missing info for all games", "FetchAllInfoButton", "refresh metadata covers descriptions download"),
         new(Library, "Save-location database", "DownloadSaveDatabaseButton", "ludusavi pcgamingwiki saves folders list github community creative commons suggestions confirmation"),
         new(Library, "Saved views", "SavedViewsSection", "filters quick buttons rename order delete quick buttons above the library"),
+        new(Backups, "Watch for saves while playing", "WatchSavesSwitch", "save folder find detect automatic discovery notes which folders a game writes to while it runs nothing leaves your pc"),
         new(Backups, "Guide: how to back up and restore", "BackupGuide", "help guide restore reinstall new pc"),
         new(Backups, "Default backup folder", "DefaultBackupLocation", "save backups storage destination drive cloud location future backups original folders"),
         new(Backups, "Obsidian vault", "ObsidianStatusText", "obsidian notes markdown export session review folder create link unlink"),

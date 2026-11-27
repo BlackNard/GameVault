@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     private readonly BackupCoordinator backupCoordinator;
     private readonly SaveDiscoveryService discovery;
     private readonly SaveDiscoveryCoordinator discoveryCoordinator;
+    private readonly SaveActivityWatcher saveWatcher;
     private SaveSourcesView? saveSourcesView;
     private readonly AppDataStore store;
     private readonly ApplicationPaths paths;
@@ -45,15 +46,18 @@ public partial class MainWindow : Window
         this.paths = paths;
         library = new(paths, store);
         saveLocations = new(paths);
-        discovery = new(paths, store, SaveDiscoveryEnvironment.Current() with { Database = saveLocations });
+        var saveEnvironment = SaveDiscoveryEnvironment.Current() with { Database = saveLocations };
+        discovery = new(paths, store, saveEnvironment);
         launches = new(paths, store, new WindowsGameProcessSystem());
         discoveryCoordinator = new(launches, discovery);
+        saveWatcher = new(launches, store, discovery, _ => saveEnvironment.WatchedRoots, () => SaveWatchSetting.IsOn(paths));
         backups=new(paths,store,discovery,new GameOperationLeases(),launches.IsGameRunningAsync);
         backupCoordinator=new(launches,backups,launches.WaitForIdleAsync);
         backupHistory=new(paths,store,new(),launches.IsGameRunningAsync);
         restores=new(paths,store,new(),launches.IsGameRunningAsync);
         backups.Changed+=BackupChanged;
         discovery.Changed += SourceDiscoveryChanged;
+        discovery.SelectionChanged += SaveSelectionChanged;
         launchSettings = new(paths, store);
         launches.StateChanged += LaunchStateChanged;
         launches.HookCompleted += HookCompleted;
@@ -68,6 +72,7 @@ public partial class MainWindow : Window
         ThemePalette.Apply(this, settings.Theme);
         Motion.ReduceMotion = settings.ReduceMotion;
         ReduceMotionChoice.IsChecked = settings.ReduceMotion;
+        WatchSavesSwitch.IsChecked = SaveWatchSetting.IsOn(paths);
         CloseToTrayChoice.IsChecked=settings.CloseToTray;BackupNotificationsChoice.IsChecked=settings.NotifyBackupFailures;CheckForUpdatesChoice.IsChecked=settings.CheckForUpdates;AutoUpdateChoice.IsChecked=settings.AutoUpdate;
         MinHeight = Math.Min(MinHeight, SystemParameters.WorkArea.Height);
         MinWidth = Math.Min(MinWidth, SystemParameters.WorkArea.Width);
@@ -99,7 +104,8 @@ public partial class MainWindow : Window
         {
             recoveryNotices = await launches.RecoverAsync(); await RefreshLibrary(); _ = RefreshSteamHoursAtStartAsync(); _ = LoadListsAsync();
             _ = StartupInfoAsync();
-            // Automatic discovery follows session signals; never block startup by scanning every game.
+            // Discovery follows session signals; games with no save folder yet are looked at afterwards, in the background.
+            _ = ScanGamesWithoutSavesAsync();
         }
         catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = "Could not load the library. " + error.Message; }
         finally { EndOperation(); }

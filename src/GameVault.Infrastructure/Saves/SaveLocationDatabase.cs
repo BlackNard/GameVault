@@ -9,7 +9,7 @@ namespace GameVault.Infrastructure.Saves;
 /// <summary>Extra save-folder candidates from a community database. Candidates are only suggestions: the usual confirmation flow still decides.</summary>
 public interface ISaveLocationSource
 {
-    IReadOnlyList<string> Candidates(GameProfile profile, SaveDiscoveryEnvironment environment);
+    IReadOnlyList<string> Candidates(GameProfile profile, SaveDiscoveryEnvironment environment, string? steamAppId = null);
 }
 
 public sealed record SaveDatabaseStatus(bool Available, int Games, DateTimeOffset? DownloadedAt);
@@ -139,7 +139,7 @@ public sealed class SaveLocationDatabase : ISaveLocationSource
     }
 
     // ---------- lookup ----------
-    public IReadOnlyList<string> Candidates(GameProfile profile, SaveDiscoveryEnvironment environment)
+    public IReadOnlyList<string> Candidates(GameProfile profile, SaveDiscoveryEnvironment environment, string? steamAppId = null)
     {
         EnsureLoaded();
         List<ManifestGame> matches;
@@ -151,6 +151,7 @@ public sealed class SaveLocationDatabase : ISaveLocationSource
             if (plan is not null) { installRoot = plan.InstallRoot; if (plan.StoreKey.StartsWith("Steam:", StringComparison.Ordinal)) steamId = plan.StoreKey[6..]; }
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException) { }
+        steamId ??= steamAppId;                                           // a copy outside the Steam library may still carry its number
         var folder = Path.GetDirectoryName(profile.ExecutablePath);
         installRoot ??= folder;
         lock (gate)
