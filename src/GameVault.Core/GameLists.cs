@@ -61,6 +61,13 @@ public static class GameListRules
         return [.. result];
     }
 
+    /// <summary>Renames the entry wherever it is; only entries outside the library keep their own name.</summary>
+    public static ListsDocument Rename(ListsDocument document, Guid entry, string title)
+    {
+        var list = document.Lists.FirstOrDefault(l => l.Entries.Any(e => e.Id == entry && e.GameId is null));
+        return list is null ? document : Upsert(document, list with { Entries = [.. list.Entries.Select(e => e.Id == entry ? e with { Title = title.Trim() } : e)] });
+    }
+
     /// <summary>Puts one item where another is (drag and drop): dragged forward it lands after it, dragged back before it.</summary>
     public static T[] MoveOnto<T>(IReadOnlyList<T> items, Predicate<T> moved, Predicate<T> onto)
     {

@@ -10,7 +10,7 @@ public sealed record BulkMetadataResult(int Games, int GamesUpdated, int FieldsF
 public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameMetadataProvider> providers, IStoreGameLauncher? launcher = null, string? epicManifests = null)
 {
     /// <summary>Raised when the kinds of facts GameVault can fetch grow, so games looked up earlier are filled in again (only their missing facts).</summary>
-    public const int CurrentLookupVersion = 3;
+    public const int CurrentLookupVersion = 4;
 
     private readonly IStoreGameLauncher storeLauncher = launcher ?? new StoreGameLauncher();
     private readonly string? epicManifestFolder = epicManifests;

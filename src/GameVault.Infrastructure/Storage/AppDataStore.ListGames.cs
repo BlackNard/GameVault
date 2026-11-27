@@ -55,6 +55,17 @@ public sealed partial class AppDataStore
         if (File.Exists(file)) File.Delete(file);
     });
 
+    /// <summary>Removes what was fetched for an entry (it was renamed); a cover the player chose stays.</summary>
+    public Task ForgetListGameAsync(Guid entry) => Run(() =>
+    {
+        foreach (var ending in new[] { ".json", ".json.bak", ".png" })
+        {
+            var file = ListGameFile(entry, ending);
+            managed.Check(file);
+            if (File.Exists(file)) File.Delete(file);
+        }
+    });
+
     private void RemoveListGames(IEnumerable<Guid> entries)
     {
         foreach (var entry in entries)

@@ -34,6 +34,7 @@ public partial class MainWindow
             listsView.RefreshRequested += async (_, entry) => await RefreshListGameAsync(entry);
             listsView.MatchRequested += async (_, entry) => await MatchListGameAsync(entry);
             listsView.CoverRequested += async (_, entry) => await ChooseListCoverAsync(entry);
+            listsView.RenameRequested += async (_, entry) => await RenameListGameAsync(entry);
             ListsPanel.Content = listsView;
         }
         libraryVisible = false;

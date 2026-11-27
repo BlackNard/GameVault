@@ -1,4 +1,5 @@
 using System.IO;
+using System.Windows.Controls;
 using GameVault.Core;
 using GameVault.Infrastructure.Artwork;
 
@@ -29,6 +30,31 @@ public partial class MainWindow
         listGames[entry] = new(store.ListGameCover(entry), info, false);
     }
 
+    /// <summary>Never looked up, or looked up before GameVault knew how to find as much as it does now.</summary>
+    private static bool NeverLookedUp(GameMetadataDocument? info) =>
+        info?.LastRefresh is null || (info.LookupVersion ?? 0) < GameVault.Infrastructure.Metadata.GameMetadataService.CurrentLookupVersion;
+
+    /// <summary>A new name means another game may be meant: what was fetched goes, and it is looked up again. A cover the player chose stays.</summary>
+    private async Task RenameListGameAsync(ListEntry entry)
+    {
+        TextBox name = null!;
+        var changed = false;
+        var form = new FormView(settings.Theme, "Rename " + entry.Title, async () =>
+        {
+            // Read here: the change itself runs on the store's thread.
+            var title = name.Text.Trim();
+            if (title.Length == 0) throw new ArgumentException("Enter the game's name.");
+            if (title == entry.Title) return;
+            await store.ChangeListsAsync(d => GameListRules.Rename(d, entry.Id, title));
+            await store.ForgetListGameAsync(entry.Id);
+            changed = true;
+        });
+        name = form.Text("Name", entry.Title, 200, help: "Its cover and details are looked up again by this name.");
+        if (!await ShowFormAsync(form)) return;
+        if (changed) { listTried.Remove(entry.Id); listGames.Remove(entry.Id); }
+        await LoadListsAsync();
+    }
+
     /// <summary>Looks up, one at a time, the entries that never were. Follows the "fetch game information automatically" setting.</summary>
     private async Task LookUpNewListGamesAsync()
     {
@@ -38,7 +64,7 @@ public partial class MainWindow
         {
             if (!(await Metadata.LoadSettingsAsync()).AutoFetch) return;
             while (!Dispatcher.HasShutdownStarted &&
-                   OutsideEntries().FirstOrDefault(e => !listTried.Contains(e.Id) && listGames.GetValueOrDefault(e.Id)?.Info?.LastRefresh is null) is { } next)
+                   OutsideEntries().FirstOrDefault(e => !listTried.Contains(e.Id) && NeverLookedUp(listGames.GetValueOrDefault(e.Id)?.Info)) is { } next)
                 await LookUpListGameAsync(next, () => Metadata.RefreshTitleAsync(next.Id, next.Title, false, CancellationToken.None), false);
         }
         catch (Exception error) when (IsExpected(error) || error is IOException) { GameVault.Infrastructure.Diagnostics.AppLog.Warn("List games were not looked up: " + error.Message); }

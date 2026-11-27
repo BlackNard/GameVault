@@ -337,6 +337,12 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] Warnings and anything about what is sent, replaced or removed are still written on the screen.
 - [ ] Every button, switch, list choice and field whose words are not already clear shows a description on hover, greyed-out ones too.
 
+## 8ai. Names written differently (issue #105)
+
+- [ ] A list game named **Silent Hill 2 Remake** (and for example **GTA 4**) gets its cover and details; games added before are tried again when Lists is opened. No unrelated game or add-on is taken.
+- [ ] **Rename…** on a card or page of a game outside the library changes its name and looks it up again; a cover you chose stays.
+- [ ] Library games that had missing information are looked up again after the update; picked matches and your own texts stay.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

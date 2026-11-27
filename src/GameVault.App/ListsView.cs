@@ -42,6 +42,8 @@ public sealed partial class ListsView : UserControl
     public event EventHandler<ListEntry>? RefreshRequested;
     public event EventHandler<ListEntry>? MatchRequested;
     public event EventHandler<ListEntry>? CoverRequested;
+    /// <summary>Only a game that is not in the library is renamed here; a library game has its own name.</summary>
+    public event EventHandler<ListEntry>? RenameRequested;
 
     public ListsView()
     {
@@ -189,6 +191,8 @@ public sealed partial class ListsView : UserControl
                 ("Note…", true, () => EditEntryRequested?.Invoke(this, (list, entry))),
                 ("Remove from the list", true, () => Change(d => Replace(d, list.Id, e => [.. e.Where(x => x.Id != entry.Id)])))
             };
+            if (entry.GameId is null)
+                actions.Insert(2, ("Rename…", outside.GetValueOrDefault(entry.Id) is not { Looking: true }, () => RenameRequested?.Invoke(this, entry)));
             var under = game is not null ? game.Removed ? "Removed from the library" : game.Played :
                 entry.GameId is null && outside.GetValueOrDefault(entry.Id) is { Looking: true } ? "Looking up…" : "Not in the library";
             var card = GameCard(NameOf(entry), under, CoverOf(entry), list.Ranked ? "#" + (i + 1) : null, entry.Note, open, actions);
@@ -264,6 +268,7 @@ public sealed partial class ListsView : UserControl
             button.Click += (_, _) => run();
             buttons.Children.Add(button);
         }
+        Add("Rename…", "Change the name; it is looked up again.", !known.Looking, () => RenameRequested?.Invoke(this, entry));
         Add("Refresh info", "Looks the details up again.", !known.Looking, () => RefreshRequested?.Invoke(this, entry));
         Add("Not the right game?", "Search and choose the correct game.", !known.Looking, () => MatchRequested?.Invoke(this, entry));
         Add("Choose cover…", "Use a picture from this PC.", true, () => CoverRequested?.Invoke(this, entry));
