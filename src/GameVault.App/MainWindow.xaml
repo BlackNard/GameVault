@@ -176,6 +176,9 @@
        <Expander x:Name="GameStatsSection" Header="Statistics" Style="{DynamicResource QuietExpander}" Visibility="Collapsed" Expanded="GameStatsExpanded">
         <ContentControl x:Name="GameStatsHost" Focusable="False" Margin="0,10,0,4"/>
        </Expander>
+       <Expander x:Name="PlaythroughSection" Header="Playthroughs" Style="{DynamicResource QuietExpander}" Visibility="Collapsed">
+        <StackPanel Margin="0,10,0,4"><StackPanel x:Name="PlaythroughRows"/><Button x:Name="AddPlaythroughButton" Content="Add playthrough…" Click="AddPlaythroughClicked" HorizontalAlignment="Left"/></StackPanel>
+       </Expander>
        <Expander x:Name="SteamSection" Header="Steam hours" Style="{DynamicResource QuietExpander}" Visibility="Collapsed">
         <StackPanel Margin="0,10,0,4">
          <TextBlock x:Name="SteamStatus" TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,0,0,10" AutomationProperties.LiveSetting="Polite"/>

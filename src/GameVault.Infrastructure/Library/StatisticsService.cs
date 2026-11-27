@@ -47,10 +47,12 @@ public sealed class StatisticsService(AppDataStore store, SteamHoursService stea
         var completed = (await store.LoadCompletionAsync(id).ConfigureAwait(false)).Value?.CompletedAt;
         var stars = (await store.LoadRatingAsync(id).ConfigureAwait(false)).Value?.HalfStars ?? 0;
         var detail = (await store.LoadStatusDetailAsync(id).ConfigureAwait(false)).Value?.Detail;
+        var runs = (await store.LoadPlaythroughsAsync(id).ConfigureAwait(false)).Value?.Runs ?? [];
         var play = await Task.Run(() => PlayStatistics.FromHistory(profile.Name, profile.IsArchived, history, zone, linked)).ConfigureAwait(false);
         return (play with
         {
             Genres = genres, Status = profile.Status, Detail = detail, HalfStars = stars,
+            FinishedRuns = [.. runs.Where(r => r.Outcome == PlaythroughOutcome.Completed && r.Finished is not null).Select(r => r.Finished!.Value)],
             CompletedOn = completed is { } at ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(at, zone).DateTime) : null
         }, linked);
     }

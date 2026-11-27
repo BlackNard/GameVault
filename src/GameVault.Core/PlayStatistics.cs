@@ -6,7 +6,7 @@ public enum StatsPeriod { Today, Week, Month, Year, AllTime }
 public sealed record PlaySpan(DateTime Start, long Seconds);
 /// <summary>One game's play: seconds per local day, the day each session started, and time that has no date (typed-in adjustments, Steam hours).</summary>
 public sealed record GamePlay(Guid GameId, string Name, bool Removed, ActivityBucket[] Days, DateOnly[] SessionDates, long UndatedSeconds,
-    PlaySpan[]? Spans = null, string[]? Genres = null, GameStatus Status = GameStatus.NotStarted, DateOnly? CompletedOn = null, int HalfStars = 0, GameStatusDetail? Detail = null);
+    PlaySpan[]? Spans = null, string[]? Genres = null, GameStatus Status = GameStatus.NotStarted, DateOnly? CompletedOn = null, int HalfStars = 0, GameStatusDetail? Detail = null, DateOnly[]? FinishedRuns = null);
 /// <param name="NewGames">Games first played in the period.</param>
 /// <param name="Completed">Names of games completed in the period, where the date is known.</param>
 public sealed record SessionInsight(long AverageSeconds, long LongestSeconds, string? LongestGame, DateOnly? LongestOn, int NewGames, string[] Completed);
@@ -101,7 +101,10 @@ public static class PlayStatistics
             .Where(s => Within(s.Date, range)).ToArray();
         var longest = sessions.OrderByDescending(s => s.Span.Seconds).ThenBy(s => s.Span.Start).FirstOrDefault();
         var started = games.Count(g => g.SessionDates.Length > 0 && Within(g.SessionDates.Min(), range));
-        string[] completed = [.. games.Where(g => g.CompletedOn is { } on && Within(on, range)).OrderBy(g => g.CompletedOn).Select(g => g.Name)];
+        // A game counts once for the period, whether it was set to Completed or a playthrough was finished then.
+        static IEnumerable<DateOnly> Finishes(GamePlay game) => (game.FinishedRuns ?? []).Concat(game.CompletedOn is { } on ? [on] : []);
+        string[] completed = [.. games.Select(g => (Game: g, Dates: Finishes(g).Where(d => Within(d, range)).ToArray())).Where(x => x.Dates.Length > 0)
+            .OrderBy(x => x.Dates.Min()).Select(x => x.Game.Name)];
         return sessions.Length == 0 ? new(0, 0, null, null, started, completed)
             : new(sessions.Sum(s => s.Span.Seconds) / sessions.Length, longest.Span.Seconds, longest.Name, longest.Date, started, completed);
     }

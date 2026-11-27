@@ -301,6 +301,11 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] The status can be changed with the button on a game's page and with **Status** in a card's three-dot (or right-click) menu, also while a status filter is on.
 - [ ] Playing a Backlog game makes it Playing; a Retired game can be reviewed; editing a game's name keeps its status.
 
+## 8ac. Playthroughs (issue #95)
+
+- [ ] On a game's Overview, **Playthroughs** > **Add playthrough…** saves a run; **Edit** changes and deletes it; leaving with unsaved typing asks first.
+- [ ] Without typed hours a run counts the recorded sessions between its dates, shown against the time to beat; a finished run counts as a completion in Statistics.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.
