@@ -63,6 +63,28 @@ public static class SaveFileNames
     }
 }
 
+public enum SaveBackupOutcome { BackedUp, WhenClosed, NotYet }
+
+/// <summary>The short words of the save finder's notices.</summary>
+public static class SaveFinderText
+{
+    public static string FoundTitle(string game) => game + ": saves found";
+    public static string AskTitle(string game) => "Is this where " + game + " saves?";
+    public static string MissingTitle(string game) => "Couldn't find " + game + "'s saves";
+
+    /// <summary>A folder as the player knows it: without the long way to their user folder.</summary>
+    public static string Short(string path, string home) =>
+        home.Length > 0 && path.StartsWith(Path.TrimEndingDirectorySeparator(home) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            ? path[(Path.TrimEndingDirectorySeparator(home).Length + 1)..] : path;
+
+    public static string FoundDetail(string path, string home, SaveBackupOutcome outcome) => "In " + Short(path, home) + outcome switch
+    {
+        SaveBackupOutcome.BackedUp => " · backed up",
+        SaveBackupOutcome.WhenClosed => " · backs up when you close the game",
+        _ => ""
+    };
+}
+
 /// <summary>Names a game's folder may carry: its titles, program, publisher's product name and store number, letters and digits only.</summary>
 public static class GameNameTokens
 {

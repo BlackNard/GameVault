@@ -172,6 +172,18 @@ public sealed class SaveFinderTests : IDisposable
     }
 
     [Fact]
+    public async Task AChosenFolderBecomesTheManualPath()
+    {
+        await SeedAsync(appId: null);
+        var folder = Put(Path.Combine(root, "elsewhere", "saves"));
+        var result = await Service.ChooseAsync(id, folder);
+        Assert.Equal(folder, Assert.Single(Selected(result)).Path);
+        Assert.Equal([folder], ((GameProfile)(await Store.LoadProfileAsync(id)).Profile.Value!).SaveSources);
+        await Assert.ThrowsAsync<IOException>(() => Service.ChooseAsync(id, Env.Roaming));          // a whole user folder is refused
+        Assert.Equal([folder], ((GameProfile)(await Store.LoadProfileAsync(id)).Profile.Value!).SaveSources);
+    }
+
+    [Fact]
     public async Task ManualPathWins()
     {
         var manual = Put(Path.Combine(root, "manual saves"));

@@ -59,11 +59,26 @@ public sealed class SaveConfirmationTests : IDisposable
     }
 
     [Fact]
-    public async Task OtherProblemsAreStillReportedAsAFailedBackup()
+    public async Task AMissingSaveFolderSaysSoPlainly()
     {
         await SeedAsync();
         Directory.Delete(Found, true);                                  // nothing readable to confirm
         var result = await Backups(Discovery).BackUpAsync(id, true);
+        Assert.Equal(BackupPhase.Failed, result.Phase);
+        Assert.Equal("No save folder found yet. Choose the folder in the game's Saves tab.", result.Message);
+        Assert.True(SaveMissing.Is(result.Message));
+        Assert.DoesNotContain("not fully verified", result.Message);
+    }
+
+    [Fact]
+    public async Task OtherProblemsAreStillReportedAsAFailedBackup()
+    {
+        await SeedAsync();
+        var discovery = Discovery;
+        await Backups(discovery).BackUpAsync(id, true);
+        await discovery.ConfirmAsync(id, (await discovery.ReadAsync(id)).Document.Value!.Sources.Single(s => s.CanConfirm).Id);
+        File.Delete(Path.Combine(Found, "slot.sav"));                   // the chosen folder is there but holds nothing
+        var result = await Backups(discovery).BackUpAsync(id, true);
         Assert.Equal(BackupPhase.Failed, result.Phase);
         Assert.StartsWith("Backup could not finish.", result.Message);
     }

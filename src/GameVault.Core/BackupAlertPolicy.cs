@@ -9,6 +9,12 @@ public static class SaveConfirmation
     public const string Message=Title+". GameVault found it and needs your OK before it can back up: open Saves, then Manage save sources.";
     public static bool IsNeeded(string? message)=>message==Message;
 }
+/// <summary>No save folder is known for the game. As above, the message is the marker.</summary>
+public static class SaveMissing
+{
+    public const string Message="No save folder found yet. Choose the folder in the game's Saves tab.";
+    public static bool Is(string? message)=>message==Message;
+}
 // Accessed by the UI dispatcher; no shell calls or timers are owned here.
 public sealed class BackupAlertPolicy
 {

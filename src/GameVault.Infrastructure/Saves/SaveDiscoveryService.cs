@@ -24,6 +24,16 @@ public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore sto
             Finds=d.Finds.Where(f=>!SaveSourcePolicy.Overlaps(f.Path,source.Path)).ToArray()}).ConfigureAwait(false);
         return await PerformAsync(id,null,null,true,token).ConfigureAwait(false);
     }
+    /// <summary>The folder the player picked in a notice, kept like one typed in Edit game.</summary>
+    public async Task<SaveDiscoveryResult> ChooseAsync(Guid id,string folder,CancellationToken token=default)
+    {
+        var game=await store.LoadProfileAsync(id).ConfigureAwait(false);
+        if(game.Profile.State!=DocumentState.Ready||game.Profile.Value is not GameProfile profile)throw new IOException("The game profile needs attention.");
+        var chosen=new SaveSourcePolicy(paths,[..environment.BroadRoots,Path.GetDirectoryName(profile.ExecutablePath)!,profile.WorkingDirectory])
+            .ValidateSet([..profile.SaveSources,folder]);
+        await store.SaveProfileAsync(profile with{SaveSources=chosen}).ConfigureAwait(false);
+        return await PerformAsync(id,null,null,true,token).ConfigureAwait(false);
+    }
     public async Task<SaveDiscoveryResult> RestoreAsync(Guid id,string path,CancellationToken token=default)
     {
         await store.UpdateSaveFindsAsync(id,d=>d with{Rejected=d.Rejected.Where(r=>!SaveSourcePolicy.Overlaps(r,path)).ToArray()}).ConfigureAwait(false);
@@ -44,6 +54,8 @@ public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore sto
     {
         var result=await ScanAsync(id,token).ConfigureAwait(false);
         var selected=result.Document.Value?.Sources.Where(s=>s.Selected).ToArray()??[];
+        if(result.Document.State==DocumentState.Ready&&selected.Length==0&&result.Phase is SaveDiscoveryPhase.WaitingForSave or SaveDiscoveryPhase.Unresolved or SaveDiscoveryPhase.Disabled)
+            throw new SaveSourceMissingException();
         if(result.Document.State!=DocumentState.Ready||result.Phase!=SaveDiscoveryPhase.SourcesFound||selected.Length==0||selected.Any(s=>s.Access!=SaveSourceAccess.Ready))
             throw result.Phase==SaveDiscoveryPhase.NeedsConfirmation?new SaveConfirmationRequiredException()
                 :new IOException("Save sources are not fully verified/readable. "+result.Summary);
@@ -213,6 +225,9 @@ public sealed class SaveDiscoveryService(ApplicationPaths paths,AppDataStore sto
     private static SaveDiscoveryResult Error(StoredDocument<SaveDiscoveryDocument> stored,string message)=>new(stored,SaveDiscoveryPhase.Error,message);
     private void Publish(Guid id,SaveDiscoveryResult result)=>Changed?.Invoke(this,new(id,result));
 }
+
+/// <summary>No save folder is known for the game yet.</summary>
+public sealed class SaveSourceMissingException() : IOException(SaveMissing.Message);
 
 /// <summary>A readable save folder was found but the player has not confirmed it yet.</summary>
 public sealed class SaveConfirmationRequiredException() : IOException(SaveConfirmation.Message);

@@ -57,6 +57,7 @@ public partial class MainWindow : Window
         restores=new(paths,store,new(),launches.IsGameRunningAsync);
         backups.Changed+=BackupChanged;
         discovery.Changed += SourceDiscoveryChanged;
+        discovery.SelectionChanged += SaveSelectionChanged;
         launchSettings = new(paths, store);
         launches.StateChanged += LaunchStateChanged;
         launches.HookCompleted += HookCompleted;
@@ -102,7 +103,8 @@ public partial class MainWindow : Window
         {
             recoveryNotices = await launches.RecoverAsync(); await RefreshLibrary(); _ = RefreshSteamHoursAtStartAsync(); _ = LoadListsAsync();
             _ = StartupInfoAsync();
-            // Automatic discovery follows session signals; never block startup by scanning every game.
+            // Discovery follows session signals; games with no save folder yet are looked at afterwards, in the background.
+            _ = ScanGamesWithoutSavesAsync();
         }
         catch (Exception error) when (IsExpected(error)) { OperationNotice.Text = "Could not load the library. " + error.Message; }
         finally { EndOperation(); }

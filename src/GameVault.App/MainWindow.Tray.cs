@@ -100,7 +100,7 @@ public partial class MainWindow
         {await InlinePrompts.ShowAsync(this,"Some work could not finish while quitting. Existing checkpoints and recovery copies were preserved.\n\n"+error.Message,"GameVault shutdown needs attention",MessageBoxButton.OK,MessageBoxResult.OK);}
         finally
         {
-            backups.Changed-=BackupChanged;discovery.Changed-=SourceDiscoveryChanged;launches.StateChanged-=LaunchStateChanged;launches.SessionUpdated-=SessionUpdated;
+            backups.Changed-=BackupChanged;discovery.Changed-=SourceDiscoveryChanged;discovery.SelectionChanged-=SaveSelectionChanged;launches.StateChanged-=LaunchStateChanged;launches.SessionUpdated-=SessionUpdated;
             DisposeCaptureFeatures();DisposePerformanceFeatures();DisposeTrayOnApplicationExit();observationStopped=true;_=Dispatcher.BeginInvoke(new Action(Close));
         }
     }

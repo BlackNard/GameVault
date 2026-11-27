@@ -22,6 +22,26 @@ public sealed class MainWindowStartupTests
     }
 
     [Fact]
+    public void Found_saves_are_announced_backed_up_and_can_be_rejected()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !Directory.Exists(Path.Combine(root.FullName, "src", "GameVault.App"))) root = root.Parent;
+        string Source(string name) => File.ReadAllText(Path.Combine(root!.FullName, "src", "GameVault.App", name));
+        var finder = Source("MainWindow.SaveFinder.cs");
+        Assert.Contains("NoticeKind.SaveFound", finder);
+        Assert.Contains("backups.BackUpAsync(", finder);
+        Assert.Contains("discovery.RejectAsync(", finder);
+        Assert.Contains("discovery.ConfirmAsync(", finder);
+        Assert.Contains("discovery.ChooseAsync(", finder);
+        var window = Source("MainWindow.xaml.cs");
+        Assert.Contains("discovery.SelectionChanged += SaveSelectionChanged", window);
+        Assert.Contains("_ = ScanGamesWithoutSavesAsync();", window);
+        Assert.DoesNotContain("ScanGamesWithoutSavesAsync", Source("App.xaml.cs"));
+        Assert.Contains("discovery.SelectionChanged-=SaveSelectionChanged", Source("MainWindow.Tray.cs"));
+        Assert.Contains("SaveMissing.Is(alert.Message)", Source("MainWindow.Notices.cs"));
+    }
+
+    [Fact]
     public void Restoring_from_minimized_returns_to_the_previous_state_instead_of_forcing_normal()
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);

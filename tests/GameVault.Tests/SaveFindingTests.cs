@@ -106,6 +106,18 @@ public sealed class SaveFindingTests
     }
 
     [Fact]
+    public void ToastWordsAreShort()
+    {
+        var home = Under("home");
+        Assert.Equal("Frostpunk: saves found", SaveFinderText.FoundTitle("Frostpunk"));
+        Assert.Equal(@"In AppData\Roaming\HOODLUM · backed up", SaveFinderText.FoundDetail(Path.Combine(home, "AppData", "Roaming", "HOODLUM"), home, SaveBackupOutcome.BackedUp));
+        Assert.Equal(@"In AppData · backs up when you close the game", SaveFinderText.FoundDetail(Path.Combine(home, "AppData"), home, SaveBackupOutcome.WhenClosed));
+        Assert.Equal("In " + Under("other"), SaveFinderText.FoundDetail(Under("other"), home, SaveBackupOutcome.NotYet));
+        Assert.Equal("Is this where Frostpunk saves?", SaveFinderText.AskTitle("Frostpunk"));
+        Assert.Equal("Couldn't find Frostpunk's saves", SaveFinderText.MissingTitle("Frostpunk"));
+    }
+
+    [Fact]
     public void TokensMatch()
     {
         var tokens = GameNameTokens.For(["TEKKEN 8", "Frostpunk", "323190", "bin", "x", null]);
