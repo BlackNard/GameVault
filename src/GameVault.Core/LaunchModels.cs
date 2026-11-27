@@ -49,6 +49,23 @@ public static class LaunchRules
 }
 
 public sealed record GameSessionEnded(Guid GameId,bool ConfirmedExit);
+
+public enum StopOutcome { Closed, StillRunning, Cancelled, NotRunning, Failed }
+/// <summary>What Stop did; <paramref name="Message"/> is for the player.</summary>
+public sealed record StopResult(StopOutcome Outcome, string Message);
+
+/// <summary>Stop closes a game and what it started, never other programs a game may have opened.</summary>
+public static class StopRules
+{
+    private static readonly string[] Spared =
+    [
+        "steam", "steamwebhelper", "steamservice", "epicgameslauncher", "epicwebhelper", "galaxyclient", "galaxyclient helper", "galaxyclientservice",
+        "galaxycommunication", "ubisoftconnect", "upc", "eadesktop", "eabackgroundservice", "origin", "battle.net",
+        "explorer", "chrome", "msedge", "firefox", "brave", "opera", "discord", "gamevault"
+    ];
+
+    public static bool IsSpared(string programName) => Spared.Contains(Path.GetFileNameWithoutExtension(programName), StringComparer.OrdinalIgnoreCase);
+}
 public interface IGameSessionSignals
 {
     event EventHandler<LaunchState>? StateChanged;

@@ -8,7 +8,7 @@ using GameVault.Infrastructure.Playtime;
 
 namespace GameVault.Infrastructure.Launching;
 
-public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
+public sealed partial class LaunchService : IAsyncDisposable, IGameSessionSignals
 {
     private readonly AppDataStore store;
     private readonly LaunchSettingsStore settings;
@@ -30,7 +30,7 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
     private readonly ILaunchHookRunner hooks;
 
     public LaunchService(ApplicationPaths paths, AppDataStore store, IGameProcessSystem processes,
-        TimeSpan? startupTimeout = null, TimeSpan? pollInterval = null, IPlaytimeClock? clock = null, TimeSpan? storeStartupTimeout = null, IStoreGameLauncher? storeLauncher = null, ILaunchHookRunner? hooks = null)
+        TimeSpan? startupTimeout = null, TimeSpan? pollInterval = null, IPlaytimeClock? clock = null, TimeSpan? storeStartupTimeout = null, IStoreGameLauncher? storeLauncher = null, ILaunchHookRunner? hooks = null, TimeSpan? stopWait = null)
     {
         this.hooks = hooks ?? new ProcessHookRunner();
         this.store = store; this.processes = processes;
@@ -38,6 +38,7 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
         this.startupTimeout = startupTimeout ?? TimeSpan.FromSeconds(30);
         this.storeStartupTimeout = storeStartupTimeout ?? TimeSpan.FromMinutes(2);
         this.storeLauncher = storeLauncher ?? new StoreGameLauncher();
+        this.stopWait = stopWait ?? TimeSpan.FromSeconds(10);
         this.pollInterval = pollInterval ?? TimeSpan.FromMilliseconds(250);
         recorder = new(store, clock ?? new PlaytimeClock());
     }
@@ -234,6 +235,7 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
 
     private async Task ObserveAsync(Guid id, string targetPath, IGameProcess starter, IGameProcess observed, SessionJournal? recovered, CancellationToken token)
     {
+        lock (gate) tracked[id] = (targetPath, starter);
         var exited = false;
         using var timerStop = new CancellationTokenSource();
         Task timer = Task.CompletedTask;
@@ -272,6 +274,7 @@ public sealed class LaunchService : IAsyncDisposable, IGameSessionSignals
         }
         finally
         {
+            lock (gate) tracked.Remove(id);                       // before the handles are released
             var end = recorder.CaptureEnd(id);
             await timerStop.CancelAsync().ConfigureAwait(false);
             try { await timer.ConfigureAwait(false); } catch (OperationCanceledException) { }
