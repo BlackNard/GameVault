@@ -320,7 +320,7 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] **Lists** shows a card per list with some of its covers; a card opens the list as game cards; **‹ All lists** and the sidebar return.
 - [ ] **Add a game…** with a name that is not in the library fetches its cover and details; its card opens them; **Not the right game?**, **Refresh info** and **Choose cover…** work; offline, nothing breaks.
 - [ ] On a card, ⋯ or right-click moves, adds a note and removes; ranked lists show numbers.
-- [ ] Drag a card onto another, in a list and in Favourites: it takes that place and stays there after a restart; a plain click still opens the game.
+- [ ] Drag a card in a list and in Favourites: it lifts and follows the pointer, the others slide aside, numbers update, and on release it settles and stays there after a restart; **Esc** puts it back; holding it near the top or bottom scrolls; a plain click still opens the game; **Reduce motion** removes the animations.
 
 ## 8af. CSV export (issue #98)
 

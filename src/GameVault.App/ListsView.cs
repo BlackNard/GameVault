@@ -19,12 +19,10 @@ public sealed record ExternalGame(string? CoverFile, GameMetadataDocument? Info,
 /// The Lists page (ticket #97): the favourites and the player's lists as cards showing some of their covers; a list opens as a grid of game cards like the
 /// library's; a game that is not in the library opens its own page here with the facts fetched for it.
 /// </summary>
-public sealed class ListsView : UserControl
+public sealed partial class ListsView : UserControl
 {
     private const int PageSize = 60, Snippets = 5;
     private const double CoverWidth = 184, CoverHeight = 276;
-    private const string DragFormat = "GameVault.ListCard";
-    private Point? dragFrom;
     private readonly StackPanel page = new() { Margin = new Thickness(0, 0, 0, 32) };
     private readonly ScrollViewer scroll;
     private ListsDocument document = ListsDocument.Empty;
@@ -48,15 +46,11 @@ public sealed class ListsView : UserControl
     public ListsView()
     {
         scroll = new ScrollViewer { Content = page, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-        Content = scroll;
-        // A card dragged to the edge brings the rest of a long list into view.
-        scroll.PreviewDragOver += (_, e) =>
-        {
-            if (!e.Data.GetDataPresent(DragFormat)) return;
-            var y = e.GetPosition(scroll).Y;
-            if (y < 60) scroll.ScrollToVerticalOffset(scroll.VerticalOffset - 24);
-            else if (y > scroll.ActualHeight - 60) scroll.ScrollToVerticalOffset(scroll.VerticalOffset + 24);
-        };
+        var layers = new Grid();
+        layers.Children.Add(scroll);
+        layers.Children.Add(overlay);       // the card being dragged is drawn above everything
+        Content = layers;
+        PrepareDragging();
     }
 
     public void ShowProblem(string message) { problem = "The lists could not be read. " + message; Render(); }
@@ -82,6 +76,8 @@ public sealed class ListsView : UserControl
 
     private void Render()
     {
+        // The page is not rebuilt under a card that is being dragged.
+        if (drag is not null) { renderPending = true; return; }
         var offset = scroll.VerticalOffset;
         page.Children.Clear();
         if (problem is not null) page.Children.Add(Muted(problem));
@@ -160,7 +156,7 @@ public sealed class ListsView : UserControl
             };
             Action? open = game.Removed ? null : () => GameRequested?.Invoke(this, game.Id);
             var card = GameCard(game.Name, game.Removed ? "Removed from the library" : game.Played, game.CoverFile, "#" + (i + 1), null, open, actions);
-            Draggable(card, game.Id, dragged => Change(d => d with { Favourites = GameListRules.MoveOnto(d.Favourites, f => f == dragged, f => f == game.Id) }));
+            Draggable(card, game.Id, (dragged, onto) => Change(d => d with { Favourites = GameListRules.MoveOnto(d.Favourites, f => f == dragged, f => f == onto) }));
             grid.Children.Add(card);
         }
         page.Children.Add(grid);
@@ -196,7 +192,7 @@ public sealed class ListsView : UserControl
             var under = game is not null ? game.Removed ? "Removed from the library" : game.Played :
                 entry.GameId is null && outside.GetValueOrDefault(entry.Id) is { Looking: true } ? "Looking up…" : "Not in the library";
             var card = GameCard(NameOf(entry), under, CoverOf(entry), list.Ranked ? "#" + (i + 1) : null, entry.Note, open, actions);
-            Draggable(card, entry.Id, dragged => Change(d => Replace(d, list.Id, e => GameListRules.MoveOnto(e, x => x.Id == dragged, x => x.Id == entry.Id))));
+            Draggable(card, entry.Id, (dragged, onto) => Change(d => Replace(d, list.Id, e => GameListRules.MoveOnto(e, x => x.Id == dragged, x => x.Id == onto))));
             grid.Children.Add(card);
         }
         page.Children.Add(grid);
@@ -246,43 +242,6 @@ public sealed class ListsView : UserControl
         card.IsKeyboardFocusWithinChanged += (_, _) => ShowMore();
         card.Click += (_, e) => { if (!ReferenceEquals(e.OriginalSource, more)) open?.Invoke(); };
         return card;
-    }
-
-    /// <summary>A card can be dragged onto another to take its place. A click without moving still opens it.</summary>
-    private void Draggable(Button card, Guid key, Action<Guid> dropped)
-    {
-        card.AllowDrop = true;
-        card.PreviewMouseLeftButtonDown += (_, e) => dragFrom = e.GetPosition(this);
-        card.PreviewMouseLeftButtonUp += (_, _) => dragFrom = null;
-        card.PreviewMouseMove += (_, e) =>
-        {
-            if (dragFrom is not { } start || e.LeftButton != MouseButtonState.Pressed) return;
-            var now = e.GetPosition(this);
-            if (Math.Abs(now.X - start.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(now.Y - start.Y) < SystemParameters.MinimumVerticalDragDistance) return;
-            dragFrom = null;
-            card.ReleaseMouseCapture();     // so letting go is not also a click
-            card.Opacity = 0.55;
-            try { DragDrop.DoDragDrop(card, new DataObject(DragFormat, key), DragDropEffects.Move); }
-            finally { card.Opacity = 1; }
-        };
-        bool Accepts(DragEventArgs e) => e.Data.GetData(DragFormat) is Guid dragged && dragged != key;
-        void Over(object sender, DragEventArgs e)
-        {
-            if (!e.Data.GetDataPresent(DragFormat)) return;
-            e.Handled = true;
-            e.Effects = Accepts(e) ? DragDropEffects.Move : DragDropEffects.None;
-            if (Accepts(e)) card.SetResourceReference(BackgroundProperty, "AppRaised");
-        }
-        card.DragEnter += Over;
-        card.DragOver += Over;
-        card.DragLeave += (_, _) => card.ClearValue(BackgroundProperty);
-        card.Drop += (_, e) =>
-        {
-            card.ClearValue(BackgroundProperty);
-            if (!e.Data.GetDataPresent(DragFormat)) return;
-            e.Handled = true;
-            if (e.Data.GetData(DragFormat) is Guid dragged && dragged != key) dropped(dragged);
-        };
     }
 
     // ---------- a game that is not in the library ----------
