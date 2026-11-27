@@ -58,7 +58,7 @@ public sealed class EpicStoreProvider : IGameMetadataProvider, IDisposable
             var root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object) return null;
             var pageNamespace = Text(root, "namespace");
-            if (expectedNamespace is not null ? !string.Equals(pageNamespace, expectedNamespace, StringComparison.OrdinalIgnoreCase) : !string.Equals(PoliteHttp.NormalizeTitle(Text(root, "productName") ?? ""), PoliteHttp.NormalizeTitle(title), StringComparison.Ordinal)) return null;
+            if (expectedNamespace is not null ? !string.Equals(pageNamespace, expectedNamespace, StringComparison.OrdinalIgnoreCase) : GameTitles.Fit(title, Text(root, "productName")) is not (>= 0 and <= 4)) return null;
             if (!root.TryGetProperty("pages", out var pages) || pages.ValueKind != JsonValueKind.Array) return null;
             JsonElement page = default;
             foreach (var candidate in pages.EnumerateArray()) { page = candidate; break; }

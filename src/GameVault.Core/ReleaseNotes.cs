@@ -24,7 +24,10 @@ public static class ReleaseNotes
                 "This What's new window. Open it again in Settings > Updates.",
                 "A data backup now includes the Obsidian vault; older versions cannot restore such a backup."
             ],
-            ["A new release now shows in Notifications as soon as GameVault starts."])
+            [
+                "A new release now shows in Notifications as soon as GameVault starts.",
+                "Games are found even when the store writes their name differently, for example \"Silent Hill 2 Remake\"."
+            ])
     ];
 
     /// <summary>Every version's notes up to the running one, newest first.</summary>

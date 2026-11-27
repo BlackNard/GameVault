@@ -80,9 +80,14 @@ public sealed class WikidataProvider : IMatchSearchProvider, IDisposable
 
     private async Task<string?> ItemByExactTitleAsync(string title, CancellationToken token)
     {
-        var wanted = PoliteHttp.NormalizeTitle(title);
-        var exact = (await SearchItemsAsync(title, token).ConfigureAwait(false)).Where(c => PoliteHttp.NormalizeTitle(c.Title) == wanted && LooksLikeGame(c.Detail)).ToArray();
-        return exact.Length == 1 ? exact[0].Id : null;
+        foreach (var term in GameTitles.Fallbacks(title).Prepend(title).Take(3))
+        {
+            var games = (await SearchItemsAsync(term, token).ConfigureAwait(false)).Where(c => LooksLikeGame(c.Detail));
+            var (match, _, ambiguous) = GameTitles.Best(title, games, c => c.Title);
+            if (ambiguous) return null;
+            if (match is not null) return match.Id;
+        }
+        return null;
     }
 
     /// <summary>A Wikidata description such as "2023 survival horror video game remake" names a game; "video game series" or "film" do not.</summary>

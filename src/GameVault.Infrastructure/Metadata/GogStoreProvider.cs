@@ -36,9 +36,15 @@ public sealed class GogStoreProvider : IMatchSearchProvider, IDisposable
         if (gogId is null)
         {
             if (identity.NoMatch || !PoliteHttp.SafeTitle(request.Name)) return null;
-            var exact = (await CatalogAsync(request.Name, cancellationToken).ConfigureAwait(false)).Where(c => PoliteHttp.NormalizeTitle(c.Title) == PoliteHttp.NormalizeTitle(request.Name)).ToArray();
-            if (exact.Length != 1) return null;
-            item = exact[0];
+            foreach (var term in GameTitles.Fallbacks(request.Name).Prepend(request.Name).Take(3))
+            {
+                var (match, _, ambiguous) = GameTitles.Best(request.Name, await CatalogAsync(term, cancellationToken).ConfigureAwait(false), c => c.Title);
+                if (ambiguous) return null;
+                if (match is null) continue;
+                item = match;
+                break;
+            }
+            if (item is null) return null;
             gogId = item.Id;
         }
         if (gogId.Length > 16 || !gogId.All(char.IsAsciiDigit)) return null;

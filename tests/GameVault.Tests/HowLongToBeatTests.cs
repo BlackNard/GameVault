@@ -121,6 +121,6 @@ public sealed class HowLongToBeatTests
         Assert.False(GameMetadataService.NeedsAutomaticLookup(Doc(now.AddDays(-8), true)));
         Assert.False(GameMetadataService.NeedsAutomaticLookup(Doc(now.AddDays(-30), false, null)));                      // not on HowLongToBeat at all
         Assert.True(GameMetadataService.NeedsAutomaticLookup(Doc(now.AddDays(-1), true) with { LookupVersion = 2 }));    // looked up before this fact existed
-        Assert.Equal(3, GameMetadataService.CurrentLookupVersion);
+        Assert.Equal(4, GameMetadataService.CurrentLookupVersion);                                                      // 4: other ways of writing a title (#105)
     }
 }
