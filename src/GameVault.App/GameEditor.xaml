@@ -4,11 +4,11 @@
         Foreground="{DynamicResource AppText}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14">
     <Grid Margin="0">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <StackPanel Margin="0,0,0,16" MaxWidth="820" HorizontalAlignment="Center" Width="820">
+        <StackPanel Margin="0,0,0,16" MaxWidth="820">
             <TextBlock x:Name="Heading" Text="Add game" FontSize="26" FontWeight="SemiBold" />
             
         </StackPanel>
-        <ScrollViewer x:Name="EditorScroll" Grid.Row="1" MaxWidth="820" HorizontalAlignment="Center" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer x:Name="EditorScroll" Grid.Row="1" MaxWidth="820" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel x:Name="Fields" Margin="0,0,12,0">
                 <Label Content="_Name" Target="{Binding ElementName=GameName}" /><TextBox x:Name="GameName" MaxLength="240" AutomationProperties.Name="Game name" Margin="0,0,0,16" />
                 <Label Content="_Executable (.exe)" Target="{Binding ElementName=Executable}" />
@@ -31,7 +31,7 @@
             </StackPanel>
         </ScrollViewer>
         <ContentControl x:Name="ArtworkHost" Grid.Row="1" Visibility="Collapsed" />
-        <StackPanel x:Name="EditorFooter" Grid.Row="2" Margin="0,16,0,0" MaxWidth="820" HorizontalAlignment="Center">
+        <StackPanel x:Name="EditorFooter" Grid.Row="2" Margin="0,16,0,0" MaxWidth="820">
             <TextBlock x:Name="ErrorNotice" Foreground="{DynamicResource AppWarning}" TextWrapping="Wrap" Margin="0,0,0,12" AutomationProperties.LiveSetting="Assertive" />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button x:Name="CancelButton" Content="Cancel" Click="CancelEditing" Margin="0,0,8,0" /><Button x:Name="SaveButton" Content="Add game" Style="{StaticResource PrimaryButton}" Click="SaveGame" /></StackPanel>
         </StackPanel>
