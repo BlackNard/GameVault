@@ -93,3 +93,7 @@ A game whose cover the player removed has a `cover-removed.marker` file in its p
 ## Completion date
 
 `Profiles/<game>/completion.json` (schema 1: game id and when it became Completed). Written when an existing game changes to Completed and deleted when that is undone; a game added as already completed, or completed before this was recorded, has none. It is a separate document, so older versions ignore it.
+
+## Obsidian vault
+
+`Data/obsidian.json` (schema 1) holds the linked vault (relative when inside the GameVault folder) and its id; `Profiles/<game>/obsidian-export.json` holds a hash of what was last written for each note. The default vault is `Obsidian Vault/` inside the app folder: updates and uninstalling leave it, and the data backup and restore include it (a backup that contains it cannot be restored by older versions). A vault elsewhere is not part of the backup.

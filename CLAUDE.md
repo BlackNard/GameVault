@@ -42,6 +42,7 @@ PDFsharp stays at 6.2.3: it is the last release checked to be MIT-licensed, and 
   - Rating (`StarRating`, `StarRatingControl`), capture gallery (`CaptureGallery`, `CaptureTile`, `ShellMedia` for Windows thumbnails, `MediaFolders`), online cover search filtering (`Artwork/WebCoverResults`: reads Google's result page, degrades to the plain page), profile import from another folder (`ProfileImporter`: add-only, never writes to the source), removing a cover (`cover-removed.marker` stops automatic lookups until Refresh info).
   - Steam hours (`SteamHours`, `SteamLocalData`, `SteamHoursService`, `MainWindow.SteamHours`): read-only from Steam's `localconfig.vdf`; link guards are described in `docs/game-data-sources.md`. The total is GameVault plus Steam time (the owner's choice, even where Steam also counted a session). Never print Steam account identifiers.
   - Statistics (`PlayStatistics`, `StatisticsService`, `StatisticsView`): computed from recorded sessions and corrections, never journals; undated time (adjustments, Steam hours) counts in all time only; charts are plain WPF, no chart library. Completion dates (`completion.json`) are written by the profile save when a game becomes Completed; earlier completions have no date and must not be invented.
+  - Obsidian (`ObsidianVault`, `ObsidianApp`, `NoteExportWindow`, `MainWindow.Obsidian`): plain Markdown into a linked vault, by default `Obsidian Vault` inside the app folder (the owner's choice; part of the data backup). Notes are recognised by ids in their properties; one edited outside GameVault is never overwritten without asking, and nothing in a vault is deleted.
   - Two library games can never share a program; a removed profile with that program may be restored or left beside a new one (`GameDraft.BesideRemoved`).
 - `GameVault.Capture`: lazy native capture backend (ScreenRecorderLib 7.0.1). Missing prerequisites must degrade gracefully and never block startup.
 
@@ -52,6 +53,7 @@ The data root is always `AppContext.BaseDirectory` (never the working directory 
 ```
 GameVault.exe
 Data/settings.json  Data/backup-destinations.json  Data/capture-preferences.json  Data/library-views.json  Data/library-tags.json  Data/metadata-settings.json
+Obsidian Vault/ (only when the player creates one)
 Cache/ (downloaded save-location manifest)  Logs/gamevault.log  Logs/running.marker (exists while the app runs; a leftover means the last run ended unexpectedly)
 Profiles/<game name>/          (older GUID-named folders are renamed once at startup; the ID lives in profile.json and .gamevault-id)
   profile.json  statistics.json  launch.json?  save-discovery.json  capture-source.json?  metadata.json?  cover.png  hero.jpg|png?
