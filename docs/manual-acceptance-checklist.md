@@ -282,6 +282,13 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] Export again: nothing is duplicated. Change a note in GameVault: the same file updates. Edit a note in Obsidian and export: you are asked, and **Yes** keeps a copy of your version.
 - [ ] Rename the game or move a note inside its folder: still no duplicates. With no vault linked, export asks once before creating one.
 
+## 8z. Animations, first stage (issue #55)
+
+- [ ] Switching sidebar pages, game tabs and Settings pages eases in briefly; side panels, dialogs, the command palette, the bell list and new toasts slide in. You can click at once.
+- [ ] Changing the theme fades from the old colours to the new, in several themes.
+- [ ] **Settings > Appearance > Reduce motion** stops all of it, and stays after a restart. With Windows animation effects off, nothing moves either.
+- [ ] Nothing flickers (several toasts, quick tab switching, the theme picker), and idle CPU use is unchanged.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

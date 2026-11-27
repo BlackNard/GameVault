@@ -47,6 +47,7 @@ internal static class InlinePrompts
         Grid.SetRowSpan(overlay, Math.Max(1, root.RowDefinitions.Count));
         Grid.SetColumnSpan(overlay, Math.Max(1, root.ColumnDefinitions.Count));
         Panel.SetZIndex(overlay, int.MaxValue);
+        Motion.SetAppear(overlay, GameVault.Core.MotionKind.Dialog);
         KeyboardNavigation.SetTabNavigation(overlay, KeyboardNavigationMode.Cycle);
         KeyboardNavigation.SetControlTabNavigation(overlay, KeyboardNavigationMode.Cycle);
         FocusManager.SetIsFocusScope(overlay, true);

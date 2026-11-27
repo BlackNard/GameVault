@@ -59,8 +59,8 @@ public partial class MainWindow
 
     private void SyncToasts()
     {
-        toastViews.Clear();
-        foreach (var toast in toastQueue.Items) toastViews.Add(new ToastView(toast.Id, toast.Title, toast.Detail, toast.IsError, toast.ActionLabel));
+        // Updated in place: toasts that stay are not recreated, so only a new one slides in.
+        GameVault.Core.ListSync.Apply(toastViews, [.. toastQueue.Items.Select(toast => new ToastView(toast.Id, toast.Title, toast.Detail, toast.IsError, toast.ActionLabel))]);
     }
 
     private void DismissToast(object sender, RoutedEventArgs e)

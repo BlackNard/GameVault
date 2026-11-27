@@ -34,6 +34,7 @@ public static class SettingsCatalog
     public static readonly IReadOnlyList<SettingsEntry> Entries =
     [
         new(Appearance, "Color theme", "BrowseThemesButton", "themes colour look dark skin appearance preview every theme"),
+        new(Appearance, "Reduce motion", "ReduceMotionChoice", "animation animations motion transitions fade slide windows accessibility"),
         new(General, "Keep running in the tray", "CloseToTrayChoice", "close minimise minimize background tray tracking window closing leaves it tracking"),
         new(General, "Backup notifications", "BackupNotificationsChoice", "notify alerts bell attention failed"),
         new(Library, "Game information sources", "MetadataSources", "metadata description steam gog wikidata howlongtobeat providers lookup automatic look up information automatically cover automatically titles sent only fill empty never replaced install size on disk"),

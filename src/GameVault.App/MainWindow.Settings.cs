@@ -91,4 +91,24 @@ public partial class MainWindow
             if (!target.Focus()) target.MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
         }, DispatcherPriority.Loaded);
     }
+
+    private async void ReduceMotionChanged(object sender, RoutedEventArgs e)
+    {
+        var reduce = ReduceMotionChoice.IsChecked == true;
+        if (initializing || busy || settingsReadOnly || stoppingObservation || quitPreparing || reduce == settings.ReduceMotion) return;
+        busy = true; UpdateButtons();
+        try
+        {
+            var updated = settings with { ReduceMotion = reduce };
+            await store.SaveSettingsAsync(updated);
+            settings = updated;
+            Motion.ReduceMotion = reduce;
+        }
+        catch (Exception error) when (IsExpected(error) || error is System.IO.IOException)
+        {
+            initializing = true; ReduceMotionChoice.IsChecked = settings.ReduceMotion; initializing = false;
+            ShowToast("Could not save the setting", error.Message, true);
+        }
+        finally { EndOperation(); }
+    }
 }
