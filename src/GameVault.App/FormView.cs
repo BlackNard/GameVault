@@ -77,6 +77,12 @@ public sealed class FormView : UserControl
         notice.Text = "";
         try { await action(); busy = false; Completed?.Invoke(this, true); }
         catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException) { notice.Text = error.Message.Split(" (Parameter")[0]; }
+        catch (Exception error) when (error is not OutOfMemoryException)
+        {
+            // A fault in saving must never close GameVault: it is written to the log and shown in the form.
+            GameVault.Infrastructure.Diagnostics.AppLog.Error("A form could not be saved", error);
+            notice.Text = "This could not be saved. " + error.Message;
+        }
         finally { busy = false; fields.IsEnabled = saveButton.IsEnabled = cancelButton.IsEnabled = deleteButton.IsEnabled = true; }
     }
 

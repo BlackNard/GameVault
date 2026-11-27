@@ -105,9 +105,11 @@ public partial class MainWindow
         CheckBox ranked = null!;
         var form = new FormView(settings.Theme, existing is null ? "New list" : "Edit list", async () =>
         {
+            // The boxes are read here: the change itself runs on the store's thread, which may not touch them.
+            var (title, about, numbered) = (name.Text, description.Text.Trim(), ranked.IsChecked == true);
             // Entries are taken from the stored list, so nothing added meanwhile is lost.
             await store.ChangeListsAsync(d => GameListRules.Upsert(d, (d.Lists.FirstOrDefault(l => l.Id == list.Id) ?? list) with
-            { Name = name.Text, Description = description.Text.Trim(), Ranked = ranked.IsChecked == true }));
+            { Name = title, Description = about, Ranked = numbered }));
             listsView?.Select(list.Id);
         }, existing is null ? null : () => store.ChangeListsAsync(d => GameListRules.Remove(d, existing.Id)));
         name = form.Text("Name", list.Name, 80);
@@ -127,8 +129,9 @@ public partial class MainWindow
             var item = library.FirstOrDefault(i => i.Game.Id == chosen);
             var text = item?.Name ?? title.Text.Trim();
             if (text.Length == 0) throw new ArgumentException("Choose a game from the library, or write a title.");
+            var comment = note.Text.Trim() is { Length: > 0 } n ? n : null;
             return store.ChangeListsAsync(d => d.Lists.FirstOrDefault(l => l.Id == list.Id) is { } current
-                ? GameListRules.Upsert(d, current with { Entries = GameListRules.Add(current.Entries, new(Guid.NewGuid(), item?.Game.Id, text, note.Text.Trim() is { Length: > 0 } n ? n : null)) }) : d);
+                ? GameListRules.Upsert(d, current with { Entries = GameListRules.Add(current.Entries, new(Guid.NewGuid(), item?.Game.Id, text, comment)) }) : d);
         });
         game = form.Choice("Game from your library", library.Select(i => (i.Game.Id, i.Name)).Prepend((Guid.Empty, "Not in my library (write the title below)")), Guid.Empty);
         title = form.Text("Title, for a game that is not in the library", "", 200);
@@ -139,8 +142,12 @@ public partial class MainWindow
     private async Task EditListNoteAsync(GameList list, ListEntry entry)
     {
         TextBox note = null!;
-        var form = new FormView(settings.Theme, "Note for " + entry.Title, () => store.ChangeListsAsync(d => d.Lists.FirstOrDefault(l => l.Id == list.Id) is { } current
-            ? GameListRules.Upsert(d, current with { Entries = [.. current.Entries.Select(e => e.Id == entry.Id ? e with { Note = note.Text.Trim() is { Length: > 0 } n ? n : null } : e)] }) : d));
+        var form = new FormView(settings.Theme, "Note for " + entry.Title, () =>
+        {
+            var comment = note.Text.Trim() is { Length: > 0 } n ? n : null;
+            return store.ChangeListsAsync(d => d.Lists.FirstOrDefault(l => l.Id == list.Id) is { } current
+                ? GameListRules.Upsert(d, current with { Entries = [.. current.Entries.Select(e => e.Id == entry.Id ? e with { Note = comment } : e)] }) : d);
+        });
         note = form.Text("Note", entry.Note, 1000, lines: true);
         if (await ShowFormAsync(form)) await LoadListsAsync();
     }
