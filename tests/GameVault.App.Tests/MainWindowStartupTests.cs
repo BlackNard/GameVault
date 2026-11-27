@@ -80,7 +80,7 @@ public sealed class MainWindowStartupTests
         var templates = window.Descendants(ns + "DataTemplate").Select(e => (string?)e.Attribute(x + "Key")).Where(k => k is not null).ToArray();
         Assert.Contains("CardTemplate", templates); Assert.Contains("RowTemplate", templates);
         var menu = window.Descendants(ns + "ContextMenu").Single(e => (string?)e.Attribute(x + "Key") == "GameContextMenu");
-        Assert.Equal(new[] { "Play", "Back up now", "Open install folder", "Edit game…", "Sessions & notes", "Remove from library" }, menu.Elements(ns + "MenuItem").Select(e => e.Attribute("Header")!.Value).ToArray());
+        Assert.Equal(new[] { "Play", "Back up now", "Open install folder", "Status", "Edit game…", "Sessions & notes", "Remove from library" }, menu.Elements(ns + "MenuItem").Select(e => e.Attribute("Header")!.Value).ToArray());
     }
 
     [Fact]

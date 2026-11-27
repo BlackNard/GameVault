@@ -70,12 +70,15 @@ public partial class MainWindow
     private void GameContextMenuOpened(object sender, RoutedEventArgs e)
     {
         if (sender is not ContextMenu menu) return;
+        if (GameList.SelectedItem is LibraryItemView chosen && menu.Items.OfType<MenuItem>().FirstOrDefault(i => (i.Header as string) == "Status") is { } status)
+            FillStatusMenu(status.Items, chosen);
         foreach (var entry in menu.Items.OfType<MenuItem>())
             entry.IsEnabled = (entry.Header as string) switch
             {
                 "Play" => PlayButton.IsEnabled,
                 "Back up now" => BackupButton.IsEnabled,
                 "Edit game…" => EditButton.IsEnabled,
+                "Status" => HeroStatusButton.IsEnabled,
                 "Remove from library" => ArchiveButton.IsEnabled,
                 _ => GameList.SelectedItem is not null
             };

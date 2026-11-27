@@ -172,7 +172,8 @@ public partial class MainWindow : Window
         if(item is not null)_=RefreshHeroCoverAsync(item);else {GameHeroCover.Source=null;heroCoverGame=null;heroCoverRequest?.Cancel();}
         DetailTitle.Text = item?.Name ?? "A home for every game";
         DetailState.Text = item is null ? "Select a game to see its details or choose Add game to get started." :
-            string.Join("\n", new[] { item.Status, item.Availability, item.Game.Warning }.Where(s => !string.IsNullOrWhiteSpace(s)));
+            string.Join("\n", new[] { item.Playing is null ? item.Status : null, item.Availability, item.Game.Warning }.Where(s => !string.IsNullOrWhiteSpace(s)));
+        ShowHeroStatus(item);
         DetailFields.Visibility = item?.Game.Profile is not null ? Visibility.Visible : Visibility.Collapsed;
         if(item is null)summarizedGame=null;
         if (item?.Game.Profile is GameProfile profile)
@@ -558,6 +559,7 @@ public partial class MainWindow : Window
         var active = selected is not null && (launches.GetState(selected.Game.Id).IsActive||backups.IsWorking(selected.Game.Id));
         var editable = !busy && !editorOpen && !stoppingObservation && !quitPreparing && !active && selected is { Game.IsReadOnly: false, Game.Profile: not null };
         EditButton.IsEnabled = ArchiveButton.IsEnabled = LaunchSettingsButton.IsEnabled = editable;
+        HeroStatusButton.IsEnabled = editable && CanChangeStatus(selected);
         BackupButton.IsEnabled = editable && selected is { Game.Profile.IsArchived: false };
         PlayButton.IsEnabled = editable && selected is { Game.ExecutableMissing: false, Game.Profile.IsArchived: false };
     }

@@ -38,6 +38,8 @@ public partial class NotesView : UserControl
         Fields.IsEnabled=ActivityPanel.IsEnabled=CorrectionPanel.IsEnabled=SessionsTab.IsEnabled=ActivityTab.IsEnabled=ReviewTab.IsEnabled=RefreshButton.IsEnabled=ExportButton.IsEnabled=BackButton.IsEnabled=!value;
         UpdateHistoryButtons();
     }
+    /// <summary>Reads the game again after it was changed outside this view; an unsaved draft is kept.</summary>
+    public Task RefreshAsync()=>Reload(true);
     private async Task Reload(bool preserveDraft=false)
     {
         if(busy)return;SetBusy(true);
