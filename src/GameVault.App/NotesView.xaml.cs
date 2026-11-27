@@ -25,7 +25,7 @@ public partial class NotesView : UserControl
     public NotesView(ApplicationPaths paths,AppDataStore store,Guid gameId,string theme,Func<bool>? isGameActive=null)
     {
         this.paths=paths;this.store=store;this.gameId=gameId;this.theme=theme;this.isGameActive=isGameActive??(()=>false);
-        InitializeComponent();Rating.Chosen+=RatingChosen;StatusChoice.SelectedValuePath="Tag";StatusChoice.ItemsSource=Enum.GetValues<GameStatus>().Select(s=>new ComboBoxItem{Tag=s,Content=LibraryItemView.StatusText(s)}).ToArray();
+        InitializeComponent();Rating.Chosen+=RatingChosen;StatusChoice.SelectedValuePath="Tag";StatusChoice.ItemsSource=PlayStatuses.All.Select(s=>new ComboBoxItem{Tag=s,Content=PlayStatuses.Label(s)}).ToArray();
         Loaded+=async(_,_)=>await Reload();
         PreviewKeyDown+=async(_,e)=>{if(e.Key==Key.S&&Keyboard.Modifiers.HasFlag(ModifierKeys.Control)){e.Handled=true;if(!busy&&CanEdit)await Save();}};
     }
@@ -38,6 +38,8 @@ public partial class NotesView : UserControl
         Fields.IsEnabled=ActivityPanel.IsEnabled=CorrectionPanel.IsEnabled=SessionsTab.IsEnabled=ActivityTab.IsEnabled=ReviewTab.IsEnabled=RefreshButton.IsEnabled=ExportButton.IsEnabled=BackButton.IsEnabled=!value;
         UpdateHistoryButtons();
     }
+    /// <summary>Reads the game again after it was changed outside this view; an unsaved draft is kept.</summary>
+    public Task RefreshAsync()=>Reload(true);
     private async Task Reload(bool preserveDraft=false)
     {
         if(busy)return;SetBusy(true);
@@ -46,7 +48,8 @@ public partial class NotesView : UserControl
             history=await store.LoadHistoryAsync(gameId);summary=SessionHistory.Build(history,TimeZoneInfo.Local);
             catalog=await store.LoadNotesAsync(gameId);await LoadRating();GameHeading.Text=catalog.Profile.Value?.Name??"Unavailable game profile";
             Warnings.Text=string.Join("\n",catalog.Warnings.Concat(summary.Warnings).Distinct());
-            var previous=selected?.Row.Id;changing=true;StatusChoice.SelectedValue=catalog.Profile.Value?.Status;
+            statusDetail=(await store.LoadStatusDetailAsync(gameId)).Value?.Detail;
+            var previous=selected?.Row.Id;changing=true;StatusChoice.SelectedValue=ShownStatus(catalog.Profile.Value);
             rows=catalog.Sessions.Select(s=>new SessionRow(s,summary.Sessions.SingleOrDefault(h=>h.Session.Id==s.Id))).ToArray();
             BindRows(previous);UpdateSummary();UpdateActivity();LoadEntry(preserveDraft);
         }

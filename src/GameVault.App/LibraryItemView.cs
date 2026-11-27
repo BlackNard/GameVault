@@ -14,7 +14,8 @@ internal sealed class LibraryItemView(LibraryGame game, Func<string, Cancellatio
     public LibraryGame Game { get; private set; } = game;
     public string Name => Game.Profile?.Name ?? "Profile needs attention";
     public string Initial => Name.Length > 0 ? Name[..1].ToUpperInvariant() : "?";
-    public string Status => Game.Profile is null ? "Read-only profile" : StatusText(Game.Profile.Status);
+    public PlayStatus? Playing => Game.Profile is { } profile ? PlayStatuses.From(profile.Status, Game.Detail) : null;
+    public string Status => Playing is { } status ? PlayStatuses.Label(status) : "Read-only profile";
     public string Availability => launch?.IsActive == true ? launch.Phase == LaunchPhase.Starting ? "Starting game…" : "Running" :
         launch?.Phase == LaunchPhase.Failed ? "Launch needs attention · see game details" : Game.Profile is null ? "See the storage notice for details." :
         Game.IsReadOnly ? "Read-only · profile needs attention" :
@@ -104,6 +105,4 @@ internal sealed class LibraryItemView(LibraryGame game, Func<string, Cancellatio
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException or OperationCanceledException or System.Runtime.InteropServices.COMException) { }
         finally { if (ReferenceEquals(coverRequest, request)) { coverRequest = null; request.Dispose(); } }
     }
-    public static string StatusText(GameStatus status) => status switch
-    { GameStatus.NotStarted => "Not started", GameStatus.OnHold => "On hold", _ => status.ToString() };
 }

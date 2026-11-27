@@ -107,11 +107,11 @@ public partial class NotesView
     }
     private async void StatusChanged(object sender,SelectionChangedEventArgs e)
     {
-        if(changing||busy||catalog?.Profile.Value is not GameProfile profile||StatusChoice.SelectedValue is not GameStatus next||next==profile.Status)return;
-        if(isGameActive()){changing=true;StatusChoice.SelectedValue=profile.Status;changing=false;return;}
+        if(changing||busy||catalog?.Profile.Value is not GameProfile profile||StatusChoice.SelectedValue is not PlayStatus next||next==ShownStatus(profile))return;
+        if(isGameActive()){changing=true;StatusChoice.SelectedValue=ShownStatus(profile);changing=false;return;}
         SetBusy(true);
-        try{await store.SetGameStatusAsync(gameId,next);SetBusy(false);await Reload(true);GameDataChanged?.Invoke(this,EventArgs.Empty);}
-        catch(Exception error)when(Expected(error)){changing=true;StatusChoice.SelectedValue=profile.Status;changing=false;Warnings.Text="Could not change status. "+error.Message;}
+        try{await store.SetPlayStatusAsync(gameId,next);SetBusy(false);await Reload(true);GameDataChanged?.Invoke(this,EventArgs.Empty);}
+        catch(Exception error)when(Expected(error)){changing=true;StatusChoice.SelectedValue=ShownStatus(profile);changing=false;Warnings.Text="Could not change status. "+error.Message;}
         finally{SetBusy(false);}
     }
     public void UpdateLiveProgress(SessionProgress progress)
@@ -159,4 +159,6 @@ public partial class NotesView
         public string ListDuration=>Row.Session is PlaySession s?NotesView.Duration(LiveSeconds??Detail?.AdjustedSeconds??s.DurationSeconds):"Unavailable";
         public string ListNote=>Row.Note.Value is not null?"Saved":Row.Note.State==DocumentState.Missing?"None":"Needs attention";
     }
+    private GameStatusDetail? statusDetail;
+    private PlayStatus? ShownStatus(GameProfile? profile)=>profile is null?null:PlayStatuses.From(profile.Status,statusDetail);
 }

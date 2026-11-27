@@ -37,6 +37,14 @@ public partial class MainWindow
         RemovedFilter.IsChecked = ChipRemoved.IsChecked;
     }
 
+    /// <summary>The chips for Backlog, Abandoned and Retired appear once a game has that status, so the row stays short.</summary>
+    private void ShowStatusChips()
+    {
+        var filter = (StatusFilter.SelectedItem as ComboBoxItem)?.Tag as string;
+        foreach (var chip in new[] { ChipBacklog, ChipAbandoned, ChipRetired })
+            chip.Visibility = (string)chip.Tag == filter || items.Any(i => i.Playing?.ToString() == (string)chip.Tag) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     /// <summary>Keeps the visible chips in step with the hidden status filter and removed checkbox that the filtering code uses.</summary>
     private void SyncChips()
     {
@@ -62,12 +70,15 @@ public partial class MainWindow
     private void GameContextMenuOpened(object sender, RoutedEventArgs e)
     {
         if (sender is not ContextMenu menu) return;
+        if (GameList.SelectedItem is LibraryItemView chosen && menu.Items.OfType<MenuItem>().FirstOrDefault(i => (i.Header as string) == "Status") is { } status)
+            FillStatusMenu(status.Items, chosen);
         foreach (var entry in menu.Items.OfType<MenuItem>())
             entry.IsEnabled = (entry.Header as string) switch
             {
                 "Play" => PlayButton.IsEnabled,
                 "Back up now" => BackupButton.IsEnabled,
                 "Edit game…" => EditButton.IsEnabled,
+                "Status" => HeroStatusButton.IsEnabled,
                 "Remove from library" => ArchiveButton.IsEnabled,
                 _ => GameList.SelectedItem is not null
             };

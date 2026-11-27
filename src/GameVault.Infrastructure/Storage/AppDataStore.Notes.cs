@@ -20,7 +20,7 @@ public sealed partial class AppDataStore
         }
         else
         {
-            if (!catalog.CanReview) throw new IOException("Mark this game Completed through Edit game to write its first review.");
+            if (!catalog.CanReview) throw new IOException("Mark this game Completed or Retired to write its first review.");
             current = catalog.Review;
         }
         JsonDocuments.RequireWritable(current);
@@ -76,8 +76,12 @@ public sealed partial class AppDataStore
             return new SessionNote(id, session, eligible && game.Profile.State == DocumentState.Ready && !note.IsReadOnly, context, note);
         }).OrderByDescending(s => s.Session?.StartedAt).ThenBy(s => s.Id).ToArray();
         return new(game.Profile, rows, review, game.Profile.State == DocumentState.Ready && !review.IsReadOnly &&
-            (review.Value is not null || game.Profile.Value?.Status == GameStatus.Completed), warnings.Distinct().ToArray());
+            (review.Value is not null || game.Profile.Value?.Status == GameStatus.Completed || Retired(gameId, game.Profile.Value?.Status)), warnings.Distinct().ToArray());
     }
+
+    /// <summary>Retired means the player is done with it, so it may be reviewed too.</summary>
+    private bool Retired(Guid id, GameStatus? stored) => stored is { } status &&
+        PlayStatuses.From(status, documents.Read<StatusDetail>(StatusFile(id), value => StatusDetail.IsValid(value, id)).Value?.Detail) == PlayStatus.Retired;
 
     private string NoteFile(Guid gameId, Guid? sessionId) => sessionId is Guid id && id != Guid.Empty
         ? Path.Combine(Folder(gameId), "Notes", "Sessions", id.ToString("N") + ".json")

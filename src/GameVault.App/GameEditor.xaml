@@ -18,7 +18,7 @@
                 <TextBlock Text="Defaults to the executable’s folder. A custom folder is kept when you browse to another executable." TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" Margin="0,6,0,16" />
                 <Label Content="_Status" Target="{Binding ElementName=StatusChoice}" />
                 <ComboBox x:Name="StatusChoice" SelectedIndex="0" Margin="0,0,0,16" AutomationProperties.Name="Game status">
-                    <ComboBoxItem Content="Not started" Tag="NotStarted" /><ComboBoxItem Content="Playing" Tag="Playing" /><ComboBoxItem Content="Completed" Tag="Completed" /><ComboBoxItem Content="On hold" Tag="OnHold" />
+                    <ComboBoxItem Content="Not started" Tag="NotStarted" /><ComboBoxItem Content="Backlog" Tag="Backlog" /><ComboBoxItem Content="Playing" Tag="Playing" /><ComboBoxItem Content="On hold" Tag="OnHold" /><ComboBoxItem Content="Completed" Tag="Completed" /><ComboBoxItem Content="Abandoned" Tag="Abandoned" /><ComboBoxItem Content="Retired" Tag="Retired" />
                 </ComboBox>
                 <Label Content="_Cover image (optional)" Target="{Binding ElementName=CoverPath}" />
                 <DockPanel><Button DockPanel.Dock="Right" Content="Browse…" Click="BrowseCover" Margin="8,0,0,0" AutomationProperties.Name="Browse cover image" /><TextBox x:Name="CoverPath" IsReadOnly="True" TextWrapping="Wrap" AutomationProperties.Name="Cover image path" /></DockPanel>
