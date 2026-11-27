@@ -72,6 +72,8 @@ Every document is `schemaVersion`-tagged and rejects unknown fields; an unrecogn
 
 `MainWindow` runs at normal integrity; an administrator game is started by a one-shot elevated helper (`ElevationBroker`/`BrokerPipe`) that hands observation handles back. Steam/Epic games launch through the store protocol and are tracked via detached-process handoff; GameVault does not bypass authentication or DRM.
 
+Stop (`LaunchService.Stop`, issue #113) is the only place a game is closed, on the player's confirmed request: gently first, forced after a second yes, never a program `StopRules` spares. Test it with fakes or the windowless fixture only.
+
 ### Capture
 
 Per game the recorder is Auto (NVIDIA App when installed), GameVault, or NVIDIA App (`capture-source.json`). GameVault's recorder is registered with global shortcuts (default Ctrl+Shift+F9/F10/F11) only while a game using it runs. NVIDIA App has no API for starting recordings or setting folders, so GameVault only detects it read-only and copies its `.mp4`/`.png` files from the game's recorded sessions into the profile (see `docs/nvidia-app-capture.md`). `RecordingWatchdog` flags a recording whose video frames stop while audio continues.

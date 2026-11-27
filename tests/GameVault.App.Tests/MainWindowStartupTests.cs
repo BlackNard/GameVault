@@ -42,6 +42,30 @@ public sealed class MainWindowStartupTests
     }
 
     [Fact]
+    public void A_running_game_can_be_stopped_after_a_confirmation_and_only_by_a_stop_control()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !Directory.Exists(Path.Combine(root.FullName, "src", "GameVault.App"))) root = root.Parent;
+        string Source(string name) => File.ReadAllText(Path.Combine(root!.FullName, "src", "GameVault.App", name));
+        var stop = Source("MainWindow.Stop.cs");
+        // Ask first, force only after a second yes; both default to No.
+        Assert.True(stop.IndexOf("InlinePrompts.ShowAsync", StringComparison.Ordinal) < stop.IndexOf("force: false", StringComparison.Ordinal));
+        Assert.True(stop.IndexOf("StopOutcome.StillRunning", StringComparison.Ordinal) < stop.IndexOf("force: true", StringComparison.Ordinal));
+        Assert.Equal(2, stop.Split("MessageBoxResult.No)").Length - 1);
+        Assert.Contains("Unsaved progress may be lost", stop);
+        Assert.Contains("Task.Run(() => launches.StopAsync(", stop);                  // Windows' permission prompt must not freeze the window
+        var window = Source("MainWindow.xaml.cs");
+        Assert.Contains("LaunchPhase.Running => \"Stop\"", window);
+        Assert.Contains("StopGameAsync(", window);
+        // The Play buttons on cards and in the command palette never stop a game.
+        Assert.DoesNotContain("PlayGame(sender, e);\n    }", Source("MainWindow.Overhaul.cs").Replace("\r\n", "\n"));
+        Assert.DoesNotContain("PlayGame(this, new RoutedEventArgs())", Source("MainWindow.Shell.cs"));
+        var button = Root().Descendants().Single(e => e.Attributes().Any(a => a.Name.LocalName == "Name" && a.Value == "NowPlayingStopButton"));
+        Assert.Equal("StopNowPlayingClicked", (string?)button.Attribute("Click"));
+        Assert.False(string.IsNullOrWhiteSpace((string?)button.Attribute("ToolTip")));
+    }
+
+    [Fact]
     public void Restoring_from_minimized_returns_to_the_previous_state_instead_of_forcing_normal()
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);

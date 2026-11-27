@@ -203,7 +203,7 @@ public partial class MainWindow : Window
             ArchiveButton.Content = profile.IsArchived ? "Restore to library" : "Remove from library";
             var launch = launches.GetState(profile.Id);
             LaunchNotice.Text = launch.Message;
-            ShowPlayState(profile.Id, launch.Phase switch { LaunchPhase.Starting => "Starting…", LaunchPhase.Running => "Running", _ => "Play" });
+            ShowPlayState(profile.Id, stoppingGames.Contains(profile.Id) ? "Stopping…" : launch.Phase switch { LaunchPhase.Starting => "Starting…", LaunchPhase.Running => "Stop", _ => "Play" });
         }
         UpdateTagsUi(item);
         _ = RefreshAboutAsync(item);
@@ -248,7 +248,12 @@ public partial class MainWindow : Window
         if (GameList.SelectedItem is LibraryItemView { Game.IsReadOnly: false } item && !launches.GetState(item.Game.Id).IsActive) OpenEditor(item.Game.Profile);
     }
 
-    private async void PlayGame(object sender, RoutedEventArgs e) => await PlayWithAsync(null);
+    // The game page's button: Play, or Stop while the game runs.
+    private async void PlayGame(object sender, RoutedEventArgs e)
+    {
+        if (GameList.SelectedItem is LibraryItemView item && IsRunning(item.Game.Id)) await StopGameAsync(item.Game.Id);
+        else await PlayWithAsync(null);
+    }
 
     private void LaunchStateChanged(object? sender, LaunchState state)
     {
@@ -571,7 +576,10 @@ public partial class MainWindow : Window
         EditButton.IsEnabled = ArchiveButton.IsEnabled = LaunchSettingsButton.IsEnabled = editable;
         HeroStatusButton.IsEnabled = editable && CanChangeStatus(selected);
         BackupButton.IsEnabled = editable && selected is { Game.Profile.IsArchived: false };
-        PlayButton.IsEnabled = editable && selected is { Game.ExecutableMissing: false, Game.Profile.IsArchived: false };
+        var running = selected is not null && IsRunning(selected.Game.Id);
+        PlayButton.IsEnabled = running ? !editorOpen && !stoppingObservation && !quitPreparing && !stoppingGames.Contains(selected!.Game.Id)
+            : editable && selected is { Game.ExecutableMissing: false, Game.Profile.IsArchived: false };
+        PlayMenuButton.IsEnabled = !running && PlayButton.IsEnabled;
     }
 
     private void EndOperation() { busy = false; UpdateButtons(); ContinueDeferredQuit(); }

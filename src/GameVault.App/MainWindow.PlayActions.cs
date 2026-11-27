@@ -31,7 +31,7 @@ public partial class MainWindow
         currentPlayActions = actions;
         currentDefaultAction = defaultId;
         PlayMenuButton.Visibility = actions.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-        PlayButton.ToolTip = LaunchRules.DefaultAction(new LaunchSettings(1, id, null, actions, defaultId)) is { } def ? "Play: " + def.Name : "Play";
+        PlayButton.ToolTip = IsRunning(id) ? "Close the running game" : LaunchRules.DefaultAction(new LaunchSettings(1, id, null, actions, defaultId)) is { } def ? "Play: " + def.Name : "Play";
     }
 
     private async void PlayMenuClicked(object sender, RoutedEventArgs e)

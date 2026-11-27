@@ -80,7 +80,7 @@ public partial class MainWindow
         foreach (var entry in menu.Items.OfType<MenuItem>())
             entry.IsEnabled = (entry.Header as string) switch
             {
-                "Play" => PlayButton.IsEnabled,
+                "Play" => PlayButton.IsEnabled && GameList.SelectedItem is LibraryItemView playing && !IsRunning(playing.Game.Id),
                 "Back up now" => BackupButton.IsEnabled,
                 "Edit game…" => EditButton.IsEnabled,
                 "Status" => HeroStatusButton.IsEnabled,
@@ -94,7 +94,7 @@ public partial class MainWindow
         e.Handled = true;   // do not also open the game page
         if (ItemOf(sender) is not { } item) return;
         GameList.SelectedItem = item;
-        PlayGame(sender, e);
+        _ = PlayWithAsync(null);
     }
 
     private void CardMoreClicked(object sender, RoutedEventArgs e)
@@ -108,7 +108,7 @@ public partial class MainWindow
         menu.IsOpen = true;
     }
 
-    private void MenuPlayClicked(object sender, RoutedEventArgs e) => PlayGame(sender, e);
+    private void MenuPlayClicked(object sender, RoutedEventArgs e) => _ = PlayWithAsync(null);
     private void MenuBackUpClicked(object sender, RoutedEventArgs e) => BackUpNow(sender, e);
 
     private async void MenuNotesClicked(object sender, RoutedEventArgs e)
