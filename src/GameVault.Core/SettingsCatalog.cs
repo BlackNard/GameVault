@@ -44,6 +44,7 @@ public static class SettingsCatalog
         new(Backups, "Guide: how to back up and restore", "BackupGuide", "help guide restore reinstall new pc"),
         new(Backups, "Default backup folder", "DefaultBackupLocation", "save backups storage destination drive cloud location future backups original folders"),
         new(Backups, "Obsidian vault", "ObsidianStatusText", "obsidian notes markdown export session review folder create link unlink"),
+        new(Backups, "Export to CSV", "ExportCsvButton", "spreadsheet excel csv export games sessions playtime playthroughs journal lists"),
         new(Backups, "Back up GameVault data", "BackUpDataButton", "export zip library profiles move upgrade new pc sessions notes settings include recorded media"),
         new(Backups, "Restore from a backup", "RestoreDataButton", "import zip recover library replaces replaced replace the whole library keeps a copy"),
         new(Backups, "Import from an old GameVault folder", "ImportOldFolderButton", "profiles old copy uninstall remains games left behind only new games"),

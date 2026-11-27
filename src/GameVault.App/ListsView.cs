@@ -27,7 +27,7 @@ public sealed class ListsView : UserControl
 
     public ListsView()
     {
-        var page = new StackPanel { MaxWidth = 860, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 32) };
+        var page = new StackPanel { MinWidth = 640, MaxWidth = 860, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 32) };
         page.Children.Add(new TextBlock { Text = "Lists", FontSize = 30, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 14) });
         page.Children.Add(tabs);
         page.Children.Add(body);
@@ -151,6 +151,7 @@ public sealed class ListsView : UserControl
         {
             var link = new Button { Content = name, HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(0, 2, 0, 2), ToolTip = "Open " + name };
             link.SetResourceReference(StyleProperty, "TabLink");
+            link.SetResourceReference(ForegroundProperty, "AppText");
             link.Click += (_, _) => GameRequested?.Invoke(this, id);
             text.Children.Add(link);
         }

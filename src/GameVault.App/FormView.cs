@@ -11,7 +11,7 @@ namespace GameVault.App;
 /// </summary>
 public sealed class FormView : UserControl
 {
-    private readonly StackPanel fields = new() { MaxWidth = 560, HorizontalAlignment = HorizontalAlignment.Left };
+    private readonly StackPanel fields = new() { Width = 560, HorizontalAlignment = HorizontalAlignment.Left };
     private readonly TextBlock notice = new() { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) };
     private readonly Button saveButton = new() { Content = "Save", MinWidth = 110 };
     private readonly Button cancelButton = new() { Content = "Cancel", MinWidth = 100, Margin = new Thickness(0, 0, 8, 0) };

@@ -29,7 +29,7 @@ public sealed class JournalView : UserControl
 
     public JournalView()
     {
-        var page = new StackPanel { MaxWidth = 860, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 32) };
+        var page = new StackPanel { MinWidth = 640, MaxWidth = 860, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 32) };
         page.Children.Add(new TextBlock { Text = "Journal", FontSize = 30, FontWeight = FontWeights.SemiBold });
         var intro = Muted("Your sessions and notes, and entries you add yourself. Added entries do not change recorded playtime.");
         intro.Margin = new Thickness(0, 6, 0, 14);

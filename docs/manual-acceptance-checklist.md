@@ -317,6 +317,10 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] **Favourite** on a game's page and in a card's menu adds it to **Lists > Favourites**, where the order can be changed and the first four are shown large.
 - [ ] **New list…**, **Add a game…** (from the library or just a title), notes, ranking, moving, removing and deleting the list work; **Add to list** in a card's menu works.
 
+## 8af. CSV export (issue #98)
+
+- [ ] **Settings > Backups and data > Export to CSV…** writes games, sessions, playthroughs, journal and lists into a new folder; the files open correctly in a spreadsheet, with accents intact.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

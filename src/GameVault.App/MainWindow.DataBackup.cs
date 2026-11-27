@@ -79,4 +79,18 @@ public partial class MainWindow
         }
         finally { EndOperation(); }
     }
+
+    private async void ExportCsvClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy || editorOpen || quitPreparing || stoppingObservation) return;
+        if (NativePickers.Folder(this, "Choose where to put the spreadsheet files") is not { } folder) return;
+        busy = true; UpdateButtons();
+        try
+        {
+            var result = await Task.Run(() => new GameVault.Infrastructure.Library.CsvExportService(store).ExportAsync(folder, TimeZoneInfo.Local, DateTime.Now));
+            ShowToast($"{result.Games} game(s) exported", result.Folder + (result.Warnings.Length == 0 ? "" : " " + string.Join(" ", result.Warnings.Take(3))), result.Warnings.Length > 0);
+        }
+        catch (Exception error) when (IsExpected(error) || error is System.IO.IOException) { ShowToast("The export failed", error.Message, true); }
+        finally { EndOperation(); }
+    }
 }
