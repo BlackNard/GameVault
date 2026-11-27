@@ -70,9 +70,11 @@ public sealed class MainWindowStartupTests
         var window = Root();
         XElement Named(string name) => window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == name);
         var chips = window.Descendants(ns + "RadioButton").Where(e => (string?)e.Attribute("GroupName") == "StatusChips").Select(e => e.Attribute("Tag")!.Value).ToArray();
-        Assert.Equal(new[] { "All", "Playing", "Completed", "OnHold", "NotStarted" }, chips);
+        Assert.Equal(new[] { "All", "Playing", "Backlog", "Completed", "OnHold", "NotStarted", "Abandoned", "Retired" }, chips);
+        // the three newer statuses keep their chips hidden until a game has them (issue #94)
+        foreach (var name in new[] { "ChipBacklog", "ChipAbandoned", "ChipRetired" }) Assert.Equal("Collapsed", (string?)Named(name).Attribute("Visibility"));
         // the chips drive the original filter controls, which stay in the tree for the filtering code
-        Assert.Equal(new[] { "All", "NotStarted", "Playing", "Completed", "OnHold" }.Order(), Named("StatusFilter").Elements().Select(e => e.Attribute("Tag")!.Value).Order());
+        Assert.Equal(new[] { "All", "NotStarted", "Backlog", "Playing", "Completed", "OnHold", "Abandoned", "Retired" }.Order(), Named("StatusFilter").Elements().Select(e => e.Attribute("Tag")!.Value).Order());
         Assert.NotNull(Named("RemovedFilter")); Assert.NotNull(Named("ChipRemoved"));
         Assert.NotNull(Named("GridModeButton")); Assert.NotNull(Named("ListModeButton"));
         var templates = window.Descendants(ns + "DataTemplate").Select(e => (string?)e.Attribute(x + "Key")).Where(k => k is not null).ToArray();

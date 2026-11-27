@@ -81,7 +81,8 @@ public sealed partial class StatisticsView
             insightFigures.Children.Add(Card("Your average rating", stars.ToString("0.#", CultureInfo.CurrentCulture) + " of 5", "of the rated games played"));
         var backlog = games.Where(g => !g.Removed).ToArray();
         completedNames.Text = (insight.Completed.Length > 0 ? "Completed: " + string.Join(", ", insight.Completed) + "\n" : "") +
-            "Library now: " + string.Join(" · ", Enum.GetValues<GameStatus>().Select(s => $"{backlog.Count(g => g.Status == s)} {PlayStatistics.StatusName(s).ToLower(CultureInfo.CurrentCulture)}"));
+            "Library now: " + string.Join(" · ", PlayStatuses.All.Select(s => (Status: s, Count: backlog.Count(g => PlayStatuses.From(g.Status, g.Detail) == s)))
+                .Where(s => s.Count > 0).Select(s => $"{s.Count} {PlayStatuses.Label(s.Status).ToLower(CultureInfo.CurrentCulture)}"));
 
         shares.Children.Clear();
         shares.Children.Add(ShareList("By game", PlayStatistics.GameShares(games, range, 6)));

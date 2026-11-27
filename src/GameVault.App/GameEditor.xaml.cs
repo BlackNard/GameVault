@@ -20,7 +20,8 @@ public partial class GameEditor : UserControl
     /// <summary>Raised with true while the artwork search is open, so the host can give it the whole window, and false when it closes.</summary>
     public event EventHandler<bool>? FullWidthChanged;
 
-    public GameEditor(string theme, GameProfile? profile, Func<GameDraft, byte[]?, Task<GameSaveResult>> save, Func<Guid, Task<GameSaveResult>>? restore = null)
+    public GameEditor(string theme, GameProfile? profile, Func<GameDraft, byte[]?, Task<GameSaveResult>> save, Func<Guid, Task<GameSaveResult>>? restore = null,
+        PlayStatus? current = null)
     {
         this.save = save;
         this.restore = restore;
@@ -37,7 +38,7 @@ public partial class GameEditor : UserControl
             SaveSources.Text = string.Join(Environment.NewLine, profile.SaveSources);
             CoverPath.Text = "Existing cover is kept unless you choose another image.";
             foreach (ComboBoxItem item in StatusChoice.Items)
-                if ((string)item.Tag == profile.Status.ToString()) StatusChoice.SelectedItem = item;
+                if ((string)item.Tag == (current ?? PlayStatuses.From(profile.Status, null)).ToString()) StatusChoice.SelectedItem = item;
         }
         Unloaded += (_, _) => coverSearch?.Dispose();
         navigation = new(Snapshot());
@@ -138,9 +139,10 @@ public partial class GameEditor : UserControl
     private async void SaveGame(object sender, RoutedEventArgs e)
     {
         if (saving) return;
+        var status = Enum.Parse<PlayStatus>((string)((ComboBoxItem)StatusChoice.SelectedItem).Tag);
         var draft = new GameDraft(id, GameName.Text, Executable.Text, WorkingDirectory.Text,
             SaveSources.Text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
-            Enum.Parse<GameStatus>((string)((ComboBoxItem)StatusChoice.SelectedItem).Tag), removeCover);
+            PlayStatuses.Stored(status), removeCover, Detailed: status);
         saving = true;
         Fields.IsEnabled = SaveButton.IsEnabled = CancelButton.IsEnabled = false;
         ErrorNotice.Text = "Saving game…";

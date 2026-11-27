@@ -44,6 +44,7 @@ PDFsharp stays at 6.2.3: it is the last release checked to be MIT-licensed, and 
   - Statistics (`PlayStatistics`, `StatisticsService`, `StatisticsView`): computed from recorded sessions and corrections, never journals; undated time (adjustments, Steam hours) counts in all time only; charts are plain WPF, no chart library. Completion dates (`completion.json`) are written by the profile save when a game becomes Completed; earlier completions have no date and must not be invented.
   - Obsidian (`ObsidianVault`, `ObsidianApp`, `NoteExportWindow`, `MainWindow.Obsidian`): plain Markdown into a linked vault, by default `Obsidian Vault` inside the app folder (the owner's choice; part of the data backup). Notes are recognised by ids in their properties; one edited outside GameVault is never overwritten without asking, and nothing in a vault is deleted.
   - Motion (`MotionRules`, `Motion`): every transition goes through `Motion` (mark an element `local:Motion.Appear`), so Reduce motion and the Windows animation setting turn all of it off; 120 to 250 ms, nothing delays input, nothing animates while idle.
+  - Statuses (`PlayStatuses`, `status.json`): `profile.json` stores only the original four; Backlog, Abandoned and Retired are a detail beside it, forgotten when the stored status changes. Use `PlayStatuses.From` to show a status. New data prepared for a later Backloggd import carries a source and external id (issues #94 to #98).
   - Two library games can never share a program; a removed profile with that program may be restored or left beside a new one (`GameDraft.BesideRemoved`).
 - `GameVault.Capture`: lazy native capture backend (ScreenRecorderLib 7.0.1). Missing prerequisites must degrade gracefully and never block startup.
 
@@ -58,7 +59,7 @@ Obsidian Vault/ (only when the player creates one)
 Cache/ (downloaded save-location manifest)  Logs/gamevault.log  Logs/running.marker (exists while the app runs; a leftover means the last run ended unexpectedly)
 Profiles/<game name>/          (older GUID-named folders are renamed once at startup; the ID lives in profile.json and .gamevault-id)
   profile.json  statistics.json  launch.json?  save-discovery.json  capture-source.json?  metadata.json?  cover.png  hero.jpg|png?
-  rating.json?  cover-removed.marker?  steam-link.json?  completion.json?
+  rating.json?  cover-removed.marker?  steam-link.json?  completion.json?  status.json?
   Sessions/  Corrections/  Notes/Sessions/  Notes/review.json  Media/<date and time>/ (hidden .session-id inside)  Backups/<dated-backup>/
 ```
 

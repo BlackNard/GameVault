@@ -295,6 +295,11 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] A game page's banner and cover fade in; **Play** eases between Play, Starting and Running; the How long to beat bar and the Statistics bars grow.
 - [ ] Scrolling a large library stays smooth, and **Reduce motion** stops all of it.
 
+## 8ab. More statuses (issue #94)
+
+- [ ] **Backlog**, **Abandoned** and **Retired** can be chosen in the game editor and in Sessions & notes, and show on the game, in filters, saved views and statistics. Their library chips appear once a game has them.
+- [ ] Playing a Backlog game makes it Playing; a Retired game can be reviewed; editing a game's name keeps its status.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

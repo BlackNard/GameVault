@@ -97,3 +97,7 @@ A game whose cover the player removed has a `cover-removed.marker` file in its p
 ## Obsidian vault
 
 `Data/obsidian.json` (schema 1) holds the linked vault (relative when inside the GameVault folder) and its id; `Profiles/<game>/obsidian-export.json` holds a hash of what was last written for each note. The default vault is `Obsidian Vault/` inside the app folder: updates and uninstalling leave it, and the data backup and restore include it (a backup that contains it cannot be restored by older versions). A vault elsewhere is not part of the backup.
+
+## Status detail
+
+`Profiles/<game>/status.json` (schema 1: game id, `Backlog`, `Abandoned` or `Retired`, optional source and external id). `profile.json` keeps the closest of NotStarted, Playing, Completed and OnHold, so older versions read the game; the detail applies only while it fits that value and is removed when it changes.

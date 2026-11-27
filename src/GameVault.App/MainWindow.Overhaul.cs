@@ -37,6 +37,14 @@ public partial class MainWindow
         RemovedFilter.IsChecked = ChipRemoved.IsChecked;
     }
 
+    /// <summary>The chips for Backlog, Abandoned and Retired appear once a game has that status, so the row stays short.</summary>
+    private void ShowStatusChips()
+    {
+        var filter = (StatusFilter.SelectedItem as ComboBoxItem)?.Tag as string;
+        foreach (var chip in new[] { ChipBacklog, ChipAbandoned, ChipRetired })
+            chip.Visibility = (string)chip.Tag == filter || items.Any(i => i.Playing?.ToString() == (string)chip.Tag) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     /// <summary>Keeps the visible chips in step with the hidden status filter and removed checkbox that the filtering code uses.</summary>
     private void SyncChips()
     {

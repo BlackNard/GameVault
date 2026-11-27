@@ -6,7 +6,7 @@ public enum StatsPeriod { Today, Week, Month, Year, AllTime }
 public sealed record PlaySpan(DateTime Start, long Seconds);
 /// <summary>One game's play: seconds per local day, the day each session started, and time that has no date (typed-in adjustments, Steam hours).</summary>
 public sealed record GamePlay(Guid GameId, string Name, bool Removed, ActivityBucket[] Days, DateOnly[] SessionDates, long UndatedSeconds,
-    PlaySpan[]? Spans = null, string[]? Genres = null, GameStatus Status = GameStatus.NotStarted, DateOnly? CompletedOn = null, int HalfStars = 0);
+    PlaySpan[]? Spans = null, string[]? Genres = null, GameStatus Status = GameStatus.NotStarted, DateOnly? CompletedOn = null, int HalfStars = 0, GameStatusDetail? Detail = null);
 /// <param name="NewGames">Games first played in the period.</param>
 /// <param name="Completed">Names of games completed in the period, where the date is known.</param>
 public sealed record SessionInsight(long AverageSeconds, long LongestSeconds, string? LongestGame, DateOnly? LongestOn, int NewGames, string[] Completed);
@@ -186,11 +186,8 @@ public static class PlayStatistics
     public static PlayShare[] StatusShares(IReadOnlyList<GamePlay> games, (DateOnly From, DateOnly To)? range)
     {
         var times = Summarize(games, range).Top.ToDictionary(g => g.GameId, g => g.Seconds);
-        return Shares(games.Where(g => times.ContainsKey(g.GameId)).Select(g => (StatusName(g.Status), times[g.GameId])));
+        return Shares(games.Where(g => times.ContainsKey(g.GameId)).Select(g => (PlayStatuses.Label(PlayStatuses.From(g.Status, g.Detail)), times[g.GameId])));
     }
-
-    public static string StatusName(GameStatus status) => status switch
-    { GameStatus.NotStarted => "Not started", GameStatus.OnHold => "On hold", _ => status.ToString() };
 
     public static YearReview Review(IReadOnlyList<GamePlay> games, int year)
     {

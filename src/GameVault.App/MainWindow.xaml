@@ -83,9 +83,12 @@
        <WrapPanel x:Name="ChipsPanel" Margin="18,0,0,0" VerticalAlignment="Center">
         <RadioButton x:Name="ChipAll" GroupName="StatusChips" IsChecked="True" Tag="All" Content="All" Style="{StaticResource ChipRadio}" Checked="StatusChipChecked"/>
         <RadioButton GroupName="StatusChips" Tag="Playing" Content="Playing" Style="{StaticResource ChipRadio}" Checked="StatusChipChecked"/>
+        <RadioButton x:Name="ChipBacklog" GroupName="StatusChips" Tag="Backlog" Content="Backlog" Style="{StaticResource ChipRadio}" Checked="StatusChipChecked" Visibility="Collapsed"/>
         <RadioButton GroupName="StatusChips" Tag="Completed" Content="Completed" Style="{StaticResource ChipRadio}" Checked="StatusChipChecked"/>
         <RadioButton GroupName="StatusChips" Tag="OnHold" Content="On hold" Style="{StaticResource ChipRadio}" Checked="StatusChipChecked"/>
         <RadioButton GroupName="StatusChips" Tag="NotStarted" Content="Not started" Style="{StaticResource ChipRadio}" Checked="StatusChipChecked"/>
+        <RadioButton x:Name="ChipAbandoned" GroupName="StatusChips" Tag="Abandoned" Content="Abandoned" Style="{StaticResource ChipRadio}" Checked="StatusChipChecked" Visibility="Collapsed"/>
+        <RadioButton x:Name="ChipRetired" GroupName="StatusChips" Tag="Retired" Content="Retired" Style="{StaticResource ChipRadio}" Checked="StatusChipChecked" Visibility="Collapsed"/>
         <ToggleButton x:Name="ChipRemoved" Content="Removed" Style="{StaticResource ChipToggle}" Checked="RemovedChipChanged" Unchecked="RemovedChipChanged" ToolTip="Show removed games (their data is kept)"/>
         <Button x:Name="TagsButton" Content="Tags ▾" Style="{StaticResource ChipButton}" Click="TagsButtonClicked" Visibility="Collapsed" ToolTip="Filter by tag or category" AutomationProperties.Name="Filter by tags"/>
         <Button x:Name="RatingButton" Content="Rating ▾" Style="{StaticResource ChipButton}" Click="RatingButtonClicked" ToolTip="Filter by your rating" AutomationProperties.Name="Filter by rating"/>
@@ -93,7 +96,7 @@
         <Button x:Name="ViewsButton" Content="Views ▾" Style="{StaticResource ChipButton}" Click="ViewsButtonClicked" ToolTip="Saved filter views" AutomationProperties.Name="Saved views"/>
        </WrapPanel>
       </DockPanel>
-      <StackPanel Visibility="Collapsed"><ComboBox x:Name="StatusFilter" SelectedIndex="0" SelectionChanged="FilterChanged" AutomationProperties.Name="Game status"><ComboBoxItem Content="All statuses" Tag="All"/><ComboBoxItem Content="Not started" Tag="NotStarted"/><ComboBoxItem Content="Playing" Tag="Playing"/><ComboBoxItem Content="Completed" Tag="Completed"/><ComboBoxItem Content="On hold" Tag="OnHold"/></ComboBox><CheckBox x:Name="RemovedFilter" Content="Removed games" Checked="FilterChanged" Unchecked="FilterChanged"/></StackPanel>
+      <StackPanel Visibility="Collapsed"><ComboBox x:Name="StatusFilter" SelectedIndex="0" SelectionChanged="FilterChanged" AutomationProperties.Name="Game status"><ComboBoxItem Content="All statuses" Tag="All"/><ComboBoxItem Content="Not started" Tag="NotStarted"/><ComboBoxItem Content="Playing" Tag="Playing"/><ComboBoxItem Content="Completed" Tag="Completed"/><ComboBoxItem Content="On hold" Tag="OnHold"/><ComboBoxItem Content="Backlog" Tag="Backlog"/><ComboBoxItem Content="Abandoned" Tag="Abandoned"/><ComboBoxItem Content="Retired" Tag="Retired"/></ComboBox><CheckBox x:Name="RemovedFilter" Content="Removed games" Checked="FilterChanged" Unchecked="FilterChanged"/></StackPanel>
      </Grid>
      <Grid Grid.Row="3"><ListBox x:Name="GameList" SelectionChanged="SelectedGameChanged" PreviewKeyDown="LibraryKeyDown" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.CanContentScroll="True" VirtualizingPanel.IsVirtualizing="True" AutomationProperties.Name="Game library">
       <ListBox.ItemsPanel><ItemsPanelTemplate><local:VirtualizingCoverPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>

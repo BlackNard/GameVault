@@ -53,7 +53,7 @@ public sealed class BackupGuideTests
     {
         Assert.Contains("x:Name=\"RemoveCoverButton\"", Source("GameEditor.xaml"));
         var code = Source("GameEditor.xaml.cs");
-        Assert.Contains("removeCover);", code);                       // GameDraft carries RemoveCover
+        Assert.Contains("removeCover, Detailed: status);", code);                       // GameDraft carries RemoveCover
         Assert.Contains("removeCover = false;", code);
         var refresh = Source("MainWindow.Metadata.cs");
         refresh = refresh[refresh.IndexOf("private async void RefreshInfoClicked", StringComparison.Ordinal)..];

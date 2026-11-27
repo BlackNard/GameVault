@@ -28,6 +28,8 @@ public sealed class LibraryService
         var snapshot = await store.InitializeAsync().ConfigureAwait(false);
         var ratings = new Dictionary<Guid, int>();
         foreach (var game in snapshot.Games) ratings[game.Id] = (await store.LoadRatingAsync(game.Id).ConfigureAwait(false)).Value?.HalfStars ?? 0;
+        var details = new Dictionary<Guid, GameStatusDetail?>();
+        foreach (var game in snapshot.Games) details[game.Id] = (await store.LoadStatusDetailAsync(game.Id).ConfigureAwait(false)).Value?.Detail;
         var items = snapshot.Games.Select(game =>
         {
             var cover = Path.Combine(ProfileFolders.Resolve(paths, game.Id), "cover.png");
@@ -41,7 +43,7 @@ public sealed class LibraryService
             DateTimeOffset? lastPlayed = statistics is { Sessions.Length: > 0 } ? statistics.Sessions.Max(session => session.EndedAt ?? session.StartedAt) : null;
             var hero = HeroFileOf(game.Id);
             return new LibraryGame(game.Id, game.Profile.Value, game.Profile.IsReadOnly || game.Profile.Value is null,
-                game.Profile.Value is not null && !File.Exists(game.Profile.Value.ExecutablePath), cover, played, warning, lastPlayed, hero, ratings[game.Id]);
+                game.Profile.Value is not null && !File.Exists(game.Profile.Value.ExecutablePath), cover, played, warning, lastPlayed, hero, ratings[game.Id], details[game.Id]);
         }).OrderBy(g => g.Profile?.Name, StringComparer.OrdinalIgnoreCase).ThenBy(g => g.Id).ToArray();
         return new LibrarySnapshot(items, snapshot.Warnings);
     });
@@ -68,7 +70,8 @@ public sealed class LibraryService
             var sources = draft.SaveSources?.Select(Canonical).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
                 ?? throw new ArgumentException("Save locations must be a list of absolute paths.");
             new SaveSourcePolicy(paths,[Path.GetDirectoryName(executable)!,working]).ValidateSet(draft.SaveSources.Select(s=>s.Trim().Trim('"')));
-            if (!Enum.IsDefined(draft.Status)) throw new ArgumentException("Choose a supported game status.");
+            if (!Enum.IsDefined(draft.Status) || draft.Detailed is { } chosen && (!Enum.IsDefined(chosen) || PlayStatuses.Stored(chosen) != draft.Status))
+                throw new ArgumentException("Choose a supported game status.");
             // A removed profile only matters when adding: the player may restore it, or (BesideRemoved) start a fresh one and leave the old one where it is.
             CheckDuplicate(snapshot, executable, draft.Id, ignoreRemoved: draft.Id is not null || draft.BesideRemoved);
             if (coverPng is not null && (coverPng.Length < 33 || coverPng.Length > 10 * 1024 * 1024 ||
@@ -85,6 +88,12 @@ public sealed class LibraryService
             }
             await store.SaveProfileAsync(profile).ConfigureAwait(false);
             string? warning = null;
+            if (draft.Detailed is { } detailed)
+            {
+                try { await store.SaveStatusDetailAsync(profile.Id, PlayStatuses.Detail(detailed)).ConfigureAwait(false); }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+                { warning = "The game was saved, but its exact status could not be saved. " + error.Message; }
+            }
             if (coverPng is not null)
             {
                 try { WriteCover(profile.Id, coverPng); DeleteCoverRemovedMarker(profile.Id); }
