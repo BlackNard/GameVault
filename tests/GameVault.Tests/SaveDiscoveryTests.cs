@@ -32,8 +32,9 @@ public sealed class SaveDiscoveryTests:IDisposable
         Assert.Equal(SaveSourceOrigin.Confirmed,Assert.Single(result.Document.Value!.Sources,s=>s.Selected).Origin);
         var generic=Profile with{Name="Unlisted Adventure",ExecutablePath=Path.Combine(root,"Unlisted Adventure","game.exe"),WorkingDirectory=Path.Combine(root,"Unlisted Adventure")};
         await Store.SaveProfileAsync(generic);var candidate=Path.Combine(Env.SavedGames,"Unlisted Adventure");Save(candidate,"slot.sav");
-        result=await service.ScanAsync(id);Assert.Equal(SaveDiscoveryPhase.NeedsConfirmation,result.Phase);
-        Assert.DoesNotContain(result.Document.Value!.Sources,s=>s.Selected);await Assert.ThrowsAsync<IOException>(()=>service.ConfirmAsync(id,selected.Id));
+        // A folder named after the game that holds save files is used without asking (issue #111).
+        result=await service.ScanAsync(id);Assert.Equal(SaveDiscoveryPhase.SourcesFound,result.Phase);
+        Assert.Equal(candidate,Assert.Single(result.Document.Value!.Sources,s=>s.Selected).Path);await Assert.ThrowsAsync<IOException>(()=>service.ConfirmAsync(id,selected.Id));
     }
     private GameProfile Rockstar(string name,string exe)=>Profile with{Name=name,ExecutablePath=Path.Combine(root,"installed",name,exe),WorkingDirectory=Path.Combine(root,"installed",name)};
 

@@ -11,7 +11,8 @@ public sealed class SaveConfirmationTests : IDisposable
     private readonly Guid id = Guid.NewGuid();
     private ApplicationPaths Paths => ApplicationPaths.FromRoot(Path.Combine(root, "app"));
     private AppDataStore Store => new(Paths);
-    private string Found => Path.Combine(root, "local", "Example", "Saved", "SaveGames");
+    // A folder inside the game's own folder is a likely save folder but not a certain one, so the player is asked.
+    private string Found => Path.Combine(root, "game", "saves");
     private SaveDiscoveryService Discovery => new(Paths, Store, new SaveDiscoveryEnvironment(Path.Combine(root, "user"), Path.Combine(root, "docs"),
         Path.Combine(root, "saved"), Path.Combine(root, "roam"), Path.Combine(root, "local"), Path.Combine(root, "public"), []));
     private BackupService Backups(SaveDiscoveryService discovery) => new(Paths, Store, discovery, new(), _ => Task.FromResult(false));

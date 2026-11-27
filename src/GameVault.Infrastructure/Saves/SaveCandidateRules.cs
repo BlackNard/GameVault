@@ -3,7 +3,11 @@ using GameVault.Core;
 namespace GameVault.Infrastructure.Saves;
 public sealed record SaveDiscoveryEnvironment(string Home,string Documents,string SavedGames,string Roaming,string Local,string PublicDocuments,string[] SteamRoots,ISaveLocationSource? Database=null)
 {
-    public string[] BroadRoots=>[Home,Documents,SavedGames,Roaming,Local,PublicDocuments,..SteamRoots.Select(r=>Path.Combine(r,"userdata"))];
+    private readonly string? localLow, programData;
+    public string LocalLow { get => localLow ?? Path.Combine(Home,"AppData","LocalLow"); init => localLow = value; }
+    // Beside the public documents unless told otherwise, so a made-up environment never reaches the real one.
+    public string ProgramData { get => programData ?? Path.Combine(Path.GetDirectoryName(PublicDocuments)??PublicDocuments,"ProgramData"); init => programData = value; }
+    public string[] BroadRoots=>[Home,Documents,Path.Combine(Documents,"My Games"),SavedGames,Roaming,Local,LocalLow,PublicDocuments,ProgramData,..SteamRoots.Select(r=>Path.Combine(r,"userdata"))];
     public static SaveDiscoveryEnvironment Current()
     {
         var home=Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);var saved=Path.Combine(home,"Saved Games");
@@ -15,15 +19,16 @@ public sealed record SaveDiscoveryEnvironment(string Home,string Documents,strin
         }
         return new(home,Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),saved,Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),Environment.GetFolderPath(Environment.SpecialFolder.CommonDocuments),
-            [Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),"Steam"),Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"Steam")]);
+            [Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),"Steam"),Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"Steam")])
+        {ProgramData=Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)};
     }
     [DllImport("shell32.dll")]private static extern int SHGetKnownFolderPath(ref Guid id,uint flags,IntPtr token,out IntPtr path);
 }
-public sealed record SaveCandidate(string Path,SaveSourceOrigin Origin,string Evidence,string Payload="any",bool KnownLocation=false);
+public sealed record SaveCandidate(string Path,SaveSourceOrigin Origin,string Evidence,string Payload="any",bool KnownLocation=false,SaveCandidateSource Source=SaveCandidateSource.GameNamed);
 public sealed record SaveCandidateCatalog(SaveCandidate[] Candidates,string[] Warnings);
 public static class SaveCandidateRules
 {
-    public static SaveCandidateCatalog For(GameProfile profile,SaveDiscoveryEnvironment env)
+    public static SaveCandidateCatalog For(GameProfile profile,SaveDiscoveryEnvironment env,string? steamAppId=null)
     {
         var candidates=new List<SaveCandidate>();var warnings=new List<string>();var folder=Path.GetDirectoryName(profile.ExecutablePath)!;
         var names=new[]{profile.Name,Path.GetFileName(folder)}.Where(SafeName).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
@@ -69,22 +74,24 @@ public static class SaveCandidateRules
         }
         foreach(var name in names)
         {
-            Add(Path.Combine(env.Documents,"Rockstar Games",name,"Profiles"),SaveSourceOrigin.Suggestion,"Game-named Rockstar profile folder; confirmation required","save");
+            Add(Path.Combine(env.Documents,"Rockstar Games",name,"Profiles"),SaveSourceOrigin.Suggestion,"Game-named Rockstar profile folder","save");
             foreach(var root in new[]{env.SavedGames,Path.Combine(env.Documents,"My Games"),env.Documents})
-                Add(Path.Combine(root,name),SaveSourceOrigin.Suggestion,"Game-named folder candidate; confirmation required","save");
-            Add(Path.Combine(env.Local,name,"Saved","SaveGames"),SaveSourceOrigin.Suggestion,"Game-named Unreal save folder; confirmation required","save");
-            Add(Path.Combine(env.Roaming,name,"saves"),SaveSourceOrigin.Suggestion,"Game-named application save folder; confirmation required","save");
+                Add(Path.Combine(root,name),SaveSourceOrigin.Suggestion,"Game-named folder","save");
+            Add(Path.Combine(env.Local,name,"Saved","SaveGames"),SaveSourceOrigin.Suggestion,"Game-named Unreal save folder","save");
+            Add(Path.Combine(env.Roaming,name,"saves"),SaveSourceOrigin.Suggestion,"Game-named application save folder","save");
         }
         foreach(var leaf in new[]{"saves","save","SaveGames","Saved/SaveGames"})
-            Add(Path.Combine(folder,leaf.Replace('/',Path.DirectorySeparatorChar)),SaveSourceOrigin.Suggestion,"Install-folder save candidate; confirmation required","save");
+            Add(Path.Combine(folder,leaf.Replace('/',Path.DirectorySeparatorChar)),SaveSourceOrigin.Suggestion,"Save folder inside the game's folder","save",source:SaveCandidateSource.InstallFolder);
         // Community database (only after the owner downloaded it). Always a suggestion: the usual confirmation decides.
         if(env.Database is not null)
         {
-            try{foreach(var path in env.Database.Candidates(profile,env))Add(path,SaveSourceOrigin.Suggestion,"Save-location database (PCGamingWiki via Ludusavi); confirmation required","any");}
+            try{foreach(var path in env.Database.Candidates(profile,env,steamAppId))Add(path,SaveSourceOrigin.Suggestion,"Save-location database (PCGamingWiki via Ludusavi)","any",source:SaveCandidateSource.Database);}
             catch(Exception e)when(e is IOException or UnauthorizedAccessException or ArgumentException){warnings.Add("The save-location database could not be read. "+e.Message);}
         }
         return new(candidates.DistinctBy(c=>SaveSourcePolicy.Canonical(c.Path),StringComparer.OrdinalIgnoreCase).Take(96).ToArray(),warnings.Take(64).ToArray());
-        void Add(string path,SaveSourceOrigin origin,string evidence,string payload,bool known=false)=>candidates.Add(new(path,origin,evidence,payload,known));
+        // Unless told otherwise, a known location of a specific game counts as a rule.
+        void Add(string path,SaveSourceOrigin origin,string evidence,string payload,bool known=false,SaveCandidateSource? source=null)=>
+            candidates.Add(new(path,origin,evidence,payload,known,source??(origin==SaveSourceOrigin.KnownRule?SaveCandidateSource.KnownRule:known?SaveCandidateSource.NameSearch:SaveCandidateSource.GameNamed)));
     }
     /// <summary>A Rockstar game recognised by its program or title, and the folder it saves under.</summary>
     private sealed record RockstarTitle(string Folder,string[] Programs,Func<string,bool> Titled,bool LocalSaves=false)
@@ -104,13 +111,7 @@ public static class SaveCandidateRules
     public static bool PayloadMatches(string path,string kind)=>kind switch
     {
         "bin"=>Path.GetExtension(path).Equals(".bin",StringComparison.OrdinalIgnoreCase),
-        "save"=>IsRockstarSave(path)||!Path.GetFileName(path).Equals("pc_settings.bin",StringComparison.OrdinalIgnoreCase)&&
+        "save"=>SaveFileNames.IsRockstarSave(path)||!Path.GetFileName(path).Equals("pc_settings.bin",StringComparison.OrdinalIgnoreCase)&&
             new[]{".sav",".save",".savegame",".dat",".bin",".deadspacesaved",".json"}.Contains(Path.GetExtension(path),StringComparer.OrdinalIgnoreCase),_=>true
     };
-    /// <summary>Rockstar save files have no extension: SGTA400 (GTA IV), SGTA50000 (GTA V), SRDR30000 (Red Dead Redemption 2).</summary>
-    private static bool IsRockstarSave(string path)
-    {
-        var name=Path.GetFileName(path);
-        return name.Length is >=7 and <=12&&(name.StartsWith("SGTA",StringComparison.OrdinalIgnoreCase)||name.StartsWith("SRDR",StringComparison.OrdinalIgnoreCase))&&name.Skip(4).All(char.IsAsciiDigit);
-    }
 }
