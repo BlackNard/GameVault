@@ -48,7 +48,7 @@ public sealed class CsvExportService(AppDataStore store)
                 runs.Add([profile.Name, run.Title, run.Platform, Day(run.Started), Day(run.Finished), run.Outcome.ToString(), run.Minutes is { } m ? Hours(m * 60L) : "",
                     run.HalfStars > 0 ? (run.HalfStars / 2.0).ToString("0.#", CultureInfo.InvariantCulture) : "", Yes(run.Mastered), run.Review]);
             foreach (var entry in ((await store.LoadJournalAsync(game.Id).ConfigureAwait(false)).Value?.Entries ?? []).OrderBy(e => e.Date))
-                journal.Add([profile.Name, Day(entry.Date), entry.Minutes?.ToString(CultureInfo.InvariantCulture), entry.Note, string.Join("; ", entry.Tags)]);
+                journal.Add([profile.Name, Day(entry.Date), entry.Minutes?.ToString(CultureInfo.InvariantCulture), entry.Title, entry.Note, string.Join("; ", entry.Tags)]);
         }
         var listRows = lists.Lists.SelectMany(l => l.Entries.Select((e, i) => new[]
         { l.Name, Yes(l.Ranked), (i + 1).ToString(CultureInfo.InvariantCulture), e.GameId is { } id && names.TryGetValue(id, out var name) ? name : e.Title, e.Note })).ToArray();
@@ -66,7 +66,7 @@ public sealed class CsvExportService(AppDataStore store)
             Write("games.csv", ["Name", "Status", "Rating", "Hours played", "Sessions", "Last played", "Completed on", "Favourite", "Tags", "Genres", "Removed"], games);
             Write("sessions.csv", ["Game", "Started", "Ended", "Minutes"], sessions);
             Write("playthroughs.csv", ["Game", "Title", "Platform", "Started", "Finished", "Outcome", "Hours typed", "Rating", "Mastered", "Review"], runs);
-            Write("journal.csv", ["Game", "Date", "Minutes", "Note", "Tags"], journal);
+            Write("journal.csv", ["Game", "Date", "Minutes", "Title", "Note", "Tags"], journal);
             Write("lists.csv", ["List", "Ranked", "Position", "Game", "Note"], listRows);
             return new CsvExportResult(folder, games.Count, [.. warnings.Distinct()]);
         }).ConfigureAwait(false);

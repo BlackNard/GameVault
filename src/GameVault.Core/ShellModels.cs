@@ -70,7 +70,7 @@ public static class NavBreadcrumb
    case NavKind.Captures: return route.GameId is null ? "Captures" : "Captures › " + (string.IsNullOrWhiteSpace(gameName) ? "Game" : gameName);
    case NavKind.Game:
     var name = string.IsNullOrWhiteSpace(gameName) ? "Game" : gameName;
-    var section = route.Section switch { "Sessions" => "Sessions & notes", "Saves" => "Saves", "Media" => "Media", _ => null };
+    var section = route.Section switch { "Sessions" => "Journal", "Saves" => "Saves", "Media" => "Media", _ => null };
     return section is null ? "Library › " + name : "Library › " + name + " › " + section;
    default: return "Library";
   }

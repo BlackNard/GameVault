@@ -23,9 +23,8 @@ public sealed class JournalView : UserControl
     private bool filling;
 
     public event EventHandler<Guid?>? AddRequested;
-    public event EventHandler<(Guid Game, Guid Entry)>? EditRequested;
-    /// <summary>A session's note is read and edited in its game's Sessions &amp; notes.</summary>
-    public event EventHandler<Guid>? GameRequested;
+    /// <summary>A line is read and edited in its game's journal.</summary>
+    public event EventHandler<(Guid Game, Guid Line)>? OpenRequested;
 
     public JournalView()
     {
@@ -108,9 +107,9 @@ public sealed class JournalView : UserControl
     private Border Card(JournalItem item)
     {
         var panel = new DockPanel();
-        var button = new Button { Content = item.EntryId is null ? "Open" : "Edit", MinWidth = 70, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(12, 0, 0, 0) };
-        AutomationProperties.SetName(button, (item.EntryId is null ? "Open the notes of " : "Edit the entry for ") + item.Game);
-        button.Click += (_, _) => { if (item.EntryId is { } entry) EditRequested?.Invoke(this, (item.GameId, entry)); else GameRequested?.Invoke(this, item.GameId); };
+        var button = new Button { Content = "Open", MinWidth = 70, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(12, 0, 0, 0) };
+        AutomationProperties.SetName(button, "Open in the journal of " + item.Game);
+        button.Click += (_, _) => { if ((item.EntryId ?? item.SessionId) is { } line) OpenRequested?.Invoke(this, (item.GameId, line)); };
         var removed = feed.Games.FirstOrDefault(g => g.Id == item.GameId).Removed;
         button.Visibility = removed ? Visibility.Collapsed : Visibility.Visible;
         DockPanel.SetDock(button, Dock.Right);

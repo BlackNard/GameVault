@@ -19,14 +19,14 @@ public partial class NotesView
         var previousChanging=changing;changing=true;
         IEnumerable<SessionRow> sorted=SortChoice.SelectedIndex switch
         {
-            1=>rows.OrderByDescending(r=>r.Detail?.AdjustedSeconds??r.Row.Session?.DurationSeconds??-1).ThenBy(r=>r.Row.Id),
-            2=>rows.OrderBy(r=>r.Row.Session?.StartedAt).ThenBy(r=>r.Row.Id),
-            _=>rows.OrderByDescending(r=>r.Row.Session?.StartedAt).ThenBy(r=>r.Row.Id)
+            1=>rows.OrderByDescending(r=>r.Seconds??-1).ThenBy(r=>r.Row.Id),
+            2=>rows.OrderBy(r=>r.At).ThenBy(r=>r.Row.Id),
+            _=>rows.OrderByDescending(r=>r.At).ThenBy(r=>r.Row.Id)
         };
         SessionList.ItemsSource=sorted.ToArray();selected=SessionList.Items.Cast<SessionRow>().FirstOrDefault(r=>r.Row.Id==id)??SessionList.Items.Cast<SessionRow>().FirstOrDefault();
         SessionList.SelectedItem=selected;changing=previousChanging;
     }
-    private void SortChanged(object sender,SelectionChangedEventArgs e){if(!changing&&!busy)BindRows(selected?.Row.Id);}
+    private async void SortChanged(object sender,SelectionChangedEventArgs e){if(!changing&&!busy&&await LeaveDraft()){BindRows(selected?.Row.Id);LoadEntry();}}
     private void UpdateSummary()
     {
         if(summary is null)return;
@@ -43,7 +43,7 @@ public partial class NotesView
         var active=isGameActive()||summary?.Sessions.Any(s=>s.EndKind==SessionEndKind.Active)==true;
         StatusChoice.IsEnabled=!busy&&!active&&correction is null&&catalog?.Profile.State==DocumentState.Ready;
         CorrectButton.IsEnabled=!busy&&!review&&!activity&&!active&&selected?.Detail?.CanCorrect==true;
-        CorrectButton.Visibility=review?Visibility.Collapsed:Visibility.Visible;
+        CorrectButton.Visibility=review||selected?.Added is not null?Visibility.Collapsed:Visibility.Visible;
         if(LongestButton is not null)LongestButton.IsEnabled=!busy&&summary?.LongestSessionId is not null;
     }
     private async void SelectLongest(object sender,RoutedEventArgs e)
@@ -51,17 +51,10 @@ public partial class NotesView
         var id=summary?.LongestSessionId;if(id is null||!await LeaveDraft())return;
         review=activity=false;BindRows(id);LoadEntry();if(selected is not null)SessionList.ScrollIntoView(selected);
     }
-    private void GroupChanged(object sender,SelectionChangedEventArgs e){if(!changing)UpdateActivity();}
-    private void UpdateActivity()
+    private void UpdateCorrections()
     {
-        if(summary is null)return;var today=DateOnly.FromDateTime(DateTime.Now);var week=SessionHistory.PeriodStart(today,ActivityGrouping.Week);var month=new DateOnly(today.Year,today.Month,1);
-        long Total(DateOnly start,DateOnly end)=>summary.Days.Where(d=>d.Date>=start&&d.Date<end).Aggregate(0L,(n,d)=>checked(n+d.Seconds));
-        TodayTime.Text=Duration(Total(today,today.AddDays(1)));WeekTime.Text=Duration(Total(week,week.AddDays(7)));MonthTime.Text=Duration(Total(month,month.AddMonths(1)));
-        var group=(ActivityGrouping)Math.Max(0,GroupChoice.SelectedIndex);
-        ActivityList.ItemsSource=summary.Days.GroupBy(d=>SessionHistory.PeriodStart(d.Date,group)).OrderByDescending(g=>g.Key)
-            .Select(g=>new ActivityRow(group==ActivityGrouping.Month?g.Key.ToString("MMMM yyyy"):group==ActivityGrouping.Week?$"{g.Key:d} – {g.Key.AddDays(6):d}":g.Key.ToString("d"),Duration(g.Aggregate(0L,(n,d)=>checked(n+d.Seconds))))).ToArray();
-        ActivityExplanation.Text=(summary.Days.Length==0?"No date-allocated activity yet. ":"")+"Current Windows local timezone; weeks begin Monday. Cross-boundary splits are proportional estimates because sleep/unobserved gaps cannot always be placed exactly.\n"+
-            "Measured total: "+Duration(summary.MeasuredSeconds)+". Undated legacy adjustments: "+Signed(summary.UndatedAdjustments)+". Unallocated session time: "+Duration(summary.UnallocatedSessionSeconds)+". These amounts remain in all-time totals.";
+        if(summary is null)return;
+        ActivityExplanation.Text="Measured total: "+Duration(summary.MeasuredSeconds)+". Undated earlier adjustments: "+Signed(summary.UndatedAdjustments)+". Session time without dates: "+Duration(summary.UnallocatedSessionSeconds)+". These amounts remain in all-time totals.";
         CorrectionHistory.Text=history?.Corrections.Length>0?string.Join("\n\n",history.Corrections.Reverse().Select(c=>
             $"{c.CreatedAt.ToLocalTime():g} · Session {summary.Sessions.FirstOrDefault(s=>s.Session.Id==c.SessionId)?.Session.StartedAt.ToLocalTime().ToString("g")??c.SessionId.ToString("N")}\nMeasured {Duration(c.MeasuredSeconds)} · {Duration(c.PreviousSeconds)} → {Duration(c.NewSeconds)} ({Signed(c.Delta)})\n{c.Reason}")):"No manual corrections yet.";
     }
@@ -124,11 +117,12 @@ public partial class NotesView
             "Tracking ended. Refresh to see final times and write a note. Existing note drafts are kept.";
         UpdateHistoryButtons();
     }
-    private sealed record ActivityRow(string Period,string Duration);
-    private sealed record SessionRow(SessionNote Row,HistorySession? Detail)
+    private sealed record SessionRow(SessionNote Row,HistorySession? Detail,JournalEntry? Added=null)
     {
         public long? LiveSeconds{get;set;}
-        public string Date=>Row.Session?.StartedAt.ToLocalTime().ToString("d")??"Unavailable";
+        public DateTimeOffset? At=>Added is not null?new DateTimeOffset(Added.Date.ToDateTime(TimeOnly.MinValue)):Row.Session?.StartedAt;
+        public long? Seconds=>Added is not null?Added.Minutes*60L:Detail?.AdjustedSeconds??Row.Session?.DurationSeconds;
+        public string Date=>Added?.Date.ToString("d")??Row.Session?.StartedAt.ToLocalTime().ToString("d")??"Unavailable";
         public string Started=>Row.Session?.StartedAt.ToLocalTime().ToString("HH:mm:ss zzz")??"Unavailable";
         public string Ended=>Detail is null?"Unavailable":Detail.EndKind switch
         {
@@ -146,6 +140,7 @@ public partial class NotesView
         {
             get
             {
+                if(Added is not null)return "Added entry";
                 var start=Row.Session?.StartedAt.ToLocalTime().ToString("HH:mm");
                 if(start is null||Detail is null)return "Unavailable";
                 return Detail.EndKind switch
@@ -156,8 +151,8 @@ public partial class NotesView
                 };
             }
         }
-        public string ListDuration=>Row.Session is PlaySession s?NotesView.Duration(LiveSeconds??Detail?.AdjustedSeconds??s.DurationSeconds):"Unavailable";
-        public string ListNote=>Row.Note.Value is not null?"Saved":Row.Note.State==DocumentState.Missing?"None":"Needs attention";
+        public string ListDuration=>Added is not null?(Added.Minutes is { } m?NotesView.Duration(m*60L):"—"):Row.Session is PlaySession s?NotesView.Duration(LiveSeconds??Detail?.AdjustedSeconds??s.DurationSeconds):"Unavailable";
+        public string ListNote=>Added is not null?(Added.Title is { Length: > 0 } t?t:"Saved"):Row.Note.Value is not null?"Saved":Row.Note.State==DocumentState.Missing?"None":"Needs attention";
     }
     private GameStatusDetail? statusDetail;
     private PlayStatus? ShownStatus(GameProfile? profile)=>profile is null?null:PlayStatuses.From(profile.Status,statusDetail);

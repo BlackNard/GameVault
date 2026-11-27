@@ -21,16 +21,17 @@ public sealed class JournalService(AppDataStore store)
             try
             {
                 var notes = (await store.LoadSessionNoteDocumentsAsync(game.Id).ConfigureAwait(false)).Where(n => n.SessionId is not null).ToDictionary(n => n.SessionId!.Value);
+                var journal = await store.LoadJournalAsync(game.Id).ConfigureAwait(false);
+                var details = (journal.Value?.Sessions ?? []).ToDictionary(s => s.SessionId);
                 foreach (var session in game.Statistics.Value?.Sessions ?? [])
                 {
                     var note = notes.GetValueOrDefault(session.Id);
                     if (session.DurationSeconds <= 0 && note is null) continue;
-                    items.Add(new(TimeZoneInfo.ConvertTime(session.StartedAt, zone).DateTime, game.Id, profile.Name, session.DurationSeconds, note?.Title, note?.Body, [], session.Id, null));
+                    items.Add(new(TimeZoneInfo.ConvertTime(session.StartedAt, zone).DateTime, game.Id, profile.Name, session.DurationSeconds, note?.Title, note?.Body, details.GetValueOrDefault(session.Id)?.Tags ?? [], session.Id, null));
                 }
-                var journal = await store.LoadJournalAsync(game.Id).ConfigureAwait(false);
                 if (journal.Message is { } message) warnings.Add($"{profile.Name}: {message}");
                 foreach (var entry in journal.Value?.Entries ?? [])
-                    items.Add(new(entry.Date.ToDateTime(TimeOnly.MinValue), game.Id, profile.Name, entry.Minutes * 60L, null, entry.Note, entry.Tags, null, entry.Id));
+                    items.Add(new(entry.Date.ToDateTime(TimeOnly.MinValue), game.Id, profile.Name, entry.Minutes * 60L, entry.Title, entry.Note, entry.Tags, null, entry.Id));
             }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException) { warnings.Add($"{profile.Name}: not listed. {error.Message}"); }
         }

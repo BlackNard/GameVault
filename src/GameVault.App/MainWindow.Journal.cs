@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -22,9 +21,8 @@ public partial class MainWindow
         if (journalView is null)
         {
             journalView = new JournalView();
-            journalView.GameRequested += async (_, id) => await NavigateToAsync(NavRoute.Game(id, "Sessions"));
-            journalView.AddRequested += async (_, game) => await EditJournalAsync(game, null);
-            journalView.EditRequested += async (_, which) => await EditJournalAsync(which.Game, which.Entry);
+            journalView.OpenRequested += async (_, which) => await OpenJournalAtAsync(which.Game, which.Line, false);
+            journalView.AddRequested += (_, game) => ChooseJournalGame(game);
             JournalPanel.Content = journalView;
         }
         libraryVisible = false;
@@ -45,51 +43,23 @@ public partial class MainWindow
         catch (Exception error) when (IsExpected(error) || error is IOException) { if (revision == journalRevision) journalView?.ShowProblem(error.Message); }
     }
 
-    private async Task EditJournalAsync(Guid? game, Guid? entryId)
+    /// <summary>One journal, one editor: a line of the Journal page opens in its game's journal.</summary>
+    private async Task OpenJournalAtAsync(Guid game, Guid? line, bool addNew)
     {
-        var library = items.Where(i => i.Game is { IsReadOnly: false, Profile.IsArchived: false }).ToArray();
-        if (library.Length == 0) return;
-        try
-        {
-            var chosen = library.FirstOrDefault(i => i.Game.Id == game) ?? library[0];
-            var existing = entryId is { } wanted ? (await store.LoadJournalAsync(chosen.Game.Id)).Value?.Entries.FirstOrDefault(e => e.Id == wanted) : null;
-            if (entryId is not null && existing is null) return;
-            var entry = existing ?? new JournalEntry(Guid.NewGuid(), DateOnly.FromDateTime(DateTime.Now), null, "", [], null);
-            var runs = new Dictionary<Guid, Playthrough[]>();
-            foreach (var item in library) runs[item.Game.Id] = (await store.LoadPlaythroughsAsync(item.Game.Id)).Value?.Runs ?? [];
-
-            ComboBox gameBox = null!, runBox = null!;
-            TextBox date = null!, minutes = null!, note = null!, tags = null!;
-            var form = new FormView(settings.Theme, existing is null ? "Add journal entry" : "Edit journal entry", async () =>
-            {
-                var target = FormView.Chosen<Guid>(gameBox);
-                int? played = null;
-                if (minutes.Text.Trim() is { Length: > 0 } typed)
-                    played = int.TryParse(typed, NumberStyles.Integer, CultureInfo.CurrentCulture, out var value) ? value : throw new ArgumentException("Enter the minutes as a whole number, or leave the box empty.");
-                var run = runBox.SelectedItem is ComboBoxItem { Tag: Guid id } && id != Guid.Empty ? id : (Guid?)null;
-                await store.SaveJournalEntryAsync(target, entry with
-                {
-                    Date = FormView.Date(date) ?? throw new ArgumentException("Enter the date."), Minutes = played, Note = note.Text,
-                    Tags = tags.Text.Split(',', StringSplitOptions.RemoveEmptyEntries), PlaythroughId = run
-                });
-            }, existing is null ? null : () => store.DeleteJournalEntryAsync(chosen.Game.Id, existing.Id));
-            // An existing entry stays with its game.
-            gameBox = form.Choice("Game", (existing is null ? library : [chosen]).Select(i => (i.Game.Id, i.Name)), chosen.Game.Id);
-            date = form.Text("Date (year-month-day)", FormView.DateText(entry.Date), 10);
-            minutes = form.Text("Minutes played (optional)", entry.Minutes?.ToString(CultureInfo.CurrentCulture), 6);
-            note = form.Text("Note", entry.Note, 8000, lines: true);
-            tags = form.Text("Tags, separated by commas (up to 8)", string.Join(", ", entry.Tags), 260);
-            runBox = form.Choice("Playthrough (optional)", RunChoices(runs[chosen.Game.Id]), entry.PlaythroughId ?? Guid.Empty);
-            gameBox.SelectionChanged += (_, _) =>
-            {
-                runBox.Items.Clear();
-                foreach (var (id, label) in RunChoices(runs.GetValueOrDefault(FormView.Chosen<Guid>(gameBox)) ?? [])) runBox.Items.Add(new ComboBoxItem { Content = label, Tag = id });
-                runBox.SelectedIndex = 0;
-            };
-            if (await ShowFormAsync(form) && JournalVisible) await LoadJournalAsync(null);
-        }
-        catch (Exception error) when (IsExpected(error) || error is IOException) { ShowToast("The journal entry could not be opened", error.Message, true); }
+        if (await NavigateToAsync(NavRoute.Game(game, "Sessions")) && notesView is not null) await notesView.OpenEntryAsync(line, addNew);
     }
 
-    private static IEnumerable<(Guid, string)> RunChoices(Playthrough[] runs) => runs.Select(r => (r.Id, r.Title)).Prepend((Guid.Empty, "None"));
+    private void ChooseJournalGame(Guid? chosen)
+    {
+        if (chosen is { } one) { _ = OpenJournalAtAsync(one, null, true); return; }
+        var menu = new ContextMenu { PlacementTarget = journalView, Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint, StaysOpen = false };
+        foreach (var item in items.Where(i => i.Game is { IsReadOnly: false, Profile.IsArchived: false }))
+        {
+            var id = item.Game.Id;
+            var entry = new MenuItem { Header = item.Name };
+            entry.Click += async (_, _) => await OpenJournalAtAsync(id, null, true);
+            menu.Items.Add(entry);
+        }
+        menu.IsOpen = menu.Items.Count > 0;
+    }
 }

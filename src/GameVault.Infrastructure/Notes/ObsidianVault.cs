@@ -239,7 +239,8 @@ public sealed class ObsidianVault(ApplicationPaths paths, AppDataStore store)
             Property("duration-minutes", (session.DurationSeconds / 60).ToString(CultureInfo.InvariantCulture));
         }
         if (note.SessionId is null && entry.Rating > 0) Property("rating", (entry.Rating / 2.0).ToString("0.#", CultureInfo.InvariantCulture));
-        Property("updated", Stamp(note.UpdatedAt));
+        if (entry.Added) Property("date", note.CreatedAt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        else Property("updated", Stamp(note.UpdatedAt));
         text.Append("---\n\n");
         var title = note.Title.ReplaceLineEndings(" ").Trim();
         if (title.Length > 0) text.Append("# ").Append(title).Append("\n\n");
@@ -248,7 +249,7 @@ public sealed class ObsidianVault(ApplicationPaths paths, AppDataStore store)
     }
 
     /// <summary>The note's title is its name in Obsidian; when the session was is among its properties.</summary>
-    private static string FileName(NoteExportEntry entry) => entry.Note.SessionId is null ? "Review" : SafeName(entry.Note.Title, "Session");
+    private static string FileName(NoteExportEntry entry) => entry.Note.SessionId is null ? "Review" : SafeName(entry.Note.Title, entry.Added ? "Entry" : "Session");
 
     private static string FreeName(string folder, string name)
     {
