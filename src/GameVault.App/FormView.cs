@@ -106,7 +106,7 @@ public sealed class FormView : UserControl
         return Add(label, box, () => box.Text, help);
     }
 
-    public ComboBox Choice<T>(string label, IEnumerable<(T Value, string Label)> options, T selected)
+    public ComboBox Choice<T>(string label, IEnumerable<(T Value, string Label)> options, T selected, string? help = null)
     {
         var box = new ComboBox();
         foreach (var (value, text) in options)
@@ -116,7 +116,7 @@ public sealed class FormView : UserControl
             if (EqualityComparer<T>.Default.Equals(value, selected)) box.SelectedItem = item;
         }
         if (box.SelectedItem is null && box.Items.Count > 0) box.SelectedIndex = 0;
-        return Add(label, box, () => box.SelectedIndex.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        return Add(label, box, () => box.SelectedIndex.ToString(System.Globalization.CultureInfo.InvariantCulture), help);
     }
 
     public static T? Chosen<T>(ComboBox box) => box.SelectedItem is ComboBoxItem { Tag: T value } ? value : default;
@@ -130,11 +130,11 @@ public sealed class FormView : UserControl
         return box;
     }
 
-    public StarRatingControl Stars(string label, int halfStars)
+    public StarRatingControl Stars(string label, int halfStars, string? help = null)
     {
         var stars = new StarRatingControl { Value = halfStars, HorizontalAlignment = HorizontalAlignment.Left };
         stars.Chosen += (_, chosen) => stars.Value = chosen;
-        return Add(label, stars, () => stars.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        return Add(label, stars, () => stars.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), help);
     }
 
     /// <summary>A date typed as 2026-11-27; empty means no date.</summary>

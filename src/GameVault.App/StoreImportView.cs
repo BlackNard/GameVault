@@ -106,9 +106,9 @@ public sealed class StoreImportView : UserControl
     {
         var panel = new Border { BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(14), Margin = new Thickness(0, 0, 0, 10) };
         panel.SetResourceReference(Border.BorderBrushProperty, "AppLine");
-        var select = new CheckBox { VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 4, 12, 0), IsEnabled = status != StoreGameStatus.InLibrary };
+        var select = new CheckBox { ToolTip = "Add this game", VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 4, 12, 0), IsEnabled = status != StoreGameStatus.InLibrary };
         AutomationProperties.SetName(select, "Select " + game.Name);
-        var combo = new ComboBox { IsEditable = true, ItemsSource = game.Candidates, Text = game.ExecutablePath ?? "", IsEnabled = status == StoreGameStatus.New, Margin = new Thickness(0, 6, 0, 0) };
+        var combo = new ComboBox { ToolTip = "The program that starts the game", IsEditable = true, ItemsSource = game.Candidates, Text = game.ExecutablePath ?? "", IsEnabled = status == StoreGameStatus.New, Margin = new Thickness(0, 6, 0, 0) };
         AutomationProperties.SetName(combo, "Executable for " + game.Name);
         var browse = new Button { Content = "Browse…", Margin = new Thickness(8, 6, 0, 0), IsEnabled = status == StoreGameStatus.New };
         AutomationProperties.SetName(browse, "Browse executable for " + game.Name);

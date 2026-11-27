@@ -103,7 +103,7 @@ public sealed class NotesHeaderLayoutTests
     {
         // Measure the production layout without constructing NotesView, stores, or a Window.
         var fragment = new XElement(source);
-        foreach (var attribute in fragment.DescendantsAndSelf().Attributes().Where(a => a.Name.LocalName is "Click" or "SelectionChanged").ToArray()) attribute.Remove();
+        foreach (var attribute in fragment.DescendantsAndSelf().Attributes().Where(a => a.Name.LocalName is "Click" or "SelectionChanged" or "SettingHelp.Text").ToArray()) attribute.Remove();
         var element = (FrameworkElement)XamlReader.Parse(fragment.ToString());
         System.Windows.Documents.TextElement.SetFontSize(element, 14);
         ThemePalette.Apply(element, theme);

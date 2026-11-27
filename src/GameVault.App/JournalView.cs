@@ -116,7 +116,7 @@ public sealed class JournalView : UserControl
         var removed = item.GameId != Guid.Empty && feed.Games.Any(g => g.Id == item.GameId && g.Removed);
         if (!removed)
         {
-            var edit = new Button { Content = "Edit", MinWidth = 70, Margin = new Thickness(0, 0, 8, 0) };
+            var edit = new Button { Content = "Edit", ToolTip = "Change or delete this entry", MinWidth = 70, Margin = new Thickness(0, 0, 8, 0) };
             AutomationProperties.SetName(edit, "Edit " + name);
             edit.Click += (_, _) => EditRequested?.Invoke(this, item);
             buttons.Children.Add(edit);

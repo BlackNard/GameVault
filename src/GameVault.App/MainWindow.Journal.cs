@@ -94,12 +94,12 @@ public partial class MainWindow
             title = form.Text("Title", entry.Title, 200, help: "Optional.");
             // An existing entry stays where it is.
             var choices = library.Select(i => (i.Game.Id, i.Name)).Prepend((Guid.Empty, "No game"));
-            gameBox = form.Choice("Game", existing is null ? choices : choices.Where(c => c.Item1 == game), game);
+            gameBox = form.Choice("Game", existing is null ? choices : choices.Where(c => c.Item1 == game), game, "The game the entry is about, if any.");
             date = form.Text("Date", FormView.DateText(entry.Date), 10, help: "Year-month-day, for example 2026-11-27.");
-            note = form.Text("Note", entry.Note, 8000, lines: true);
+            note = form.Text("Note", entry.Note, 8000, lines: true, help: "What you want to remember.");
             tags = form.Text("Tags", string.Join(", ", entry.Tags), 260, help: "Separated by commas, up to 8.");
             minutes = form.Text("Minutes played", entry.Minutes?.ToString(CultureInfo.CurrentCulture), 6, help: "Optional. Recorded playtime is not changed.");
-            runBox = form.Choice("Playthrough", RunChoices(runs.GetValueOrDefault(game) ?? []), entry.PlaythroughId ?? Guid.Empty);
+            runBox = form.Choice("Playthrough", RunChoices(runs.GetValueOrDefault(game) ?? []), entry.PlaythroughId ?? Guid.Empty, "The run this entry belongs to.");
             gameBox.SelectionChanged += (_, _) =>
             {
                 runBox.Items.Clear();

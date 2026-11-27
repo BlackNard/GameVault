@@ -99,7 +99,7 @@ public sealed partial class ListsView : UserControl
     private void RenderAll()
     {
         var header = Header("Lists", null);
-        var add = new Button { Content = "New list…", VerticalAlignment = VerticalAlignment.Center };
+        var add = new Button { Content = "New list…", ToolTip = "Create a list of games", VerticalAlignment = VerticalAlignment.Center };
         add.SetResourceReference(StyleProperty, "PrimaryButton");
         add.Click += (_, _) => NewListRequested?.Invoke(this, EventArgs.Empty);
         header.Children.Add(add);
@@ -166,10 +166,10 @@ public sealed partial class ListsView : UserControl
     private void RenderList(GameList list)
     {
         var header = Header(list.Name, ("‹ All lists", () => Open(null)));
-        var add = new Button { Content = "Add a game…", Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
+        var add = new Button { Content = "Add a game…", ToolTip = "From your library, or any game by its name", Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
         add.SetResourceReference(StyleProperty, "PrimaryButton");
         add.Click += (_, _) => AddEntryRequested?.Invoke(this, list);
-        var edit = new Button { Content = "Edit list…", VerticalAlignment = VerticalAlignment.Center };
+        var edit = new Button { Content = "Edit list…", ToolTip = "Name, description, ranking, or delete the list", VerticalAlignment = VerticalAlignment.Center };
         edit.Click += (_, _) => EditListRequested?.Invoke(this, list);
         header.Children.Add(add);
         header.Children.Add(edit);
@@ -257,16 +257,17 @@ public sealed partial class ListsView : UserControl
         columns.Children.Add(cover);
         var text = new StackPanel { MaxWidth = 720, HorizontalAlignment = HorizontalAlignment.Left };
         var buttons = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
-        void Add(string label, bool enabled, Action run)
+        void Add(string label, string help, bool enabled, Action run)
         {
             var button = new Button { Content = label, IsEnabled = enabled, Margin = new Thickness(0, 0, 8, 8) };
+            SettingHelp.SetText(button, help);
             button.Click += (_, _) => run();
             buttons.Children.Add(button);
         }
-        Add("Refresh info", !known.Looking, () => RefreshRequested?.Invoke(this, entry));
-        Add("Not the right game?", !known.Looking, () => MatchRequested?.Invoke(this, entry));
-        Add("Choose cover…", true, () => CoverRequested?.Invoke(this, entry));
-        Add("Note…", true, () => EditEntryRequested?.Invoke(this, (list, entry)));
+        Add("Refresh info", "Looks the details up again.", !known.Looking, () => RefreshRequested?.Invoke(this, entry));
+        Add("Not the right game?", "Search and choose the correct game.", !known.Looking, () => MatchRequested?.Invoke(this, entry));
+        Add("Choose cover…", "Use a picture from this PC.", true, () => CoverRequested?.Invoke(this, entry));
+        Add("Note…", "Your note about this game in the list.", true, () => EditEntryRequested?.Invoke(this, (list, entry)));
         text.Children.Add(buttons);
         if (entry.Note is { Length: > 0 }) text.Children.Add(Paragraph(entry.Note));
         if (known.Looking) text.Children.Add(Muted("Looking up…"));

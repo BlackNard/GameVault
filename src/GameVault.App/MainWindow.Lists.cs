@@ -123,8 +123,8 @@ public partial class MainWindow
             { Name = title, Description = about, Ranked = numbered }));
             listsView?.Select(list.Id);
         }, existing is null ? null : () => store.ChangeListsAsync(d => GameListRules.Remove(d, existing.Id)));
-        name = form.Text("Name", list.Name, 80);
-        description = form.Text("Description", list.Description, 1000, lines: true);
+        name = form.Text("Name", list.Name, 80, help: "What the list is called.");
+        description = form.Text("Description", list.Description, 1000, lines: true, help: "Shown above the list. Optional.");
         ranked = form.Check("Ranked", list.Ranked, "Numbers the games in their order.");
         if (await ShowFormAsync(form)) await LoadListsAsync();
     }
@@ -146,7 +146,7 @@ public partial class MainWindow
             return store.ChangeListsAsync(d => d.Lists.FirstOrDefault(l => l.Id == list.Id) is { } current
                 ? GameListRules.Upsert(d, current with { Entries = GameListRules.Add(current.Entries, new(Guid.NewGuid(), item?.Game.Id, text, comment)) }) : d);
         });
-        game = form.Choice("Game from your library", library.Select(i => (i.Game.Id, i.Name)).Prepend((Guid.Empty, "Another game")), Guid.Empty);
+        game = form.Choice("Game from your library", library.Select(i => (i.Game.Id, i.Name)).Prepend((Guid.Empty, "Another game")), Guid.Empty, "Pick a game you have, or Another game and type its name.");
         title = form.Text("Another game's name (looked up online)", "", 200, help: "Its cover and details are fetched by this name.");
         note = form.Text("Note", "", 1000, lines: true, help: "Optional.");
         if (await ShowFormAsync(form)) await LoadListsAsync();
@@ -161,7 +161,7 @@ public partial class MainWindow
             return store.ChangeListsAsync(d => d.Lists.FirstOrDefault(l => l.Id == list.Id) is { } current
                 ? GameListRules.Upsert(d, current with { Entries = [.. current.Entries.Select(e => e.Id == entry.Id ? e with { Note = comment } : e)] }) : d);
         });
-        note = form.Text("Note", entry.Note, 1000, lines: true);
+        note = form.Text("Note", entry.Note, 1000, lines: true, help: "Your note about this game in the list.");
         if (await ShowFormAsync(form)) await LoadListsAsync();
     }
 }

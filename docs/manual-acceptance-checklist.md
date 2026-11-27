@@ -335,6 +335,7 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 
 - [ ] Backups, game editor, launch settings, How long to beat, tags, restore, save sources, cover search, match and theme pickers, and the playthrough, journal and list forms show short names only; hovering over an item (or reaching it with Tab) shows its explanation.
 - [ ] Warnings and anything about what is sent, replaced or removed are still written on the screen.
+- [ ] Every button, switch, list choice and field whose words are not already clear shows a description on hover, greyed-out ones too.
 
 ## 9. Existing acceptance issues (cannot be closed by tests)
 

@@ -11,7 +11,7 @@
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
 
     <DockPanel Margin="0,0,0,14">
-     <Button x:Name="RefreshButton" Content="Refresh" DockPanel.Dock="Right" Click="RefreshHistory" VerticalAlignment="Top" Height="36" MinWidth="100" Margin="16,0,0,0"/>
+     <Button local:SettingHelp.Text="Reads the backup history again." x:Name="RefreshButton" Content="Refresh" DockPanel.Dock="Right" Click="RefreshHistory" VerticalAlignment="Top" Height="36" MinWidth="100" Margin="16,0,0,0"/>
      <StackPanel>
       <TextBlock x:Name="Heading" local:SettingHelp.Text="Revisit your save history. Dates show when copies were made, not progress in the game." FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap"/>
       
@@ -22,13 +22,13 @@
     <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,12">
      <StackPanel>
       <DockPanel>
-       <Button x:Name="ApplyButton" Content="Apply retention" Click="ApplyRetention" DockPanel.Dock="Right" Height="36" VerticalAlignment="Center" Margin="16,0,0,0"/>
+       <Button local:SettingHelp.Text="Saves this rule and removes older unpinned copies, after safety checks." x:Name="ApplyButton" Content="Apply retention" Click="ApplyRetention" DockPanel.Dock="Right" Height="36" VerticalAlignment="Center" Margin="16,0,0,0"/>
        <WrapPanel VerticalAlignment="Center">
         <TextBlock Text="Retention for this game" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,24,0"/>
         <Label Content="_Keep newest" Target="{Binding ElementName=Limit}" VerticalAlignment="Center" Padding="0,0,8,0"/>
         <TextBox x:Name="Limit" local:SettingHelp.Text="How many unpinned copies to keep. Pinned copies are always kept as well." Width="64" Height="36" Padding="0" Text="20" TextAlignment="Center" TextChanged="DraftChanged" VerticalContentAlignment="Center" AutomationProperties.Name="Unpinned backup limit"/>
         <TextBlock Text="unpinned copies" local:SettingHelp.Text="Pinned copies are always kept as well." VerticalAlignment="Center" Margin="8,0,24,0"/>
-        <CheckBox x:Name="KeepEverything" Content="Keep everything" Checked="DraftChanged" Unchecked="DraftChanged" VerticalAlignment="Center"/>
+        <CheckBox local:SettingHelp.Text="No completed copy is removed." x:Name="KeepEverything" Content="Keep everything" Checked="DraftChanged" Unchecked="DraftChanged" VerticalAlignment="Center"/>
        </WrapPanel>
       </DockPanel>
       <TextBlock x:Name="RetentionPreview" Style="{StaticResource Muted}" Margin="0,8,0,0"/>
@@ -76,9 +76,9 @@
     <StackPanel Grid.Row="3" Margin="0,10,0,0">
      <DockPanel>
       <WrapPanel DockPanel.Dock="Right" VerticalAlignment="Center">
-       <Button x:Name="PinButton" Content="Pin backup" Click="TogglePin" Height="36" Margin="10,0,0,0"/>
-       <Button x:Name="RestoreButton" Content="Restore selected…" Click="RestoreSelected" Height="36" Margin="10,0,0,0" Style="{StaticResource PrimaryButton}"/>
-       <Button Content="Open backup folder" Click="OpenSelectedFolder" Height="36" Margin="10,0,0,0"/>
+       <Button local:SettingHelp.Text="A pinned copy is never removed by the retention rule." x:Name="PinButton" Content="Pin backup" Click="TogglePin" Height="36" Margin="10,0,0,0"/>
+       <Button local:SettingHelp.Text="Shows what would change before anything is restored." x:Name="RestoreButton" Content="Restore selected…" Click="RestoreSelected" Height="36" Margin="10,0,0,0" Style="{StaticResource PrimaryButton}"/>
+       <Button local:SettingHelp.Text="Opens the folder of the selected copy." Content="Open backup folder" Click="OpenSelectedFolder" Height="36" Margin="10,0,0,0"/>
       </WrapPanel>
       <TextBlock x:Name="SelectedInfo" Text="Select a backup to keep it beyond the retention limit." Style="{StaticResource Muted}" VerticalAlignment="Center"/>
      </DockPanel>
@@ -87,8 +87,8 @@
        <TextBlock Text="Pre-restore recovery copies" FontWeight="SemiBold" Margin="0,0,0,8" local:SettingHelp.Text="These copies preserve saves from before a restore and are never removed by ordinary retention."/>
        
        <DockPanel>
-        <Button x:Name="UndoButton" Content="Undo using recovery…" DockPanel.Dock="Right" Click="UndoSelected" Height="36" Margin="10,0,0,0"/>
-        <ComboBox x:Name="RecoveryList" Height="36" DisplayMemberPath="Label" SelectionChanged="RecoverySelectionChanged" AutomationProperties.Name="Pre-restore recovery copies"/>
+        <Button local:SettingHelp.Text="Shows how to put back the saves from before a restore." x:Name="UndoButton" Content="Undo using recovery…" DockPanel.Dock="Right" Click="UndoSelected" Height="36" Margin="10,0,0,0"/>
+        <ComboBox local:SettingHelp.Text="The saves kept before each restore." x:Name="RecoveryList" Height="36" DisplayMemberPath="Label" SelectionChanged="RecoverySelectionChanged" AutomationProperties.Name="Pre-restore recovery copies"/>
        </DockPanel>
       </StackPanel>
      </Border>

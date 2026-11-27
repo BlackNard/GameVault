@@ -17,7 +17,7 @@ public sealed class MatchPickerView : UserControl
     private readonly Button searchButton = new() { Content = "Search", Margin = new Thickness(8, 0, 0, 0), MinWidth = 90 };
     private readonly StackPanel results = new();
     private readonly TextBlock status = new() { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 12) };
-    private readonly Button noneButton = new() { Content = "None of these match", Margin = new Thickness(0, 0, 8, 0) };
+    private readonly Button noneButton = new() { Content = "None of these match", ToolTip = "Nothing is looked up automatically for this game after that", Margin = new Thickness(0, 0, 8, 0) };
     private readonly Button closeButton = new() { Content = "Cancel", Margin = new Thickness(0, 0, 8, 0) };
     private readonly CancellationTokenSource cancel = new();
     private bool busy;

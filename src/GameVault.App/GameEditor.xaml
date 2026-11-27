@@ -10,23 +10,23 @@
         </StackPanel>
         <ScrollViewer x:Name="EditorScroll" Grid.Row="1" MaxWidth="820" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel x:Name="Fields" Margin="0,0,12,0">
-                <Label Content="_Name" Target="{Binding ElementName=GameName}" /><TextBox x:Name="GameName" MaxLength="240" AutomationProperties.Name="Game name" Margin="0,0,0,16" />
+                <Label Content="_Name" Target="{Binding ElementName=GameName}" /><TextBox local:SettingHelp.Text="The name shown in your library." x:Name="GameName" MaxLength="240" AutomationProperties.Name="Game name" Margin="0,0,0,16" />
                 <Label Content="_Executable (.exe)" Target="{Binding ElementName=Executable}" />
                 <DockPanel Margin="0,0,0,16"><Button DockPanel.Dock="Right" Content="Browse…" Click="BrowseExecutable" Margin="8,0,0,0" AutomationProperties.Name="Browse game executable" /><TextBox x:Name="Executable" local:SettingHelp.Text="Choose your installed game executable." TextWrapping="Wrap" AutomationProperties.Name="Game executable path" /></DockPanel>
                 <Label Content="_Working directory" Target="{Binding ElementName=WorkingDirectory}" />
                 <DockPanel Margin="0,0,0,16"><Button DockPanel.Dock="Right" Content="Browse…" Click="BrowseWorking" Margin="8,0,0,0" AutomationProperties.Name="Browse working directory" /><TextBox x:Name="WorkingDirectory" local:SettingHelp.Text="Defaults to the executable’s folder. A custom folder is kept when you browse to another executable." TextWrapping="Wrap" AutomationProperties.Name="Working directory path" /></DockPanel>
                 
                 <Label Content="_Status" Target="{Binding ElementName=StatusChoice}" />
-                <ComboBox x:Name="StatusChoice" SelectedIndex="0" Margin="0,0,0,16" AutomationProperties.Name="Game status">
+                <ComboBox local:SettingHelp.Text="Where you stand with this game." x:Name="StatusChoice" SelectedIndex="0" Margin="0,0,0,16" AutomationProperties.Name="Game status">
                     <ComboBoxItem Content="Not started" Tag="NotStarted" /><ComboBoxItem Content="Backlog" Tag="Backlog" /><ComboBoxItem Content="Playing" Tag="Playing" /><ComboBoxItem Content="On hold" Tag="OnHold" /><ComboBoxItem Content="Completed" Tag="Completed" /><ComboBoxItem Content="Abandoned" Tag="Abandoned" /><ComboBoxItem Content="Retired" Tag="Retired" />
                 </ComboBox>
                 <Label Content="_Cover image (optional)" Target="{Binding ElementName=CoverPath}" />
                 <DockPanel><Button DockPanel.Dock="Right" Content="Browse…" Click="BrowseCover" Margin="8,0,0,0" AutomationProperties.Name="Browse cover image" /><TextBox x:Name="CoverPath" local:SettingHelp.Text="PNG or JPEG. A copy is stored in this game’s profile." IsReadOnly="True" TextWrapping="Wrap" AutomationProperties.Name="Cover image path" /></DockPanel>
-                <WrapPanel Margin="0,8,0,16"><Button Content="Find artwork online…" Click="FindArtwork" Margin="0,0,10,0" AutomationProperties.Name="Search portrait game covers online" /><Button x:Name="RemoveCoverButton" Content="Remove cover" Click="RemoveCover" AutomationProperties.Name="Remove the cover image" ToolTip="Remove this game's cover. It stays removed until you choose another one." /></WrapPanel>
+                <WrapPanel Margin="0,8,0,16"><Button local:SettingHelp.Text="Searches Steam or Google Images for a cover." Content="Find artwork online…" Click="FindArtwork" Margin="0,0,10,0" AutomationProperties.Name="Search portrait game covers online" /><Button x:Name="RemoveCoverButton" Content="Remove cover" Click="RemoveCover" AutomationProperties.Name="Remove the cover image" ToolTip="Remove this game's cover. It stays removed until you choose another one." /></WrapPanel>
                 
                 <Label Content="_Save locations (optional)" Target="{Binding ElementName=SaveSources}" />
                 <TextBox x:Name="SaveSources" local:SettingHelp.Text="One full path per line. Optional manual overrides. Leave these empty for automatic discovery, including folders created during the first session. Choose narrow local save files/folders; linked or overlapping sources are not supported." AcceptsReturn="True" MinHeight="76" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" AutomationProperties.Name="Save location paths" />
-                <WrapPanel Margin="0,8,0,0"><Button Content="Browse folder…" Click="BrowseSaveFolder" Margin="0,0,8,8" /><Button Content="Browse save file…" Click="BrowseSaveFile" Margin="0,0,0,8" /></WrapPanel>
+                <WrapPanel Margin="0,8,0,0"><Button local:SettingHelp.Text="Adds a folder that holds this game's saves." Content="Browse folder…" Click="BrowseSaveFolder" Margin="0,0,8,8" /><Button local:SettingHelp.Text="Adds a single save file." Content="Browse save file…" Click="BrowseSaveFile" Margin="0,0,0,8" /></WrapPanel>
                 
             </StackPanel>
         </ScrollViewer>

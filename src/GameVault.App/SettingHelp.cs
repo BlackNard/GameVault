@@ -26,10 +26,12 @@ public static class SettingHelp
     private static void Apply(FrameworkElement element, string text)
     {
         element.ToolTip = Tip(text);
+        ToolTipService.SetShowOnDisabled(element, true);
         AutomationProperties.SetHelpText(element, text);
         foreach (var control in Controls(element))
         {
             AutomationProperties.SetHelpText(control, text);
+            ToolTipService.SetShowOnDisabled(control, true);
             // A control with its own tooltip keeps it; the others show the row's help when the keyboard reaches them.
             if (control.ReadLocalValue(FrameworkElement.ToolTipProperty) == DependencyProperty.UnsetValue || control.ToolTip is ToolTip) control.ToolTip = Tip(text);
         }
