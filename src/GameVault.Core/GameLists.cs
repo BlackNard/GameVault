@@ -61,6 +61,19 @@ public static class GameListRules
         return [.. result];
     }
 
+    /// <summary>Puts one item where another is (drag and drop): dragged forward it lands after it, dragged back before it.</summary>
+    public static T[] MoveOnto<T>(IReadOnlyList<T> items, Predicate<T> moved, Predicate<T> onto)
+    {
+        var result = items.ToList();
+        var from = result.FindIndex(moved);
+        var to = result.FindIndex(onto);
+        if (from < 0 || to < 0 || from == to) return [.. result];
+        var item = result[from];
+        result.RemoveAt(from);
+        result.Insert(to, item);
+        return [.. result];
+    }
+
     public static ListsDocument ToggleFavourite(ListsDocument document, Guid game) => document with
     { Favourites = document.Favourites.Contains(game) ? [.. document.Favourites.Where(f => f != game)] : [.. document.Favourites, game] };
 }

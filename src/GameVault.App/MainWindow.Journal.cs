@@ -25,7 +25,7 @@ public partial class MainWindow
             journalView = new JournalView();
             journalView.AddRequested += async (_, game) => await EditJournalAsync(game, null);
             journalView.EditRequested += async (_, item) => await EditJournalAsync(item.GameId, item.Entry.Id);
-            journalView.ExportRequested += async (_, chosen) => await ExportJournalAsync(chosen);
+            journalView.ExportRequested += async (_, item) => await ExportJournalAsync(item);
             JournalPanel.Content = journalView;
         }
         libraryVisible = false;
@@ -46,18 +46,18 @@ public partial class MainWindow
         catch (Exception error) when (IsExpected(error) || error is IOException) { if (revision == journalRevision) journalView?.ShowProblem(error.Message); }
     }
 
-    private async Task ExportJournalAsync(JournalItem[] chosen)
+    private async Task ExportJournalAsync(JournalItem item)
     {
-        if (journalView is null || journalExporting || chosen.Length == 0) return;
+        if (journalView is null || journalExporting) return;
         journalExporting = true;
         try
         {
             var vault = Obsidian;
             if (!await ObsidianPrompts.ReadyVaultAsync(journalView, vault)) return;
-            var result = await vault.ExportEntriesAsync(chosen, conflict => ObsidianPrompts.ConflictAsync(journalView, conflict));
+            var result = await vault.ExportEntriesAsync([item], conflict => ObsidianPrompts.ConflictAsync(journalView, conflict));
             ShowToast("Exported to Obsidian", await ObsidianPrompts.SummaryAsync(vault, result), result.Failures.Length > 0);
         }
-        catch (Exception error) when (IsExpected(error) || error is IOException or ArgumentException) { ShowToast("The entries were not exported", error.Message, true); }
+        catch (Exception error) when (IsExpected(error) || error is IOException or ArgumentException) { ShowToast("The entry was not exported", error.Message, true); }
         finally { journalExporting = false; }
     }
 

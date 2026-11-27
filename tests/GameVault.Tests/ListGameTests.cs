@@ -35,6 +35,14 @@ public sealed class ListGameTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("a", "c", "bcad")]
+    [InlineData("d", "b", "adbc")]
+    [InlineData("b", "b", "abcd")]
+    [InlineData("a", "z", "abcd")]
+    public void ADraggedCardTakesThePlaceOfTheOneItIsDroppedOn(string moved, string onto, string expected) =>
+        Assert.Equal(expected, string.Concat(GameListRules.MoveOnto<string>(["a", "b", "c", "d"], x => x == moved, x => x == onto)));
+
     [Fact]
     public async Task ATitleIsLookedUpWithoutAnyPathAndKept()
     {

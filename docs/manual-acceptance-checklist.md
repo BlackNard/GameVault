@@ -310,7 +310,7 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 
 - [ ] **Journal** in the sidebar lists only your own entries (no sessions), newest first; the game filter (including **No game**) and period filter work.
 - [ ] **Add entry…** with and without a game, **Edit** and delete work; playtime and statistics do not change because of an entry.
-- [ ] **Export** on an entry and **Export to Obsidian** above the list: entries of a game go to `<game>/Entries`, entries without a game to `Entries` at the top of the vault. Exporting again repeats nothing; an edited entry updates its note.
+- [ ] **Export** on an entry (one at a time): entries of a game go to `<game>/Entries`, entries without a game to `Entries` at the top of the vault. Exporting again repeats nothing; an edited entry updates its note.
 - [ ] A game's **Sessions & notes** holds session notes and the review only; a newly exported session note goes to `<game>/Session notes` (notes exported before stay where they are).
 
 ## 8ae. Lists and favourites (issue #97)
@@ -320,6 +320,7 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] **Lists** shows a card per list with some of its covers; a card opens the list as game cards; **‹ All lists** and the sidebar return.
 - [ ] **Add a game…** with a name that is not in the library fetches its cover and details; its card opens them; **Not the right game?**, **Refresh info** and **Choose cover…** work; offline, nothing breaks.
 - [ ] On a card, ⋯ or right-click moves, adds a note and removes; ranked lists show numbers.
+- [ ] Drag a card onto another, in a list and in Favourites: it takes that place and stays there after a restart; a plain click still opens the game.
 
 ## 8af. CSV export (issue #98)
 

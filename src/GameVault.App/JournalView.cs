@@ -13,8 +13,7 @@ public sealed class JournalView : UserControl
     private const int PageSize = 60;
     private readonly ComboBox gameChoice = new() { Width = 260, Margin = new Thickness(0, 0, 10, 8), ToolTip = "Show entries for" };
     private readonly ComboBox monthChoice = new() { Width = 200, Margin = new Thickness(0, 0, 10, 8), ToolTip = "Period" };
-    private readonly Button addButton = new() { Content = "Add entry…", Margin = new Thickness(0, 0, 10, 8), IsEnabled = false, ToolTip = "Write about a game, or anything else" };
-    private readonly Button exportButton = new() { Content = "Export to Obsidian", Margin = new Thickness(0, 0, 0, 8), IsEnabled = false, ToolTip = "Export the entries shown here" };
+    private readonly Button addButton = new() { Content = "Add entry…", Margin = new Thickness(0, 0, 0, 8), IsEnabled = false, ToolTip = "Write about a game, or anything else" };
     private readonly TextBlock notice = Muted("");
     private readonly StackPanel entries = new();
     private readonly Button more = new() { Content = "Show more", HorizontalAlignment = HorizontalAlignment.Left, Visibility = Visibility.Collapsed };
@@ -25,7 +24,8 @@ public sealed class JournalView : UserControl
     /// <summary>A new entry, for the game being shown (<see cref="Guid.Empty"/> for none).</summary>
     public event EventHandler<Guid>? AddRequested;
     public event EventHandler<JournalItem>? EditRequested;
-    public event EventHandler<JournalItem[]>? ExportRequested;
+    /// <summary>Entries are exported one at a time (the owner's choice: never a whole pile by accident).</summary>
+    public event EventHandler<JournalItem>? ExportRequested;
 
     public JournalView()
     {
@@ -38,7 +38,6 @@ public sealed class JournalView : UserControl
         filters.Children.Add(gameChoice);
         filters.Children.Add(monthChoice);
         filters.Children.Add(addButton);
-        filters.Children.Add(exportButton);
         page.Children.Add(filters);
         notice.Margin = new Thickness(0, 6, 0, 6);
         page.Children.Add(notice);
@@ -47,7 +46,6 @@ public sealed class JournalView : UserControl
         gameChoice.SelectionChanged += (_, _) => { if (!filling) { shown = PageSize; Render(); } };
         monthChoice.SelectionChanged += (_, _) => { if (!filling) { shown = PageSize; Render(); } };
         addButton.Click += (_, _) => AddRequested?.Invoke(this, SelectedGame ?? Guid.Empty);
-        exportButton.Click += (_, _) => ExportRequested?.Invoke(this, Matching());
         more.Click += (_, _) => { shown += PageSize; Render(); };
         Content = new ScrollViewer { Content = page, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     }
@@ -94,7 +92,6 @@ public sealed class JournalView : UserControl
         if (items.Length == 0) lines.Add(feed.Items.Length == 0 ? "No entries yet." : "Nothing matches.");
         notice.Text = string.Join("\n", lines);
         notice.Visibility = lines.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-        exportButton.IsEnabled = items.Length > 0;
         entries.Children.Clear();
         DateOnly? heading = null;
         foreach (var item in items.Take(shown))
@@ -126,7 +123,7 @@ public sealed class JournalView : UserControl
         }
         var export = new Button { Content = "Export", MinWidth = 70, ToolTip = "Export to Obsidian" };
         AutomationProperties.SetName(export, "Export " + name + " to Obsidian");
-        export.Click += (_, _) => ExportRequested?.Invoke(this, [item]);
+        export.Click += (_, _) => ExportRequested?.Invoke(this, item);
         buttons.Children.Add(export);
         DockPanel.SetDock(buttons, Dock.Right);
         panel.Children.Add(buttons);
