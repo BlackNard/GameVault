@@ -45,7 +45,7 @@ public sealed class WhatsNewView : UserControl
 
     public Task<bool> CanLeaveAsync() => Task.FromResult(true);
 
-    /// <summary>"0.1.0-preview.8" reads as "Version 0.1.0, preview 8".</summary>
+    /// <summary>"0.1.1" reads as "Version 0.1.1"; an older "0.1.0-preview.8" as "Version 0.1.0, preview 8".</summary>
     private static string Heading(string version) => "Version " + version.Replace("-preview.", ", preview ", StringComparison.Ordinal);
 
     private static void Part(Panel list, string title, string[] lines)

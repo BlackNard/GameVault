@@ -112,8 +112,8 @@ function Assert-ReleaseOrigin([string]$BundleDirectory,[string]$Api,[hashtable]$
     Assert-ReleaseMatchesOrigin $BundleDirectory $extracted
     return [pscustomobject]@{artifactId=$artifact.id;archiveSha256=$digest;buildRunId=$manifest.buildRunId}
 }
-function Assert-PreviewTagAvailable([object[]]$Releases,[object[]]$Refs,[string]$Tag) {
-    foreach($release in $Releases){if($null -ne $release -and $release.tag_name -ceq $Tag){throw 'Existing release draft/tag will not be replaced. Choose a new preview number.'}}
+function Assert-TagAvailable([object[]]$Releases,[object[]]$Refs,[string]$Tag) {
+    foreach($release in $Releases){if($null -ne $release -and $release.tag_name -ceq $Tag){throw 'Existing release draft/tag will not be replaced. Raise the version in Directory.Build.props.'}}
     foreach($ref in $Refs){if($null -ne $ref -and $ref.ref -ceq ('refs/tags/'+$Tag)){throw 'Existing Git tag will not be reused or replaced.'}}
 }
-Export-ModuleMember -Function Test-ReleaseSourcePath,Test-ReleaseSecret,Assert-ReleaseEvidence,Assert-ReleaseBundle,Get-ReleaseAssetNames,Assert-ReleaseMatchesOrigin,Assert-ReleaseOrigin,Assert-PreviewTagAvailable
+Export-ModuleMember -Function Test-ReleaseSourcePath,Test-ReleaseSecret,Assert-ReleaseEvidence,Assert-ReleaseBundle,Get-ReleaseAssetNames,Assert-ReleaseMatchesOrigin,Assert-ReleaseOrigin,Assert-TagAvailable

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       release_name:
-        description: 'Name of the release (empty: "GameVault <version> — Update <number>"; the word Preview is not allowed)'
+        description: 'Name of the release (empty: "GameVault <version>"; the word Preview is not allowed)'
         required: false
         type: string
       dry_run:

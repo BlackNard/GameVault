@@ -48,6 +48,10 @@ public sealed class ReleaseNotesTests : IDisposable
         Assert.Equal("0.1.0-preview.8", SeenVersion.Read(root));
     }
 
+    [Fact]
+    public void APlayerOnTheLastPreviewIsToldAboutTheFirstPlainVersion() =>
+        Assert.Equal(["0.1.1"], ReleaseNotes.Unseen("0.1.0-preview.8", "0.1.1", true).Select(n => n.Version));
+
     /// <summary>A release cannot be built without its notes.</summary>
     [Fact]
     public void TheVersionBeingBuiltHasNotes()
@@ -55,7 +59,7 @@ public sealed class ReleaseNotesTests : IDisposable
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "GameVault.slnx"))) dir = dir.Parent;
         var props = File.ReadAllText(Path.Combine(dir!.FullName, "Directory.Build.props"));
-        var current = $"{Regex.Match(props, "<GameVaultVersion>([^<]+)<").Groups[1].Value}-preview.{Regex.Match(props, @"<GameVaultPreview>(\d+)<").Groups[1].Value}";
+        var current = Regex.Match(props, "<GameVaultVersion>([^<]+)<").Groups[1].Value;
         var note = Assert.Single(ReleaseNotes.All, n => n.Version == current);
         Assert.NotEmpty(note.New.Concat(note.Fixed));
         Assert.All(ReleaseNotes.All, n => Assert.True(ReleaseVersion.TryParse(n.Version, out _)));

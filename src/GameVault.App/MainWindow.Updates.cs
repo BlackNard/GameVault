@@ -9,7 +9,7 @@ using GameVault.Infrastructure.Updates;
 
 namespace GameVault.App;
 
-/// <summary>The running app's own version as written by the build (for example 0.1.0-preview.2).</summary>
+/// <summary>The running app's own version as written by the build (for example 0.1.1).</summary>
 internal static class AppVersionInfo
 {
     public static string Current

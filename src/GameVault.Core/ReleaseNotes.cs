@@ -11,6 +11,9 @@ public static class ReleaseNotes
 {
     public static IReadOnlyList<ReleaseNote> All { get; } =
     [
+        new("0.1.1",
+            [],
+            ["Version numbers are now plain, like 0.1.1."]),
         new("0.1.0-preview.8",
             [
                 "Journal: write your own entries, about a game or anything else, and export an entry to Obsidian.",
