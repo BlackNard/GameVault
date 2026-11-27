@@ -153,13 +153,24 @@ public partial class App : Application
             PreviousRun = CrashMarker.Begin(paths.Root, typeof(App).Assembly.GetName().Version?.ToString() ?? "unknown", DateTimeOffset.Now);
             markerRoot = paths.Root;
             if (PreviousRun.PreviousRunEndedUnexpectedly) AppLog.Warn("The previous run did not end normally" + (PreviousRun.PreviousStartedAt is { } at ? $" (it started {at:yyyy-MM-dd HH:mm})" : ""));
+            // Every start looks for a newer release before the window opens, so it is in the bell right away (issue #100). It runs beside the loading.
+            var checkStarted = DateTimeOffset.UtcNow;
+            var updateCheck = UpdatePreferences.ParseCheckForUpdates(ReadSettingsText(paths)) ? GameVault.App.MainWindow.AskForUpdateAsync() : null;
             // Capture folders from older versions get readable date names, before anything lists or records captures.
             var renamed = await Task.Run(() => GameVault.Infrastructure.Capture.MediaFolders.MigrateAll(paths));
             if (renamed > 0) AppLog.Info($"Renamed {renamed} capture folder(s) to date names.");
             var store = new AppDataStore(paths);
             var snapshot = await store.InitializeAsync();
-            MainWindow = new MainWindow(paths, store, snapshot);
+            var window = new MainWindow(paths, store, snapshot) { StartupCheck = updateCheck };
+            MainWindow = window;
             ShutdownMode = ShutdownMode.OnMainWindowClose;
+            if (updateCheck is not null && !updateCheck.IsCompleted)
+            {
+                // Offline or slow: the window does not wait longer than this, and the notice arrives when the answer does.
+                var left = UpdateCheckRules.StartWait - (DateTimeOffset.UtcNow - checkStarted);
+                splash?.ShowStatus("Checking for updates…");
+                if (left > TimeSpan.Zero) await Task.WhenAny(updateCheck, Task.Delay(left));
+            }
             if (splash is not null)
             {
                 var wait = SplashTiming.RemainingDelay(splashShownAt, DateTimeOffset.UtcNow);

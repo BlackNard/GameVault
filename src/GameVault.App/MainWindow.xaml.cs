@@ -83,6 +83,8 @@ public partial class MainWindow : Window
         Loaded += ShowPreviousRunNotice;
         Loaded += StartUpdateCheckLater;
         Loaded += LoadLibrary;
+        usedBefore = snapshot.Games.Any() || settings.WelcomeDismissed;
+        Loaded += ShowWhatsNewAfterUpdate;
         InitializePerformanceFeatures();
         InitializeRedesign();
         InitializeCaptureFeatures();

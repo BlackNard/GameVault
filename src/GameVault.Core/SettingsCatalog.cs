@@ -51,6 +51,7 @@ public static class SettingsCatalog
         new(Capture, "Recorder, video and audio", "CaptureSettings", "screenshot recording video resolution frame rate fps audio nvidia size silent microphone game sound never stutters gpu nvidia app"),
         new(Capture, "Capture shortcuts", "CaptureSettings", "hotkeys keys keyboard screenshot record overlay xbox game bar amd steam conflict same keys floating controls windowed fullscreen monitor"),
         new(Capture, "Capture troubleshooting", "CaptureSettings", "install runtime visual c++ microsoft administrator media feature pack missing components"),
+        new(Updates, "What's new", "WhatsNewButton", "release notes changes fixed what each version brought"),
         new(Updates, "Check for updates", "CheckForUpdatesButton", "new version release update now"),
         new(Updates, "Check at start", "CheckForUpdatesChoice", "update check github automatic one request to github nothing sent"),
         new(Updates, "Install updates automatically", "AutoUpdateChoice", "auto update download install close gamevault update now bell"),

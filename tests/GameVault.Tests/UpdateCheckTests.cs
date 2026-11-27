@@ -61,13 +61,15 @@ public sealed class UpdateCheckTests : IDisposable
     public void The_start_up_check_runs_when_allowed_and_not_done_in_the_last_twelve_hours()
     {
         var now = new DateTimeOffset(2026, 11, 24, 12, 0, 0, TimeSpan.Zero);
-        Assert.False(UpdateCheckRules.ShouldCheckAtStart(false, null, now));                    // the player turned it off
-        Assert.True(UpdateCheckRules.ShouldCheckAtStart(true, null, now));
-        Assert.False(UpdateCheckRules.ShouldCheckAtStart(true, now.AddHours(-1), now));
-        Assert.False(UpdateCheckRules.ShouldCheckAtStart(true, now.AddHours(-11), now));
-        Assert.True(UpdateCheckRules.ShouldCheckAtStart(true, now.AddHours(-12), now));
-        Assert.True(UpdateCheckRules.ShouldCheckAtStart(true, now.AddDays(-9), now));
-        Assert.True(UpdateCheckRules.ShouldCheckAtStart(true, now.AddHours(3), now));           // a clock that moved back never blocks the check for ever
+        Assert.False(UpdateCheckRules.ShouldCheckWhenReopened(false, null, now));                // the player turned it off
+        Assert.True(UpdateCheckRules.ShouldCheckWhenReopened(true, null, now));
+        Assert.False(UpdateCheckRules.ShouldCheckWhenReopened(true, now.AddMinutes(-9), now));
+        Assert.True(UpdateCheckRules.ShouldCheckWhenReopened(true, now.AddMinutes(-10), now));
+        Assert.True(UpdateCheckRules.ShouldCheckWhenReopened(true, now.AddHours(3), now));       // a clock that moved back never blocks the check for ever
+        Assert.True(UpdatePreferences.ParseCheckForUpdates(null));
+        Assert.True(UpdatePreferences.ParseCheckForUpdates("not json"));
+        Assert.True(UpdatePreferences.ParseCheckForUpdates("{\"autoUpdate\":false}"));
+        Assert.False(UpdatePreferences.ParseCheckForUpdates("{\"checkForUpdates\":false}"));
     }
 
     [Fact]

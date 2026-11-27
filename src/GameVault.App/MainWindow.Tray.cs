@@ -40,7 +40,7 @@ public partial class MainWindow
     private void RestoreWindow()
     {
         if(observationStopped||stoppingObservation)return;
-        Show();if(WindowState==WindowState.Minimized)WindowState=restoreState;Activate();
+        Show();if(WindowState==WindowState.Minimized)WindowState=restoreState;Activate();CheckWhenReopened();
     }
     // Restoring from minimized returns to the state the window had (it starts maximized), not to the small default size.
     private WindowState restoreState=WindowState.Maximized;

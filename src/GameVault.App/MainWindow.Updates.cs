@@ -56,7 +56,13 @@ public partial class MainWindow
 
     // ---------- start-up ----------
 
-    /// <summary>Starts a few seconds after the window is up; then, while GameVault stays open (for example in the tray), it looks again every few hours.</summary>
+    /// <summary>The check the start-up began before this window existed (null when the player turned checking off).</summary>
+    internal Task<UpdateCheckResult>? StartupCheck { get; set; }
+
+    /// <summary>
+    /// Shows what the start-up check found (it ran before the window opened, so a newer release is already in the bell); then, while GameVault stays open
+    /// (for example in the tray), it looks again every few hours.
+    /// </summary>
     private async void StartUpdateCheckLater(object? sender, RoutedEventArgs e)
     {
         Loaded -= StartUpdateCheckLater;
@@ -68,11 +74,7 @@ public partial class MainWindow
         _ = Task.Run(() => UpdateDownloader.CleanOld(App.UpdatesFolder, TimeSpan.FromDays(2), keep: keep));
         try
         {
-            if (UpdateCheckRules.ShouldCheckAtStart(settings.CheckForUpdates, UpdateCheckStamp.Read(paths.Root), DateTimeOffset.UtcNow))
-            {
-                await Task.Delay(TimeSpan.FromSeconds(8));
-                if (!stoppingObservation && !quitPreparing) await CheckForUpdatesAsync(manual: false);
-            }
+            if (settings.CheckForUpdates && !stoppingObservation && !quitPreparing) await CheckForUpdatesAsync(manual: false, StartupCheck);
             while (!stoppingObservation)
             {
                 await Task.Delay(AutoUpdateRules.RecheckInterval);
@@ -122,9 +124,24 @@ public partial class MainWindow
 
     // ---------- checking ----------
 
+    /// <summary>The one request to GitHub's releases list.</summary>
+    internal static async Task<UpdateCheckResult> AskForUpdateAsync()
+    {
+        using var http = new PoliteHttp("GitHub");
+        return await Task.Run(() => new UpdateChecker(http).CheckAsync(AppVersionInfo.Current, CancellationToken.None));
+    }
+
+    /// <summary>Bringing a running GameVault back is a start to the player, so it looks again if the last look was a while ago.</summary>
+    private void CheckWhenReopened()
+    {
+        if (!stoppingObservation && !quitPreparing && IsLoaded &&
+            UpdateCheckRules.ShouldCheckWhenReopened(settings.CheckForUpdates, UpdateCheckStamp.Read(paths.Root), DateTimeOffset.UtcNow))
+            _ = CheckForUpdatesAsync(manual: false);
+    }
+
     private async void CheckForUpdatesClicked(object sender, RoutedEventArgs e) => await CheckForUpdatesAsync(manual: true);
 
-    private async Task CheckForUpdatesAsync(bool manual)
+    private async Task CheckForUpdatesAsync(bool manual, Task<UpdateCheckResult>? started = null)
     {
         if (checkingForUpdates) return;
         checkingForUpdates = true;
@@ -132,13 +149,11 @@ public partial class MainWindow
         if (manual) UpdateStatusText.Text = "Checking…";
         try
         {
-            UpdateCheckResult result;
-            using (var http = new PoliteHttp("GitHub"))
-                result = await Task.Run(() => new UpdateChecker(http).CheckAsync(AppVersionInfo.Current, CancellationToken.None));
+            var result = await (started ?? AskForUpdateAsync());
             if (result.Status != UpdateStatus.Failed) { UpdateCheckStamp.Write(paths.Root, DateTimeOffset.UtcNow); UpdateNoticeCache.WriteLatest(paths.Root, result.Update); }
             else AppLog.Warn("Update check failed: " + result.Message);
+            if (result.Status == UpdateStatus.Failed && !manual) return;        // a quiet check says nothing when offline, and keeps what is already shown
             availableUpdate = result.Update;
-            if (result.Status == UpdateStatus.Failed && !manual) { ShowUpdateSettingsState(readyUpdate is null ? $"You have version {AppVersionInfo.Current}." : UpdateStatusText.Text, readyUpdate is not null); return; }   // a quiet background check says nothing when offline
             ShowUpdateSettingsState(result.Describe(), result.Status == UpdateStatus.Available);
             ShowUpdateNotice(result.Status == UpdateStatus.Available ? result.Update : null);        // a quiet entry in the bell, no toast
             if (result.Update is { } update) await DownloadInBackgroundAsync(update);

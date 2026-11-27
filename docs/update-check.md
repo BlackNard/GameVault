@@ -3,7 +3,7 @@
 GameVault tells you when a newer version has been published and, like a store launcher, can keep itself up to date in place (see "Automatic updates" below; it can be turned off). The check adds a quiet notice to the **bell** in the title bar (a badge, no pop-up) and a status line in Settings > Updates, each with a button that opens the release page in your browser. The notice stays in the bell until you dismiss it (that version stays dismissed after a restart) or you update; the last result is kept in `Cache/update-notice.json`.
 
 ## The one request
-- When it starts (a few seconds after the window is up, and at most once every 12 hours) GameVault sends **one anonymous GET** to `https://api.github.com/repos/BlackNard/GameVault/releases?per_page=20` through the shared polite HTTP client: fixed HTTPS address, 10 s timeout, 512 KB limit, no redirects, no cookies, no account.
+- At every start, before the main window opens (it waits up to 4 s, then the window opens and the answer is shown when it arrives), when a running GameVault is brought back after 10 minutes or more, and every six hours while it stays open, GameVault sends **one anonymous GET** to `https://api.github.com/repos/BlackNard/GameVault/releases?per_page=20` through the shared polite HTTP client: fixed HTTPS address, 10 s timeout, 512 KB limit, no redirects, no cookies, no account.
 - Nothing about you or your PC is sent: only a generic `GameVault/1 (desktop game library)` user agent. GitHub sees the usual network address of any web request.
 - The time of the last check is kept in `Cache/update-check.txt`.
 - Failures (offline, rate limit, odd answer) are quiet at start-up; **Check now** shows them in plain words.
@@ -25,6 +25,9 @@ Updating must never damage your games, profiles or saves. Two independent protec
 2. **Compared after.** The new version, before it shows any window or opens the library, compares the library with the fingerprint. Identical: the check is only noted in the log (`Logs/gamevault.log`). Different (a file missing, changed or new): GameVault tells you how many files and the first few names, shows where the safety copy is, and lets you choose to open GameVault anyway or close it without touching anything. Nothing is deleted or restored on its own; to go back, use **Settings > GameVault data > Restore from a backup…** with the safety copy.
 
 The installer itself still never owns `Data` or `Profiles` (CI installs, upgrades, uninstalls and reinstalls and requires the same fingerprint every time). Safety copies are kept until the next update replaces them; delete the `Safety` folder any time.
+
+## What's new
+After an update, the first start shows the notes of every version since the one used before (**New** and **Fixed**), once, when the app is free; a first install shows nothing. Settings > Updates > **What's new** opens them again. The notes ship inside the app (`GameVault.Core/ReleaseNotes.cs`); the newest version seen is kept in `Cache/whats-new.txt`.
 
 ## How versions are compared
 `GameVault.Core/ReleaseVersion.cs` follows semantic versioning with an optional leading `v` and a fourth number: `0.1.0-preview.3` is newer than `0.1.0-preview.2`, `preview.10` is newer than `preview.9`, and `0.1.0` is newer than every `0.1.0-preview.N`. Draft releases and entries without a valid tag are ignored. A link is only accepted (and only opened, when you click it) if it points at `https://github.com/BlackNard/GameVault/releases/...`.
