@@ -66,6 +66,8 @@ public partial class MainWindow : Window
         RememberSection(ManageInfo, "manage");
         lifetime=new(Hide,RestoreWindow,PrepareToQuitAsync,QuitRuntimeAsync);
         ThemePalette.Apply(this, settings.Theme);
+        Motion.ReduceMotion = settings.ReduceMotion;
+        ReduceMotionChoice.IsChecked = settings.ReduceMotion;
         CloseToTrayChoice.IsChecked=settings.CloseToTray;BackupNotificationsChoice.IsChecked=settings.NotifyBackupFailures;CheckForUpdatesChoice.IsChecked=settings.CheckForUpdates;AutoUpdateChoice.IsChecked=settings.AutoUpdate;
         MinHeight = Math.Min(MinHeight, SystemParameters.WorkArea.Height);
         MinWidth = Math.Min(MinWidth, SystemParameters.WorkArea.Width);
@@ -384,7 +386,7 @@ public partial class MainWindow : Window
             var updated = settings with { Theme = theme };
             await store.SaveSettingsAsync(updated);
             settings = updated;
-            ThemePalette.Apply(this, theme);
+            Motion.CrossFade(this, () => ThemePalette.Apply(this, theme));
             if (captureOverlay is not null) ThemePalette.Apply(captureOverlay, theme);
             ThemeName.Text = ThemeCatalog.Find(theme).Name;
             OperationNotice.Text = "Theme saved. It will be restored next time you open GameVault.";
@@ -526,7 +528,7 @@ public partial class MainWindow : Window
     }
     private void UpdateButtons()
     {
-        CloseToTrayChoice.IsEnabled=BackupNotificationsChoice.IsEnabled=CheckForUpdatesChoice.IsEnabled=AutoUpdateChoice.IsEnabled=!busy&&!editorOpen&&!stoppingObservation&&!quitPreparing&&!settingsReadOnly;
+        ReduceMotionChoice.IsEnabled=CloseToTrayChoice.IsEnabled=BackupNotificationsChoice.IsEnabled=CheckForUpdatesChoice.IsEnabled=AutoUpdateChoice.IsEnabled=!busy&&!editorOpen&&!stoppingObservation&&!quitPreparing&&!settingsReadOnly;
         NotesHost.IsEnabled=!quitPreparing&&!stoppingObservation;
         QuitButton.IsEnabled=!stoppingObservation&&!quitPreparing;
         LibraryNav.IsEnabled=SettingsNav.IsEnabled=!editorOpen&&!quitPreparing&&!stoppingObservation;
