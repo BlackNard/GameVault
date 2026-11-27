@@ -18,6 +18,7 @@ internal static class ThemePalette
             foreach (var key in new[] { "AppSurface", "AppRaised", "AppBackground" }) element.Resources[key] = SystemColors.WindowBrush;
             element.Resources["AppLine"] = SystemColors.WindowTextBrush;
             element.Resources["AppAccent"] = SystemColors.HighlightBrush;
+            element.Resources["AppGlow"] = SystemColors.HighlightBrush;
             element.Resources["AppPrimary"] = SystemColors.HighlightBrush;
             element.Resources["AppPrimaryText"] = SystemColors.HighlightTextBrush;
             element.Resources["AppWarning"] = SystemColors.WindowTextBrush;
@@ -37,6 +38,7 @@ internal static class ThemePalette
         element.Resources["AppRaised"] = Brush(t.Raised);
         element.Resources["AppLine"] = Brush(t.Line);
         element.Resources["AppAccent"] = Brush(t.Accent);
+        element.Resources["AppGlow"] = Brush(t.GlowColor);
         element.Resources["AppPrimary"] = Brush(t.Primary);
         element.Resources["AppPrimaryText"] = Brush(t.PrimaryText);
         element.Resources["AppWarning"] = Brush(t.Warning);

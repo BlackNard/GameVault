@@ -26,6 +26,22 @@ public sealed class MotionRulesTests
     }
 
     [Fact]
+    public void TheFirstCardsFollowEachOtherWithoutKeepingAnyoneWaiting()
+    {
+        Assert.Equal([0, 20, 40, 60, 80, 100, 100, 100], Enumerable.Range(0, 8).Select(MotionRules.StaggerDelay));
+        Assert.True(MotionRules.StaggerDelay(500) + MotionRules.For(MotionKind.Section).Milliseconds <= 250);
+    }
+
+    [Fact]
+    public void EveryThemeHasAGlowColourAndMayChooseItsOwn()
+    {
+        Assert.All(ThemeCatalog.All, theme => Assert.Matches("^#[0-9a-fA-F]{6}$", theme.GlowColor));
+        var plain = ThemeCatalog.Find("Midnight");
+        Assert.Equal(plain.Accent, plain.GlowColor);                                   // a new theme gets one for free
+        Assert.Equal("#ff4f9f", ThemeCatalog.Find("Vice City").GlowColor);
+    }
+
+    [Fact]
     public void ListsAreUpdatedInPlaceSoWhatStaysIsNotRecreated()
     {
         var shown = new System.Collections.ObjectModel.ObservableCollection<string> { "a", "b", "c" };

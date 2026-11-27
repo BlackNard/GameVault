@@ -289,6 +289,12 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] **Settings > Appearance > Reduce motion** stops all of it, and stays after a restart. With Windows animation effects off, nothing moves either.
 - [ ] Nothing flickers (several toasts, quick tab switching, the theme picker), and idle CPU use is unchanged.
 
+## 8aa. Animations, second stage (issue #55)
+
+- [ ] A library card under the pointer rises a little with a glow in the theme's colour; covers fade in; the first cards appear one after another once.
+- [ ] A game page's banner and cover fade in; **Play** eases between Play, Starting and Running; the How long to beat bar and the Statistics bars grow.
+- [ ] Scrolling a large library stays smooth, and **Reduce motion** stops all of it.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

@@ -152,6 +152,17 @@ public partial class MainWindow : Window
         UpdateContinueRow();
     }
 
+    private Guid playStateGame;
+
+    /// <summary>The Play button eases to a new state of the same game (starting, running, back to Play).</summary>
+    private void ShowPlayState(Guid game, string text)
+    {
+        var changed = playStateGame == game && !Equals(PlayButton.Content, text);
+        playStateGame = game;
+        PlayButton.Content = text;
+        if (changed) Motion.Play(PlayButton, GameVault.Core.MotionKind.Fade);
+    }
+
     private void SelectedGameChanged(object sender, SelectionChangedEventArgs e) { if (!initializing) ShowSelection(); }
 
     private void ShowSelection()
@@ -181,7 +192,7 @@ public partial class MainWindow : Window
             ArchiveButton.Content = profile.IsArchived ? "Restore to library" : "Remove from library";
             var launch = launches.GetState(profile.Id);
             LaunchNotice.Text = launch.Message;
-            PlayButton.Content = launch.Phase switch { LaunchPhase.Starting => "Starting…", LaunchPhase.Running => "Running", _ => "Play" };
+            ShowPlayState(profile.Id, launch.Phase switch { LaunchPhase.Starting => "Starting…", LaunchPhase.Running => "Running", _ => "Play" });
         }
         UpdateTagsUi(item);
         _ = RefreshAboutAsync(item);

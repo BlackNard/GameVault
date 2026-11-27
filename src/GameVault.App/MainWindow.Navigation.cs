@@ -45,12 +45,12 @@ public partial class MainWindow
    try
    {
     var banner=await Task.Run(()=>CoverImages.Load(heroFile,1600),token);
-    if(!token.IsCancellationRequested&&GameList.SelectedItem is LibraryItemView current&&current.Game.Id==item.Game.Id){GameHeroBanner.Source=banner;GameHeroBanner.Visibility=Visibility.Visible;GameHeroBackdrop.Visibility=Visibility.Collapsed;}
+    if(!token.IsCancellationRequested&&GameList.SelectedItem is LibraryItemView current&&current.Game.Id==item.Game.Id){GameHeroBanner.Source=banner;GameHeroBanner.Visibility=Visibility.Visible;Motion.Play(GameHeroBanner,GameVault.Core.MotionKind.Fade);GameHeroBackdrop.Visibility=Visibility.Collapsed;}
    }
    catch(Exception error)when(error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException or OperationCanceledException or System.Runtime.InteropServices.COMException){ }
   }
   if(item.Game.CoverFile is not string file)return;
-  try{var image=await CoverImages.LoadThumbnailAsync(file,token);if(!token.IsCancellationRequested&&GameList.SelectedItem is LibraryItemView selected&&selected.Game.Id==item.Game.Id)GameHeroCover.Source=image;}
+  try{var image=await CoverImages.LoadThumbnailAsync(file,token);if(!token.IsCancellationRequested&&GameList.SelectedItem is LibraryItemView selected&&selected.Game.Id==item.Game.Id){GameHeroCover.Source=image;Motion.Play(GameHeroCover,GameVault.Core.MotionKind.Fade);}}
   catch(Exception error)when(error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException or OperationCanceledException or System.Runtime.InteropServices.COMException){ }
  }
  private void InitializeRedesign()

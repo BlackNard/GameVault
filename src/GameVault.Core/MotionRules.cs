@@ -1,7 +1,7 @@
 namespace GameVault.Core;
 
 /// <summary>What is appearing; each kind has one short transition (issue #55).</summary>
-public enum MotionKind { None, Page, Section, Fade, Drawer, Dialog, Toast, Theme }
+public enum MotionKind { None, Page, Section, Fade, Drawer, Dialog, Toast, Theme, Lift, Grow }
 
 /// <summary>How long a transition takes and where the element comes from, in screen units.</summary>
 public sealed record MotionSpec(int Milliseconds, double OffsetX = 0, double OffsetY = 0);
@@ -10,6 +10,9 @@ public static class MotionRules
 {
     /// <summary>Nothing moves with Reduce motion on, or when Windows itself has animations turned off.</summary>
     public static bool Enabled(bool reduceMotion, bool windowsAnimations) => !reduceMotion && windowsAnimations;
+
+    /// <summary>The first cards of the library follow each other by this many milliseconds; later ones do not wait longer.</summary>
+    public static int StaggerDelay(int index) => Math.Clamp(index, 0, 5) * 20;
 
     public static MotionSpec For(MotionKind kind) => kind switch
     {
@@ -20,6 +23,8 @@ public static class MotionRules
         MotionKind.Dialog => new(150, 0, -8),
         MotionKind.Toast => new(180, 24, 0),
         MotionKind.Theme => new(240),
+        MotionKind.Lift => new(150, 0, -4),
+        MotionKind.Grow => new(220),
         _ => new(0)
     };
 }
