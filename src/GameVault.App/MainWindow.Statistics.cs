@@ -27,7 +27,7 @@ public partial class MainWindow
             StatisticsPanel.Content = statisticsView;
         }
         libraryVisible = false;
-        LibraryPanel.Visibility = SettingsPanel.Visibility = GamePage.Visibility = OverviewPanel.Visibility = JournalPanel.Visibility = Visibility.Collapsed;
+        LibraryPanel.Visibility = SettingsPanel.Visibility = GamePage.Visibility = OverviewPanel.Visibility = JournalPanel.Visibility = ListsPanel.Visibility = Visibility.Collapsed;
         StatisticsPanel.Visibility = Visibility.Visible;
         RecordRoute();
         var revision = ++statisticsRevision;

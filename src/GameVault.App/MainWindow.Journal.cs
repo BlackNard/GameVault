@@ -28,7 +28,7 @@ public partial class MainWindow
             JournalPanel.Content = journalView;
         }
         libraryVisible = false;
-        LibraryPanel.Visibility = SettingsPanel.Visibility = GamePage.Visibility = OverviewPanel.Visibility = StatisticsPanel.Visibility = Visibility.Collapsed;
+        LibraryPanel.Visibility = SettingsPanel.Visibility = GamePage.Visibility = OverviewPanel.Visibility = StatisticsPanel.Visibility = ListsPanel.Visibility = Visibility.Collapsed;
         JournalPanel.Visibility = Visibility.Visible;
         RecordRoute();
         await LoadJournalAsync(onDay);

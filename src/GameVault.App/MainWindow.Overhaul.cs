@@ -72,6 +72,11 @@ public partial class MainWindow
         if (sender is not ContextMenu menu) return;
         if (GameList.SelectedItem is LibraryItemView chosen && menu.Items.OfType<MenuItem>().FirstOrDefault(i => (i.Header as string) == "Status") is { } status)
             FillStatusMenu(status.Items, chosen);
+        if (GameList.SelectedItem is LibraryItemView listed)
+        {
+            MenuItem? Named(string header) => menu.Items.OfType<MenuItem>().FirstOrDefault(i => (i.Header as string) == header);
+            if (Named("Favourite") is { } favourite && Named("Add to list") is { } addTo) FillListMenu(favourite, addTo, listed);
+        }
         foreach (var entry in menu.Items.OfType<MenuItem>())
             entry.IsEnabled = (entry.Header as string) switch
             {
@@ -157,6 +162,7 @@ public partial class MainWindow
         Mark(CapturesNav, route.Kind == NavKind.Captures);
         Mark(StatisticsNav, route.Kind == NavKind.Statistics);
         Mark(JournalNav, route.Kind == NavKind.Journal);
+        Mark(ListsNav, route.Kind == NavKind.Lists);
     }
 
     private async void RecentClicked(object sender, RoutedEventArgs e)

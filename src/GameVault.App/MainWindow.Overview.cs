@@ -29,7 +29,7 @@ public partial class MainWindow
         captureFolder = kind == NavKind.Captures ? game : null;
         CaptureGalleryPage.Show([]);
         libraryVisible = false;
-        LibraryPanel.Visibility = SettingsPanel.Visibility = GamePage.Visibility = StatisticsPanel.Visibility = JournalPanel.Visibility = Visibility.Collapsed;
+        LibraryPanel.Visibility = SettingsPanel.Visibility = GamePage.Visibility = StatisticsPanel.Visibility = JournalPanel.Visibility = ListsPanel.Visibility = Visibility.Collapsed;
         OverviewPanel.Visibility = Visibility.Visible;
         OverviewTitle.Text = kind == NavKind.Backups ? "Backups" : captureFolder is Guid open ? items.FirstOrDefault(i => i.Game.Id == open)?.Name ?? "Captures" : "Captures";
         OverviewSubtitle.Text = kind == NavKind.Backups ? "The newest verified backup of every game. Back up one now, or open its page for history and restore." : captureFolder is null ? "One folder for every game that has screenshots or recordings, newest first. Open a folder to see them." : "";
