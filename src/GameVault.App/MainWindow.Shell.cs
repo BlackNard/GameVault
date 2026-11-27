@@ -217,14 +217,17 @@ public partial class MainWindow
         if (running is null)
         {
             nowPlayingGame = null;
-            if (NowPlayingButton.Visibility != Visibility.Collapsed) NowPlayingButton.Visibility = Visibility.Collapsed;
+            if (NowPlayingButton.Visibility != Visibility.Collapsed) NowPlayingButton.Visibility = NowPlayingStopButton.Visibility = Visibility.Collapsed;
             return;
         }
         nowPlayingGame = running.GameId;
         var name = items.FirstOrDefault(i => i.Game.Id == running.GameId)?.Name ?? "Game";
         var seconds = launches.GetSessionProgress(running.GameId) is { IsActive: true } progress ? progress.SessionSeconds : 0;
         NowPlayingText.Text = $"{name}   {TimeSpan.FromSeconds(Math.Max(0, seconds)):hh\\:mm\\:ss}";
-        NowPlayingButton.Visibility = Visibility.Visible;
+        NowPlayingButton.Visibility = NowPlayingStopButton.Visibility = Visibility.Visible;
+        var stopping = stoppingGames.Contains(running.GameId);
+        NowPlayingStopButton.Content = stopping ? "Stopping…" : "Stop";
+        NowPlayingStopButton.IsEnabled = !stopping && !quitPreparing && !stoppingObservation;
     }
 
     private async void NowPlayingClicked(object sender, RoutedEventArgs e)
@@ -273,7 +276,7 @@ public partial class MainWindow
             var id = item.Game.Id;
             yield return new PaletteEntry("Action", "Play " + item.Name, "", (Func<Task>)(async () =>
             {
-                if (await NavigateToAsync(NavRoute.Game(id, "Overview"))) PlayGame(this, new RoutedEventArgs());
+                if (await NavigateToAsync(NavRoute.Game(id, "Overview"))) await PlayWithAsync(null);
             }));
             yield return new PaletteEntry("Action", "Back up " + item.Name + " now", "", (Func<Task>)(async () =>
             {

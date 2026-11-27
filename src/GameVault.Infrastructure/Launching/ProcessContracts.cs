@@ -12,6 +12,21 @@ public interface IGameProcess : IDisposable
     Task WaitForExitAsync(CancellationToken cancellationToken);
 }
 
+/// <summary>A running program: who it is, which processes started it, and its file name.</summary>
+public sealed record RunningProcess(ProcessCandidate Candidate, string Name);
+
+/// <summary>What Stop needs beyond observing. A process system without it cannot close games.</summary>
+public interface IGameProcessControl
+{
+    RunningProcess[] Running();
+    /// <summary>Asks the process's windows to close, like clicking X. False when it has none. Access denied (5) means it runs as administrator.</summary>
+    bool RequestClose(ProcessIdentity identity);
+    /// <summary>Ends the process at once. A process that already ended is not an error.</summary>
+    void End(ProcessIdentity identity);
+    /// <summary>The same two things through Windows' permission prompt; error 1223 means it was declined.</summary>
+    Task EndElevatedAsync(bool force, ProcessIdentity[] processes, CancellationToken token);
+}
+
 public interface IGameProcessSystem
 {
     IGameProcess Start(string executable, string workingDirectory);

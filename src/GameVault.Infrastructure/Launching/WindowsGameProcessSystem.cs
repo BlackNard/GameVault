@@ -8,7 +8,7 @@ using Microsoft.Win32.SafeHandles;
 namespace GameVault.Infrastructure.Launching;
 
 [SupportedOSPlatform("windows")]
-public sealed class WindowsGameProcessSystem : IGameProcessSystem
+public sealed partial class WindowsGameProcessSystem : IGameProcessSystem
 {
     private readonly Func<string, string, IGameProcess> startNative;
     private readonly Func<string, string, IGameProcess> startElevated;
@@ -44,7 +44,7 @@ public sealed class WindowsGameProcessSystem : IGameProcessSystem
         { throw new Win32Exception(1223, "Administrator approval was cancelled. The game was not started. Click Play to try again."); }
     }
 
-    public ProcessCandidate[] Find(string executable)
+    private static (List<(int Id, int Parent, string Name)> Entries, Dictionary<int, int> Parents) Snapshot()
     {
         using var snapshot = Native.CreateToolhelp32Snapshot(2, 0);
         if (snapshot.IsInvalid) throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not inspect running games.");
@@ -56,35 +56,44 @@ public sealed class WindowsGameProcessSystem : IGameProcessSystem
         while (Native.Process32Next(snapshot, ref entry));
         var error = Marshal.GetLastWin32Error();
         if (error != 18) throw new Win32Exception(error, "Windows could not complete the process list.");
-        var parents = entries.ToDictionary(e => e.Id, e => e.Parent);
+        return (entries, entries.ToDictionary(e => e.Id, e => e.Parent));
+    }
+
+    private static int[] Ancestors(int parent, Dictionary<int, int> parents)
+    {
+        var ancestors = new List<int>();
+        while (parent != 0 && !ancestors.Contains(parent))
+        {
+            ancestors.Add(parent);
+            if (!parents.TryGetValue(parent, out parent)) break;
+        }
+        return [.. ancestors];
+    }
+
+    public ProcessCandidate[] Find(string executable)
+    {
+        var (entries, parents) = Snapshot();
         var matches = new List<ProcessCandidate>();
         foreach (var item in entries.Where(e => string.Equals(e.Name, Path.GetFileName(executable), StringComparison.OrdinalIgnoreCase)))
         {
             using var process = Native.OpenProcess(0x1000, false, item.Id);
             if (process.IsInvalid)
             {
-                error = Marshal.GetLastWin32Error();
+                var error = Marshal.GetLastWin32Error();
                 if (error is 87 or 6) continue; // Exited between snapshot and inspection.
                 throw new Win32Exception(error, "A possible game process could not be inspected. Check its permissions before retrying.");
             }
             var buffer = new StringBuilder(32768); var length = buffer.Capacity;
             if (!Native.QueryFullProcessImageName(process, 0, buffer, ref length))
             {
-                error = Marshal.GetLastWin32Error();
+                var error = Marshal.GetLastWin32Error();
                 if (Native.GetExitCodeProcess(process, out var exitCode) && exitCode != 259) continue;
                 throw new Win32Exception(error, "Windows could not verify a possible game's executable path.");
             }
             if (!string.Equals(Path.GetFullPath(buffer.ToString()), Path.GetFullPath(executable), StringComparison.OrdinalIgnoreCase)) continue;
             if (!Native.GetProcessTimes(process, out var created, out _, out _, out _))
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not verify a game process identity.");
-            var ancestors = new List<int>();
-            var parent = item.Parent;
-            while (parent != 0 && !ancestors.Contains(parent))
-            {
-                ancestors.Add(parent);
-                if (!parents.TryGetValue(parent, out parent)) break;
-            }
-            matches.Add(new(new(item.Id, DateTime.FromFileTimeUtc(created).Ticks), ancestors.ToArray()));
+            matches.Add(new(new(item.Id, DateTime.FromFileTimeUtc(created).Ticks), Ancestors(item.Parent, parents)));
         }
         return matches.ToArray();
     }
@@ -103,7 +112,7 @@ public sealed class WindowsGameProcessSystem : IGameProcessSystem
         return candidates.Any(candidate => candidate.Identity == identity) ? Open(identity) : null;
     }
 
-    private static class Native
+    private static partial class Native
     {
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public struct ProcessEntry

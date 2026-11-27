@@ -96,6 +96,13 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length > 0 && e.Args[0] == "--stop-helper")
+        {
+            // Stops an administrator game and ends; like the launch helper it opens no window or data.
+            using var current = WindowsIdentity.GetCurrent();
+            Shutdown(new WindowsPrincipal(current).IsInRole(WindowsBuiltInRole.Administrator) ? ElevationBroker.RunStopHelper(e.Args) : 1);
+            return;
+        }
         if (e.Args.Length > 0 && e.Args[0] == "--launch-helper")
         {
             // Helper mode never opens the UI, application workspace, settings, or game profiles.

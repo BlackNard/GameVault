@@ -11,6 +11,12 @@ public static class ReleaseNotes
 {
     public static IReadOnlyList<ReleaseNote> All { get; } =
     [
+        new("0.1.2",
+            [
+                "Stop a running game from GameVault, on its page or beside the running game at the top.",
+                "GameVault asks the game to close first, and offers Force stop if it stays open."
+            ],
+            []),
         new("0.1.1",
             [
                 "GameVault now finds where a game saves, backs it up and tells you. \"Not this folder\" undoes a wrong pick.",

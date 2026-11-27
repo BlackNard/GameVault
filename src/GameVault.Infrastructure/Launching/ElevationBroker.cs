@@ -14,7 +14,7 @@ internal sealed record BrokerHandles(long ProcessHandle, long JobHandle, Process
 internal sealed record BrokerResponse(BrokerHandles? Handles, string? Error, int NativeError = 0);
 
 [SupportedOSPlatform("windows")]
-public static class ElevationBroker
+public static partial class ElevationBroker
 {
     internal static IGameProcess Launch(string executable, string workingDirectory) => Launch(executable, workingDirectory, "");
 

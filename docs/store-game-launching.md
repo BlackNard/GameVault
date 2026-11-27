@@ -12,6 +12,10 @@ The actual process is an explicit Launch settings target when configured, otherw
 
 Stopping GameVault observation leaves the game/client open and retains checkpoints. Recovery verifies the recorded actual executable/PID/creation identity and excludes unobserved time. Confirmed game exit, rather than store-client lifetime, remains the basis for automatic save backups. Save-location discovery still needs its supported game rules or an explicit source; store launch support does not imply universal save discovery.
 
+## Stop
+
+While a tracked game runs, its Play button (and the title bar pill) offers **Stop** (issue #113). After a confirmation GameVault asks the game's windows to close; if it is still open after ten seconds, **Force stop** is offered. Only the game and programs it started are closed, never store clients, browsers or Explorer (`StopRules`). An administrator game goes through a one-shot elevated helper (`--stop-helper`), so Windows asks for permission. The session then ends as usual, so playtime and the save backup follow. Quitting GameVault still leaves games open.
+
 ## Restore through Add game
 
 Removing a game from the library keeps its profile. Adding the same executable again offers an in-place restore of its saved profile, retaining stable ID, configuration, artwork, playtime, sessions, notes, journals and backups. Empty Add form defaults must not reset retained settings. Cancelling leaves the archive and Add form intact. Existing active duplicates and protected profiles remain guarded. No profile-folder deletion or duplicated history is needed.
