@@ -425,7 +425,7 @@ public partial class MainWindow : Window
         LibraryPanel.Visibility = SettingsPanel.Visibility = Visibility.Collapsed;
         NotesHost.Visibility = Visibility.Visible;
         DetailFields.Visibility=Visibility.Collapsed;
-        OperationNotice.Text = "Journal · " + item.Name;
+        OperationNotice.Text = "Sessions & notes · " + item.Name;
         UpdateButtons();
         RecordRoute();
     }

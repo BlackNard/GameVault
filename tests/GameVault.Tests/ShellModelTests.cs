@@ -77,7 +77,7 @@ public sealed class ShellModelTests
     [InlineData(NavKind.Journal, null, "Journal")]
     [InlineData(NavKind.Lists, null, "Lists")]
     [InlineData(NavKind.Game, "Overview", "Library › TEKKEN 8")]
-    [InlineData(NavKind.Game, "Sessions", "Library › TEKKEN 8 › Journal")]
+    [InlineData(NavKind.Game, "Sessions", "Library › TEKKEN 8 › Sessions & notes")]
     [InlineData(NavKind.Game, "Saves", "Library › TEKKEN 8 › Saves")]
     [InlineData(NavKind.Game, "Media", "Library › TEKKEN 8 › Media")]
     public void Breadcrumb_names_where_you_are(NavKind kind, string? section, string expected) =>

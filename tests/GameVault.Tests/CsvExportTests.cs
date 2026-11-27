@@ -61,7 +61,7 @@ public sealed class CsvExportTests : IDisposable
         Assert.Contains("\"Alpha, the game\",Retired,3.5,1.00,1,2026-05-03,,yes,,,no", games);
         Assert.Contains("\"Alpha, the game\",2026-05-03 20:00,2026-05-03 21:00,60", File.ReadAllText(Path.Combine(written.Folder, "sessions.csv")));
         Assert.Contains("First,PC,2026-05-01,,Playing,1.50,,yes,", File.ReadAllText(Path.Combine(written.Folder, "playthroughs.csv")));
-        Assert.Contains("2026-05-04,30,,'=danger,a; b", File.ReadAllText(Path.Combine(written.Folder, "journal.csv")));
+        Assert.Contains("2026-05-04,,30,'=danger,a; b", File.ReadAllText(Path.Combine(written.Folder, "journal.csv")));
         Assert.Contains("Best,yes,1,\"Alpha, the game\",", File.ReadAllText(Path.Combine(written.Folder, "lists.csv")));
         Assert.All(Directory.GetFiles(written.Folder), f => Assert.DoesNotContain("secret-folder", File.ReadAllText(f)));
         var again = await service.ExportAsync(Path.Combine(root, "out"), TimeZoneInfo.Utc, new DateTime(2026, 5, 5, 9, 0, 0));

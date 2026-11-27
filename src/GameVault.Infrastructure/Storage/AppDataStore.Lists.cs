@@ -23,8 +23,12 @@ public sealed partial class AppDataStore
         EnsureRoots();
         var stored = documents.Read<ListsDocument>(ListsFile, ListsDocument.IsValid);
         JsonDocuments.RequireWritable(stored);
-        var next = change(stored.Value ?? ListsDocument.Empty);
+        var before = stored.Value ?? ListsDocument.Empty;
+        var next = change(before);
         documents.Write(ListsFile, next, ListsDocument.IsValid);
+        // What was fetched for an entry that is gone goes with it.
+        static IEnumerable<Guid> Outside(ListsDocument d) => d.Lists.SelectMany(l => l.Entries).Where(e => e.GameId is null).Select(e => e.Id);
+        RemoveListGames(Outside(before).Except(Outside(next)).ToArray());
         return next;
     });
 }

@@ -1,10 +1,11 @@
 using GameVault.Core;
 using GameVault.Infrastructure.Library;
+using GameVault.Infrastructure.Notes;
 using GameVault.Infrastructure.Storage;
 
 namespace GameVault.Tests;
 
-/// <summary>The journal (ticket #96): recorded sessions with their notes, and entries added by hand, across all games.</summary>
+/// <summary>The journal (ticket #96): entries added by hand, about a game or about none. Session notes are not part of it.</summary>
 public sealed class JournalTests : IDisposable
 {
     private readonly string root = Path.Combine(Path.GetTempPath(), "GameVault journal", Guid.NewGuid().ToString("N"));
@@ -65,7 +66,7 @@ public sealed class JournalTests : IDisposable
     }
 
     [Fact]
-    public async Task TheJournalListsSessionsWithTheirNotesAndEntriesNewestFirstAcrossGames()
+    public async Task TheJournalListsOnlyEntriesNewestFirstWithAndWithoutAGame()
     {
         var alpha = await AddAsync("Alpha");
         var beta = await AddAsync("Beta");
@@ -74,15 +75,56 @@ public sealed class JournalTests : IDisposable
         await store.SaveStatisticsAsync(new(1, alpha, [new(session, at, at.AddHours(1), 3600)], []));
         await store.SaveNoteAsync(alpha, session, "The sewers", "Found the key.");
         await store.SaveJournalEntryAsync(beta, Entry(D(4)));
-        await store.SaveJournalEntryAsync(alpha, Entry(D(1), "Early"));
+        await store.SaveJournalEntryAsync(alpha, Entry(D(1), "Early") with { Title = " First " });
+        await store.SaveJournalEntryAsync(Guid.Empty, Entry(D(2), "Anything") with { PlaythroughId = Guid.NewGuid() });
         await library.SetArchivedAsync(beta, true);                              // removed games keep their history
 
-        var feed = await new JournalService(store).LoadAsync(TimeZoneInfo.Utc);
+        var feed = await new JournalService(store).LoadAsync();
         var all = JournalRules.Filter(feed.Items, null, null, null);
-        Assert.Equal([("Beta", false), ("Alpha", true), ("Alpha", false)], all.Select(i => (i.Game, i.SessionId is not null)));
-        Assert.Equal(("The sewers", "Found the key.", 3600L), (all[1].Title, all[1].Note, all[1].Seconds!.Value));
-        Assert.Equal(2, JournalRules.Filter(feed.Items, alpha, null, null).Length);
-        Assert.Equal(["Alpha"], JournalRules.Filter(feed.Items, null, D(3), D(3)).Select(i => i.Game));
+        Assert.Equal(new (string?, string)[] { ("Beta", "Wrote this"), (null, "Anything"), ("Alpha", "Early") }, all.Select(i => (i.Game, i.Entry.Note)));
+        Assert.Null(all[1].Entry.PlaythroughId);
+        Assert.Equal("First", all[2].Entry.Title);
+        Assert.Equal("Anything", Assert.Single(JournalRules.Filter(feed.Items, Guid.Empty, null, null)).Entry.Note);
+        Assert.Single(JournalRules.Filter(feed.Items, alpha, null, null));
+        Assert.Equal(["Beta"], JournalRules.Filter(feed.Items, null, D(3), D(4)).Select(i => i.Game));
         Assert.Empty(feed.Warnings);
+        await store.DeleteJournalEntryAsync(Guid.Empty, all[1].Entry.Id);
+        Assert.Empty((await store.LoadGeneralJournalAsync()).Value!.Entries);
     }
+
+    [Fact]
+    public async Task EntriesAreExportedIntoTheGamesEntriesFolderOrTheVaultsOwn()
+    {
+        var alpha = await AddAsync("Alpha");
+        var session = Guid.NewGuid();
+        var at = new DateTimeOffset(2026, 5, 3, 20, 0, 0, TimeSpan.Zero);
+        await store.SaveStatisticsAsync(new(1, alpha, [new(session, at, at.AddHours(1), 3600)], []));
+        await store.SaveNoteAsync(alpha, session, "The sewers", "Found the key.");
+        await store.SaveJournalEntryAsync(alpha, Entry(D(1), "Early") with { Title = "Plans" });
+        await store.SaveJournalEntryAsync(alpha, Entry(D(2), "Later") with { Title = "Plans" });
+        await store.SaveJournalEntryAsync(Guid.Empty, Entry(D(2), "Anything"));
+        var vault = new ObsidianVault(paths, store);
+        var folder = await vault.CreateAsync(vault.DefaultPath);
+        Task<ObsidianConflictChoice> Never(ObsidianConflict _) => throw new InvalidOperationException("no conflict expected");
+
+        var items = (await new JournalService(store).LoadAsync()).Items;
+        var first = await vault.ExportEntriesAsync(items, Never);
+        Assert.Equal((3, 0), (first.Created, first.Failures.Length));
+        await vault.ExportAsync((await NoteExports.LoadAsync(store, alpha)).Entries, Never);
+        Assert.Equal(["Plans (2).md", "Plans.md"], Names(folder, "Alpha", "Entries"));
+        Assert.Equal(["The sewers.md"], Names(folder, "Alpha", "Session notes"));
+        Assert.Equal(["Entry.md"], Names(folder, "Entries"));
+        var text = File.ReadAllText(Path.Combine(folder, "Alpha", "Entries", "Plans.md"));
+        Assert.Contains("date: 2026-05-01\n", text);
+        Assert.Contains("tags: [\"story\"]\n", text);
+        Assert.Contains("# Plans\n\nEarly", text);
+
+        // Exporting again repeats nothing; a changed entry updates its own note.
+        var changed = items.Select(i => i.Entry.Note == "Anything" ? i with { Entry = i.Entry with { Note = "Changed" } } : i).ToArray();
+        var again = await vault.ExportEntriesAsync(changed, Never);
+        Assert.Equal((0, 1, 2), (again.Created, again.Updated, again.Unchanged));
+        Assert.Contains("Changed", File.ReadAllText(Path.Combine(folder, "Entries", "Entry.md")));
+    }
+
+    private static string[] Names(params string[] parts) => [.. Directory.GetFiles(Path.Combine(parts), "*.md").Select(f => Path.GetFileName(f)).Order(StringComparer.Ordinal)];
 }

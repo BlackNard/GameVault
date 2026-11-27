@@ -94,39 +94,14 @@ public partial class NoteExportWindow : UserControl
         try
         {
             var vault = new ObsidianVault(paths, store);
-            if (!await ReadyVaultAsync(vault)) { ResultNotice.Text = "Nothing was exported."; return; }
+            if (!await ObsidianPrompts.ReadyVaultAsync(this, vault)) { ResultNotice.Text = "Nothing was exported."; return; }
             ResultNotice.Text = "Exporting…";
-            var result = await vault.ExportAsync(catalog.Entries, async conflict =>
-                await InlinePrompts.ShowAsync(this, $"“{conflict.Title}” for {conflict.GameName} was changed in Obsidian.\n\nYes: replace it (a copy of the Obsidian version is kept).\nNo: keep the Obsidian version.\nCancel: stop exporting.",
-                    "Note changed in Obsidian", MessageBoxButton.YesNoCancel, MessageBoxResult.Cancel) switch
-                { MessageBoxResult.Yes => ObsidianConflictChoice.Replace, MessageBoxResult.No => ObsidianConflictChoice.KeepTheirs, _ => ObsidianConflictChoice.Cancel });
+            var result = await vault.ExportAsync(catalog.Entries, conflict => ObsidianPrompts.ConflictAsync(this, conflict));
             if (result.Failures.Length == 0 && !result.Cancelled) navigation.AcceptSaved(Snapshot());
-            var path = (await vault.StatusAsync()).Path!;
-            var where = ObsidianApp.KnownVaultId(path, ObsidianApp.DefaultConfig) is null ? ObsidianApp.OpenHint(path) : path;
-            ResultNotice.Text = (result.Cancelled ? "Stopped. " : "") + $"{result.Created} new, {result.Updated} updated, {result.Unchanged} already exported, {result.Kept} kept as in Obsidian.\n" +
-                where + (result.Failures.Length == 0 ? "" : "\nFailures:\n" + string.Join("\n", result.Failures));
+            ResultNotice.Text = await ObsidianPrompts.SummaryAsync(vault, result);
         }
         catch (Exception error) when (Expected(error)) { ResultNotice.Text = "Could not export. " + error.Message; }
         finally { SetBusy(false); }
-    }
-
-    /// <summary>Makes sure a vault is there: a first one is created after the player agrees to the place; a missing one is located or replaced.</summary>
-    private async Task<bool> ReadyVaultAsync(ObsidianVault vault)
-    {
-        var status = await vault.StatusAsync();
-        if (status.State == ObsidianVaultState.Ready) return true;
-        if (status.State == ObsidianVaultState.NotLinked)
-        {
-            if (await InlinePrompts.ShowAsync(this, "No Obsidian vault is linked yet. Create one here?\n\n" + vault.DefaultPath, "Create vault", MessageBoxButton.YesNo, MessageBoxResult.No) != MessageBoxResult.Yes) return false;
-            await vault.CreateAsync(vault.DefaultPath);
-            return true;
-        }
-        var answer = await InlinePrompts.ShowAsync(this, $"{status.Message}\n\nYes: choose where the vault is now.\nNo: create a new one at {vault.DefaultPath}\nCancel: do nothing.",
-            "Vault not found", MessageBoxButton.YesNoCancel, MessageBoxResult.Cancel);
-        if (answer == MessageBoxResult.No) { await vault.CreateAsync(vault.DefaultPath); return true; }
-        if (answer != MessageBoxResult.Yes || NativePickers.Folder(Window.GetWindow(this)!, "Choose your Obsidian vault") is not { } folder) return false;
-        await vault.UseExistingAsync(folder);
-        return true;
     }
 
     private async void CloseExport(object sender, RoutedEventArgs e) { if (await CanLeaveAsync()) Completed?.Invoke(this, false); }

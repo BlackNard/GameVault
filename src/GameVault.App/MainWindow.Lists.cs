@@ -13,7 +13,12 @@ public partial class MainWindow
 
     private bool ListsVisible => ListsPanel.Visibility == Visibility.Visible;
 
-    private async void ShowLists(object sender, RoutedEventArgs e) => await NavigateToAsync(NavRoute.Lists);
+    private async void ShowLists(object sender, RoutedEventArgs e)
+    {
+        // The sidebar goes to all lists, also from inside one.
+        if (ListsVisible) listsView?.ShowAll();
+        else if (await NavigateToAsync(NavRoute.Lists)) listsView?.ShowAll();
+    }
 
     private async Task ShowListsAsync()
     {
@@ -26,6 +31,9 @@ public partial class MainWindow
             listsView.AddEntryRequested += async (_, list) => await AddListEntryAsync(list);
             listsView.EditEntryRequested += async (_, which) => await EditListNoteAsync(which.List, which.Entry);
             listsView.GameRequested += async (_, id) => await NavigateToAsync(NavRoute.Game(id, "Overview"));
+            listsView.RefreshRequested += async (_, entry) => await RefreshListGameAsync(entry);
+            listsView.MatchRequested += async (_, entry) => await MatchListGameAsync(entry);
+            listsView.CoverRequested += async (_, entry) => await ChooseListCoverAsync(entry);
             ListsPanel.Content = listsView;
         }
         libraryVisible = false;
@@ -42,8 +50,10 @@ public partial class MainWindow
         {
             var stored = await store.LoadListsAsync();
             lists = stored.Value ?? ListsDocument.Empty;
+            await LoadListGamesAsync();
             ShowListsState();
             if (stored.Message is { } message && ListsVisible) listsView?.ShowProblem(message);
+            if (ListsVisible) _ = LookUpNewListGamesAsync();
         }
         catch (Exception error) when (IsExpected(error) || error is IOException) { listsView?.ShowProblem(error.Message); }
     }
@@ -51,13 +61,14 @@ public partial class MainWindow
     private void ShowListsState()
     {
         if (ListsVisible)
-            listsView?.Show(lists, items.Where(i => i.Game.Profile is not null).Select(i => new ListGame(i.Game.Id, i.Name, i.Game.Profile!.IsArchived)));
+            listsView?.Show(lists, items.Where(i => i.Game.Profile is not null).Select(i => new ListGame(i.Game.Id, i.Name, i.Game.Profile!.IsArchived, i.Game.CoverFile, i.Played)),
+                listGames.ToDictionary(p => p.Key, p => p.Value with { Looking = listLookups.Contains(p.Key) }));
         ShowFavourite(GameList.SelectedItem as LibraryItemView);
     }
 
     private async Task ChangeListsAsync(Func<ListsDocument, ListsDocument> change)
     {
-        try { lists = await store.ChangeListsAsync(change); ShowListsState(); }
+        try { lists = await store.ChangeListsAsync(change); await LoadListGamesAsync(); ShowListsState(); }
         catch (Exception error) when (IsExpected(error) || error is IOException or ArgumentException) { ShowToast("The list was not changed", error.Message, true); }
     }
 
@@ -126,15 +137,17 @@ public partial class MainWindow
         var form = new FormView(settings.Theme, "Add to " + list.Name, () =>
         {
             var chosen = FormView.Chosen<Guid>(game);
-            var item = library.FirstOrDefault(i => i.Game.Id == chosen);
-            var text = item?.Name ?? title.Text.Trim();
-            if (text.Length == 0) throw new ArgumentException("Choose a game from the library, or write a title.");
+            var typed = title.Text.Trim();
+            // A typed name that is a library game's is that game.
+            var item = library.FirstOrDefault(i => i.Game.Id == chosen) ?? library.FirstOrDefault(i => string.Equals(i.Name, typed, StringComparison.CurrentCultureIgnoreCase));
+            var text = item?.Name ?? typed;
+            if (text.Length == 0) throw new ArgumentException("Choose a game from your library, or type its name.");
             var comment = note.Text.Trim() is { Length: > 0 } n ? n : null;
             return store.ChangeListsAsync(d => d.Lists.FirstOrDefault(l => l.Id == list.Id) is { } current
                 ? GameListRules.Upsert(d, current with { Entries = GameListRules.Add(current.Entries, new(Guid.NewGuid(), item?.Game.Id, text, comment)) }) : d);
         });
-        game = form.Choice("Game from your library", library.Select(i => (i.Game.Id, i.Name)).Prepend((Guid.Empty, "Not in my library (write the title below)")), Guid.Empty);
-        title = form.Text("Title, for a game that is not in the library", "", 200);
+        game = form.Choice("Game from your library", library.Select(i => (i.Game.Id, i.Name)).Prepend((Guid.Empty, "Another game (type its name below)")), Guid.Empty);
+        title = form.Text("Name of another game: its cover and details are looked up", "", 200);
         note = form.Text("Note (optional)", "", 1000, lines: true);
         if (await ShowFormAsync(form)) await LoadListsAsync();
     }

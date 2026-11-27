@@ -27,6 +27,8 @@ public sealed class CsvExportService(AppDataStore store)
         static string Hours(long seconds) => (seconds / 3600.0).ToString("0.00", CultureInfo.InvariantCulture);
         static string Yes(bool value) => value ? "yes" : "no";
         string Local(DateTimeOffset at) => TimeZoneInfo.ConvertTime(at, zone).ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+        string?[] Line(string game, JournalEntry entry) =>
+            [game, Day(entry.Date), entry.Title, entry.Minutes?.ToString(CultureInfo.InvariantCulture), entry.Note, string.Join("; ", entry.Tags)];
         foreach (var game in snapshot.Games.OrderBy(g => g.Profile.Value?.Name, StringComparer.CurrentCultureIgnoreCase))
         {
             if (game.Profile.Value is not { } profile) { warnings.Add("A game's profile could not be read, so it is not included."); continue; }
@@ -48,8 +50,10 @@ public sealed class CsvExportService(AppDataStore store)
                 runs.Add([profile.Name, run.Title, run.Platform, Day(run.Started), Day(run.Finished), run.Outcome.ToString(), run.Minutes is { } m ? Hours(m * 60L) : "",
                     run.HalfStars > 0 ? (run.HalfStars / 2.0).ToString("0.#", CultureInfo.InvariantCulture) : "", Yes(run.Mastered), run.Review]);
             foreach (var entry in ((await store.LoadJournalAsync(game.Id).ConfigureAwait(false)).Value?.Entries ?? []).OrderBy(e => e.Date))
-                journal.Add([profile.Name, Day(entry.Date), entry.Minutes?.ToString(CultureInfo.InvariantCulture), entry.Title, entry.Note, string.Join("; ", entry.Tags)]);
+                journal.Add(Line(profile.Name, entry));
         }
+        foreach (var entry in ((await store.LoadGeneralJournalAsync().ConfigureAwait(false)).Value?.Entries ?? []).OrderBy(e => e.Date))
+            journal.Add(Line("", entry));
         var listRows = lists.Lists.SelectMany(l => l.Entries.Select((e, i) => new[]
         { l.Name, Yes(l.Ranked), (i + 1).ToString(CultureInfo.InvariantCulture), e.GameId is { } id && names.TryGetValue(id, out var name) ? name : e.Title, e.Note })).ToArray();
 
@@ -66,7 +70,7 @@ public sealed class CsvExportService(AppDataStore store)
             Write("games.csv", ["Name", "Status", "Rating", "Hours played", "Sessions", "Last played", "Completed on", "Favourite", "Tags", "Genres", "Removed"], games);
             Write("sessions.csv", ["Game", "Started", "Ended", "Minutes"], sessions);
             Write("playthroughs.csv", ["Game", "Title", "Platform", "Started", "Finished", "Outcome", "Hours typed", "Rating", "Mastered", "Review"], runs);
-            Write("journal.csv", ["Game", "Date", "Minutes", "Title", "Note", "Tags"], journal);
+            Write("journal.csv", ["Game", "Date", "Title", "Minutes", "Note", "Tags"], journal);
             Write("lists.csv", ["List", "Ranked", "Position", "Game", "Note"], listRows);
             return new CsvExportResult(folder, games.Count, [.. warnings.Distinct()]);
         }).ConfigureAwait(false);

@@ -4,18 +4,7 @@ using GameVault.Core;
 using GameVault.Infrastructure.Storage;
 namespace GameVault.Infrastructure.Notes;
 
-/// <param name="Added">A journal entry added by hand: its note carries the entry's own id in place of a session's.</param>
-public sealed record NoteExportEntry(string GameName, NoteDocument Note, PlaySession? Session, string Context, int Rating = 0, bool Added = false)
-{
-    public static NoteExportEntry FromJournal(string game, Guid gameId, JournalEntry entry)
-    {
-        var day = new DateTimeOffset(entry.Date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
-        var facts = new List<string>();
-        if (entry.Minutes is { } minutes) facts.Add($"Played: {minutes} minutes");
-        if (entry.Tags.Length > 0) facts.Add("Tags: " + string.Join(", ", entry.Tags));
-        return new(game, new(1, gameId, entry.Id, entry.Title ?? "", entry.Note, day, day), null, string.Join(" · ", facts), 0, true);
-    }
-}
+public sealed record NoteExportEntry(string GameName, NoteDocument Note, PlaySession? Session, string Context, int Rating = 0);
 public sealed record NoteExportCatalog(NoteExportEntry[] Entries, string[] Warnings);
 public sealed record NoteExportResult(string[] Paths, string[] Failures);
 public delegate void NoteWriter(Stream output, IReadOnlyList<NoteExportEntry> entries);
@@ -38,9 +27,6 @@ public static class NoteExports
                 if (row.Note.Value is NoteDocument note && row.Note.State == DocumentState.Ready)
                     entries.Add(new(name, note, row.Session, row.Context));
             }
-            var journal = await store.LoadJournalAsync(game.Id);
-            if (journal.Message is { } problem) warnings.Add(name + ": " + problem);
-            entries.AddRange((journal.Value?.Entries ?? []).Select(e => NoteExportEntry.FromJournal(name, game.Id, e)));
             if (notes.Review is { State: DocumentState.Ready, Value: NoteDocument review })
                 entries.Add(new(name, review, null, "Game review", (await store.LoadRatingAsync(game.Id)).Value?.HalfStars ?? 0));
         }
@@ -54,13 +40,7 @@ public static class NoteExports
     public static string Metadata(NoteExportEntry entry)
     {
         var note = entry.Note;
-        var lines = new List<string> { entry.Added ? "Journal entry" : note.SessionId is null ? "Game review" : "Session note" };
-        if (entry.Added)
-        {
-            lines.Add("Date: " + note.CreatedAt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
-            if (entry.Context.Length > 0) lines.Add(entry.Context);
-            return string.Join("\n", lines);
-        }
+        var lines = new List<string> { note.SessionId is null ? "Game review" : "Session note" };
         if (entry.Session is PlaySession session)
         {
             lines.Add("Started: " + session.StartedAt.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture));

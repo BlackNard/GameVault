@@ -47,7 +47,7 @@ public partial class MainWindow
         toastQueue.Add(title, detail, isError, actionLabel, action);
     }
 
-    private static readonly string[] PageLabels = ["Journal · ", "Save sources · ", "Backups · "];
+    private static readonly string[] PageLabels = ["Sessions & notes · ", "Save sources · ", "Backups · "];
 
     private void OperationNoticeChanged()
     {

@@ -22,8 +22,6 @@ public partial class MainWindow
         {
             statisticsView = new StatisticsView();
             statisticsView.GameRequested += async (_, id) => await NavigateToAsync(NavRoute.Game(id, "Overview"));
-            // A day of the calendar opens what happened on it.
-            statisticsView.DayRequested += async (_, day) => { if (await NavigateToAsync(NavRoute.Journal)) await LoadJournalAsync(day); };
             StatisticsPanel.Content = statisticsView;
         }
         libraryVisible = false;

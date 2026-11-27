@@ -183,7 +183,7 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 
 ## 8k. Five-star rating (issue #59)
 
-- [ ] A game's Journal > **Review** tab shows five stars; clicking the left or right half of a star gives a half or whole rating and says it is saved; clicking the same rating again clears it. It works for a game that is not Completed.
+- [ ] A game's Sessions & notes > **Review** tab shows five stars; clicking the left or right half of a star gives a half or whole rating and says it is saved; clicking the same rating again clears it. It works for a game that is not Completed.
 - [ ] Keyboard: Tab to the stars; arrows change by half a star, 1 to 5 pick whole stars, Delete clears.
 - [ ] The game page shows a **Your rating** card next to Total playtime as soon as it opens; clicking its stars saves and matches the Review tab; **Sort: Highest rated** and the **Rating** filter work; adding or importing a game clears the rating filter.
 - [ ] Review export contains the rating; the rating survives restart, data backup/restore and import from an old folder. The stars look right in several themes.
@@ -278,7 +278,7 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 
 - [ ] **Settings > Backups and data > Obsidian**: **Create vault** makes `Obsidian Vault` inside the GameVault folder; in Obsidian, **Open folder as vault** opens it, and **Open in Obsidian** then appears and works.
 - [ ] **Copy vault path** copies the folder, and the page and the export result name the one folder to open in Obsidian until Obsidian knows it.
-- [ ] A game's **Journal > Export… > Obsidian vault**: the selected note and all notes become readable notes in a folder for the game; the review is **Review**.
+- [ ] A game's **Sessions & notes > Export… > Obsidian vault**: the selected note and all notes become readable notes in a folder for the game; the review is **Review**.
 - [ ] Export again: nothing is duplicated. Change a note in GameVault: the same file updates. Edit a note in Obsidian and export: you are asked, and **Yes** keeps a copy of your version.
 - [ ] Rename the game or move a note inside its folder: still no duplicates. With no vault linked, export asks once before creating one.
 
@@ -297,7 +297,7 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 
 ## 8ab. More statuses (issue #94)
 
-- [ ] **Backlog**, **Abandoned** and **Retired** can be chosen in the game editor and in the game's Journal, and show on the game, in filters, saved views and statistics. Their library chips appear once a game has them.
+- [ ] **Backlog**, **Abandoned** and **Retired** can be chosen in the game editor and in Sessions & notes, and show on the game, in filters, saved views and statistics. Their library chips appear once a game has them.
 - [ ] The status can be changed with the button on a game's page and with **Status** in a card's three-dot (or right-click) menu, also while a status filter is on.
 - [ ] Playing a Backlog game makes it Playing; a Retired game can be reviewed; editing a game's name keeps its status.
 
@@ -308,15 +308,18 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 
 ## 8ad. Journal (issue #96)
 
-- [ ] **Journal** in the sidebar lists sessions with their notes and added entries for all games, newest first; the game and period filters work, and **Open** shows the line in that game's journal.
-- [ ] A game's **Journal** tab lists sessions and added entries together: write a note, tags and a playthrough for a session; **Add entry**, edit and delete an entry; leaving unsaved typing asks. Playtime and statistics do not change because of an entry.
-- [ ] **Time corrections** keeps the correction history, and export includes added entries.
-- [ ] Clicking a day in the Statistics activity calendar opens the journal on that day.
+- [ ] **Journal** in the sidebar lists only your own entries (no sessions), newest first; the game filter (including **No game**) and period filter work.
+- [ ] **Add entry…** with and without a game, **Edit** and delete work; playtime and statistics do not change because of an entry.
+- [ ] **Export** on an entry and **Export to Obsidian** above the list: entries of a game go to `<game>/Entries`, entries without a game to `Entries` at the top of the vault. Exporting again repeats nothing; an edited entry updates its note.
+- [ ] A game's **Sessions & notes** holds session notes and the review only; a newly exported session note goes to `<game>/Session notes` (notes exported before stay where they are).
 
 ## 8ae. Lists and favourites (issue #97)
 
-- [ ] **Favourite** on a game's page and in a card's menu adds it to **Lists > Favourites**, where the order can be changed and the first four are shown large.
-- [ ] **New list…**, **Add a game…** (from the library or just a title), notes, ranking, moving, removing and deleting the list work; **Add to list** in a card's menu works.
+- [ ] **Favourite** on a game's page and in a card's menu adds it to **Lists > Favourites**, where the order can be changed.
+- [ ] **New list…**, **Add a game…** from the library, notes, ranking, moving, removing and deleting the list work; **Add to list** in a card's menu works.
+- [ ] **Lists** shows a card per list with some of its covers; a card opens the list as game cards; **‹ All lists** and the sidebar return.
+- [ ] **Add a game…** with a name that is not in the library fetches its cover and details; its card opens them; **Not the right game?**, **Refresh info** and **Choose cover…** work; offline, nothing breaks.
+- [ ] On a card, ⋯ or right-click moves, adds a note and removes; ranked lists show numbers.
 
 ## 8af. CSV export (issue #98)
 
