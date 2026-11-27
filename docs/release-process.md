@@ -38,6 +38,10 @@ The automatic in-place update ([docs/update-check.md](update-check.md)) download
 
 Before building the commit a preview release is made from, set `GameVaultPreview` in `Directory.Build.props` to that preview's number and create the draft with the matching tag (`-Tag v<version>-preview.N`). The app reports `<version>-preview.N` and the notify-only update check ([docs/update-check.md](update-check.md)) compares it with the GitHub release tags.
 
+## Release names
+
+A release's name does not contain the word "Preview" (the owner's choice, from the release after preview 7). Version numbers and tags are unchanged unless the owner decides otherwise: installed copies compare them to find updates.
+
 ## What's new notes
 
 Add the release's entry to `src/GameVault.Core/ReleaseNotes.cs` (newest first, short lines for players, **New** and **Fixed**) before the build it is made from; a test fails when the version being built has none. Prepare the GitHub release notes from the same text.

@@ -36,7 +36,7 @@ public sealed partial class StatisticsView
         sessions.Children.Add(insightFigures);
         completedNames.Margin = new Thickness(0, 0, 0, 6);
         sessions.Children.Add(completedNames);
-        sessions.Children.Add(Muted("Completion dates are recorded from this version on, when you set a game to Completed."));
+        SettingHelp.SetText(insightFigures, "Completion dates are recorded when you set a game to Completed.");
         insightSection = Section("Sessions and completions", sessions);
         insightSection.Margin = new Thickness(0, 18, 0, 0);
         body.Children.Add(insightSection);
@@ -47,7 +47,10 @@ public sealed partial class StatisticsView
         var patterns = new StackPanel();
         patterns.Children.Add(Muted("By day of the week", new Thickness(0, 0, 0, 6)));
         patterns.Children.Add(weekdayChart);
-        patterns.Children.Add(Muted("By time of day (when sessions ran)", new Thickness(0, 14, 0, 6)));
+        var byTime = Muted("By time of day", new Thickness(0, 14, 0, 6));
+        byTime.HorizontalAlignment = HorizontalAlignment.Left;
+        SettingHelp.SetText(byTime, "Counted at the times your sessions ran.");
+        patterns.Children.Add(byTime);
         patterns.Children.Add(hourChart);
         patterns.Children.Add(patternNote);
         patternSection = Section("When you play", patterns);

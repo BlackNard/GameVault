@@ -88,15 +88,15 @@ public partial class MainWindow
                 Review = review.Text.Trim() is { Length: > 0 } r ? r : null, Mastered = mastered.IsChecked == true
             });
         }, existing is null ? null : () => store.DeletePlaythroughAsync(game, existing.Id));
-        title = form.Text("Title (for example: First run, or Claire)", run.Title, 120);
+        title = form.Text("Title", run.Title, 120, help: "For example: First run, or Claire.");
         outcome = form.Choice("How it stands", Enum.GetValues<PlaythroughOutcome>().Select(o => (o, o.ToString())), run.Outcome);
         platform = form.Text("Platform", run.Platform, 80);
-        started = form.Text("Started (year-month-day, optional)", FormView.DateText(run.Started), 10);
-        finished = form.Text("Finished (year-month-day, optional)", FormView.DateText(run.Finished), 10);
-        hours = form.Text("Hours (leave empty to count recorded sessions between the dates)", run.Minutes is { } m ? (m / 60.0).ToString("0.##", CultureInfo.CurrentCulture) : "", 8);
+        started = form.Text("Started", FormView.DateText(run.Started), 10, help: "Year-month-day, for example 2026-11-27. Optional.");
+        finished = form.Text("Finished", FormView.DateText(run.Finished), 10, help: "Year-month-day, for example 2026-11-27. Optional.");
+        hours = form.Text("Hours", run.Minutes is { } m ? (m / 60.0).ToString("0.##", CultureInfo.CurrentCulture) : "", 8, help: "Leave empty to count the recorded sessions between the dates.");
         stars = form.Stars("Rating", run.HalfStars);
         review = form.Text("Short review", run.Review, 4000, lines: true);
-        mastered = form.Check("Mastered (everything done)", run.Mastered);
+        mastered = form.Check("Mastered", run.Mastered, "Everything in the game is done.");
         if (await ShowFormAsync(form)) await RefreshPlaythroughsAsync(GameList.SelectedItem as LibraryItemView);
     }
 

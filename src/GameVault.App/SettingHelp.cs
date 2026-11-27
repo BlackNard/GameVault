@@ -5,8 +5,8 @@ using System.Windows.Controls;
 namespace GameVault.App;
 
 /// <summary>
-/// The short explanation of a Settings option (issue #77). It is not shown on the page: it appears when the pointer is over the row or the keyboard is on its
-/// control, and screen readers get it as the control's help text. Set it on the row, or directly on one control.
+/// A short explanation that is not written on the page (issues #77 and #102): it appears when the pointer is over the item or the keyboard is on its
+/// control, and screen readers get it as help text. Set it on a row, a heading, or directly on one control.
 /// </summary>
 public static class SettingHelp
 {
@@ -26,6 +26,7 @@ public static class SettingHelp
     private static void Apply(FrameworkElement element, string text)
     {
         element.ToolTip = Tip(text);
+        AutomationProperties.SetHelpText(element, text);
         foreach (var control in Controls(element))
         {
             AutomationProperties.SetHelpText(control, text);
@@ -38,7 +39,7 @@ public static class SettingHelp
 
     private static IEnumerable<Control> Controls(DependencyObject root)
     {
-        if (root is System.Windows.Controls.Primitives.ButtonBase or ComboBox) yield return (Control)root;
+        if (root is System.Windows.Controls.Primitives.ButtonBase or ComboBox or System.Windows.Controls.Primitives.TextBoxBase) yield return (Control)root;
         foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
             foreach (var found in Controls(child)) yield return found;
     }

@@ -1,4 +1,4 @@
-<UserControl x:Class="GameVault.App.BackupsView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Background="{DynamicResource AppBackground}" Foreground="{DynamicResource AppText}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14">
+<UserControl x:Class="GameVault.App.BackupsView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:GameVault.App" Background="{DynamicResource AppBackground}" Foreground="{DynamicResource AppText}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14">
  <UserControl.Resources>
   <Style x:Key="Card" TargetType="Border"><Setter Property="Background" Value="{DynamicResource AppSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource AppLine}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="10"/><Setter Property="Padding" Value="16,12"/></Style>
   <Style x:Key="Muted" TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource AppMuted}"/><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="FontSize" Value="12.5"/></Style>
@@ -13,8 +13,8 @@
     <DockPanel Margin="0,0,0,14">
      <Button x:Name="RefreshButton" Content="Refresh" DockPanel.Dock="Right" Click="RefreshHistory" VerticalAlignment="Top" Height="36" MinWidth="100" Margin="16,0,0,0"/>
      <StackPanel>
-      <TextBlock x:Name="Heading" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap"/>
-      <TextBlock Text="Revisit your save history. Dates show when copies were made, not progress in the game." Style="{StaticResource Muted}" Margin="0,4,0,6"/>
+      <TextBlock x:Name="Heading" local:SettingHelp.Text="Revisit your save history. Dates show when copies were made, not progress in the game." FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap"/>
+      
       <TextBlock x:Name="StorageSummary" TextWrapping="Wrap" Foreground="{DynamicResource AppAccent}" FontWeight="SemiBold"/>
      </StackPanel>
     </DockPanel>
@@ -26,8 +26,8 @@
        <WrapPanel VerticalAlignment="Center">
         <TextBlock Text="Retention for this game" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,24,0"/>
         <Label Content="_Keep newest" Target="{Binding ElementName=Limit}" VerticalAlignment="Center" Padding="0,0,8,0"/>
-        <TextBox x:Name="Limit" Width="64" Height="36" Padding="0" Text="20" TextAlignment="Center" TextChanged="DraftChanged" VerticalContentAlignment="Center" AutomationProperties.Name="Unpinned backup limit"/>
-        <TextBlock Text="unpinned copies, plus all pinned copies" VerticalAlignment="Center" Margin="8,0,24,0"/>
+        <TextBox x:Name="Limit" local:SettingHelp.Text="How many unpinned copies to keep. Pinned copies are always kept as well." Width="64" Height="36" Padding="0" Text="20" TextAlignment="Center" TextChanged="DraftChanged" VerticalContentAlignment="Center" AutomationProperties.Name="Unpinned backup limit"/>
+        <TextBlock Text="unpinned copies" local:SettingHelp.Text="Pinned copies are always kept as well." VerticalAlignment="Center" Margin="8,0,24,0"/>
         <CheckBox x:Name="KeepEverything" Content="Keep everything" Checked="DraftChanged" Unchecked="DraftChanged" VerticalAlignment="Center"/>
        </WrapPanel>
       </DockPanel>
@@ -84,8 +84,8 @@
      </DockPanel>
      <Border x:Name="RecoveryPanel" Style="{StaticResource Card}" Visibility="Collapsed" Margin="0,10,0,0">
       <StackPanel>
-       <TextBlock Text="Pre-restore recovery copies" FontWeight="SemiBold"/>
-       <TextBlock Text="These copies preserve saves from before a restore and are never removed by ordinary retention." Style="{StaticResource Muted}" Margin="0,4,0,8"/>
+       <TextBlock Text="Pre-restore recovery copies" FontWeight="SemiBold" Margin="0,0,0,8" local:SettingHelp.Text="These copies preserve saves from before a restore and are never removed by ordinary retention."/>
+       
        <DockPanel>
         <Button x:Name="UndoButton" Content="Undo using recovery…" DockPanel.Dock="Right" Click="UndoSelected" Height="36" Margin="10,0,0,0"/>
         <ComboBox x:Name="RecoveryList" Height="36" DisplayMemberPath="Label" SelectionChanged="RecoverySelectionChanged" AutomationProperties.Name="Pre-restore recovery copies"/>

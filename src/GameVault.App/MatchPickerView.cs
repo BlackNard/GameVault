@@ -38,10 +38,9 @@ public sealed class MatchPickerView : UserControl
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         var header = new StackPanel();
-        header.Children.Add(new TextBlock { Text = "Find the right game", FontSize = 26, FontWeight = FontWeights.SemiBold });
-        var explain = new TextBlock { Text = "Search the stores and Wikidata by title, then choose the game you actually have. GameVault remembers your choice and never changes it on its own. Anything you wrote yourself stays.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 14) };
-        explain.SetResourceReference(TextBlock.ForegroundProperty, "AppMuted");
-        header.Children.Add(explain);
+        var title = new TextBlock { Text = "Find the right game", FontSize = 26, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 14) };
+        SettingHelp.SetText(title, "Search the stores and Wikidata by title, then choose the game you actually have. GameVault remembers your choice and never changes it on its own. Anything you wrote yourself stays.");
+        header.Children.Add(title);
         var bar = new DockPanel();
         DockPanel.SetDock(searchButton, Dock.Right);
         bar.Children.Add(searchButton);

@@ -20,6 +20,7 @@ public static class ReleaseNotes
                 "New statuses: Backlog, Abandoned and Retired.",
                 "Export your library and playtime to CSV files.",
                 "Animations, with a Reduce motion switch in Settings.",
+                "Calmer screens: explanations appear when you point at an item.",
                 "This What's new window. Open it again in Settings > Updates.",
                 "A data backup now includes the Obsidian vault; older versions cannot restore such a backup."
             ],

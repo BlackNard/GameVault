@@ -125,7 +125,7 @@ public partial class MainWindow
         }, existing is null ? null : () => store.ChangeListsAsync(d => GameListRules.Remove(d, existing.Id)));
         name = form.Text("Name", list.Name, 80);
         description = form.Text("Description", list.Description, 1000, lines: true);
-        ranked = form.Check("Ranked: number the entries", list.Ranked);
+        ranked = form.Check("Ranked", list.Ranked, "Numbers the games in their order.");
         if (await ShowFormAsync(form)) await LoadListsAsync();
     }
 
@@ -146,9 +146,9 @@ public partial class MainWindow
             return store.ChangeListsAsync(d => d.Lists.FirstOrDefault(l => l.Id == list.Id) is { } current
                 ? GameListRules.Upsert(d, current with { Entries = GameListRules.Add(current.Entries, new(Guid.NewGuid(), item?.Game.Id, text, comment)) }) : d);
         });
-        game = form.Choice("Game from your library", library.Select(i => (i.Game.Id, i.Name)).Prepend((Guid.Empty, "Another game (type its name below)")), Guid.Empty);
-        title = form.Text("Name of another game: its cover and details are looked up", "", 200);
-        note = form.Text("Note (optional)", "", 1000, lines: true);
+        game = form.Choice("Game from your library", library.Select(i => (i.Game.Id, i.Name)).Prepend((Guid.Empty, "Another game")), Guid.Empty);
+        title = form.Text("Another game's name (looked up online)", "", 200, help: "Its cover and details are fetched by this name.");
+        note = form.Text("Note", "", 1000, lines: true, help: "Optional.");
         if (await ShowFormAsync(form)) await LoadListsAsync();
     }
 

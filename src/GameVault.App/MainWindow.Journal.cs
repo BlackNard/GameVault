@@ -91,15 +91,15 @@ public partial class MainWindow
                     Tags = tags.Text.Split(',', StringSplitOptions.RemoveEmptyEntries), PlaythroughId = run
                 });
             }, existing is null ? null : () => store.DeleteJournalEntryAsync(game, existing.Id));
-            title = form.Text("Title (optional)", entry.Title, 200);
+            title = form.Text("Title", entry.Title, 200, help: "Optional.");
             // An existing entry stays where it is.
             var choices = library.Select(i => (i.Game.Id, i.Name)).Prepend((Guid.Empty, "No game"));
             gameBox = form.Choice("Game", existing is null ? choices : choices.Where(c => c.Item1 == game), game);
-            date = form.Text("Date (year-month-day)", FormView.DateText(entry.Date), 10);
+            date = form.Text("Date", FormView.DateText(entry.Date), 10, help: "Year-month-day, for example 2026-11-27.");
             note = form.Text("Note", entry.Note, 8000, lines: true);
-            tags = form.Text("Tags, separated by commas (up to 8)", string.Join(", ", entry.Tags), 260);
-            minutes = form.Text("Minutes played (optional)", entry.Minutes?.ToString(CultureInfo.CurrentCulture), 6);
-            runBox = form.Choice("Playthrough (optional)", RunChoices(runs.GetValueOrDefault(game) ?? []), entry.PlaythroughId ?? Guid.Empty);
+            tags = form.Text("Tags", string.Join(", ", entry.Tags), 260, help: "Separated by commas, up to 8.");
+            minutes = form.Text("Minutes played", entry.Minutes?.ToString(CultureInfo.CurrentCulture), 6, help: "Optional. Recorded playtime is not changed.");
+            runBox = form.Choice("Playthrough", RunChoices(runs.GetValueOrDefault(game) ?? []), entry.PlaythroughId ?? Guid.Empty);
             gameBox.SelectionChanged += (_, _) =>
             {
                 runBox.Items.Clear();
