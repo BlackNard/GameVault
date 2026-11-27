@@ -1,6 +1,14 @@
 # Private draft release procedure
 
-GameVault releases are prepared as **unpublished drafts** and published only by the owner. The repository is public and the license is the root `LICENSE` (source-available, all rights reserved). Packaging does not publish anything, buy a signing certificate or change repository visibility. Releases are unsigned previews until the owner decides on signing.
+GameVault releases are published only by the owner, normally with one click (below). Each is first prepared as an **unpublished draft**. The repository is public and the license is the root `LICENSE` (source-available, all rights reserved). Packaging does not publish anything, buy a signing certificate or change repository visibility. Releases are unsigned previews until the owner decides on signing.
+
+## One-click publishing
+
+1. Merge everything for the release, including its entry in `src/GameVault.Core/ReleaseNotes.cs` and the preview number in `Directory.Build.props`.
+2. On GitHub (a phone browser works): **Actions > Publish release > Run workflow**, branch `main`. Optionally type a release name; tick **dry_run** to try everything without publishing.
+3. Nothing else is needed; the PC can be off. The workflow checks that the version is new and has notes, runs the release checks of `build.yml`, creates the draft from their bundle, smoke-tests that draft and publishes it. Failed check jobs are run once more.
+
+If anything fails, nothing is published, the draft it made is removed and GitHub reports the failed run by e-mail; start it again after fixing the cause. Only the repository owner can start it (`.github/workflows/publish.yml`, `scripts/publish-release.ps1`). Do not change `main` while it is running: the checks must be for the commit it started from. The manual steps below remain for when the workflow cannot be used.
 
 ## Automated build and evidence
 
