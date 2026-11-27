@@ -80,7 +80,7 @@ public sealed class MainWindowStartupTests
         var templates = window.Descendants(ns + "DataTemplate").Select(e => (string?)e.Attribute(x + "Key")).Where(k => k is not null).ToArray();
         Assert.Contains("CardTemplate", templates); Assert.Contains("RowTemplate", templates);
         var menu = window.Descendants(ns + "ContextMenu").Single(e => (string?)e.Attribute(x + "Key") == "GameContextMenu");
-        Assert.Equal(new[] { "Play", "Back up now", "Open install folder", "Status", "Edit game…", "Sessions & notes", "Remove from library" }, menu.Elements(ns + "MenuItem").Select(e => e.Attribute("Header")!.Value).ToArray());
+        Assert.Equal(new[] { "Play", "Back up now", "Open install folder", "Status", "Favourite", "Add to list", "Edit game…", "Sessions & notes", "Remove from library" }, menu.Elements(ns + "MenuItem").Select(e => e.Attribute("Header")!.Value).ToArray());
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public sealed class MainWindowStartupTests
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
         var window = Root();
         var names = window.Descendants().Select(e => (string?)e.Attribute(x + "Name")).Where(n => n is not null).ToHashSet();
-        foreach (var name in new[] { "ContinueRow", "ContinueList", "ViewsButton", "BackupsNav", "CapturesNav", "StatisticsNav", "StatisticsPanel", "OverviewPanel", "OverviewList", "CaptureFolders", "CaptureGalleryPage", "OverviewEmpty" })
+        foreach (var name in new[] { "ContinueRow", "ContinueList", "ViewsButton", "BackupsNav", "CapturesNav", "StatisticsNav", "StatisticsPanel", "JournalNav", "JournalPanel", "ListsNav", "ListsPanel", "OverviewPanel", "OverviewList", "CaptureFolders", "CaptureGalleryPage", "OverviewEmpty" })
             Assert.Contains(name, names);
         Assert.Equal("Collapsed", (string?)window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "OverviewPanel").Attribute("Visibility"));
         Assert.Equal("Collapsed", (string?)window.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "ContinueRow").Attribute("Visibility"));

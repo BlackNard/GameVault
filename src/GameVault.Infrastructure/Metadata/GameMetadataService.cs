@@ -180,6 +180,14 @@ public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameM
         var stored = await store.LoadMetadataAsync(id).ConfigureAwait(false);
         JsonDocuments.RequireWritable(stored);
         var document = stored.Value ?? GameMetadataDocument.Empty(id);
+        var (identity, steamId) = Picked(candidate);
+        var kept = document.Fields.Where(p => p.Value.UserEdited).ToDictionary(p => p.Key, p => p.Value);
+        await store.SaveMetadataAsync(document with { Fields = kept, SteamAppId = steamId, Identity = identity, LastSizeScan = null, LastRefresh = null }).ConfigureAwait(false);
+        return await RefreshAsync(id, false, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static (GameIdentity Identity, string? SteamAppId) Picked(MatchCandidate? candidate)
+    {
         var identity = candidate switch
         {
             null => new GameIdentity(Source: "picked", NoMatch: true),
@@ -189,9 +197,38 @@ public sealed class GameMetadataService(AppDataStore store, IReadOnlyList<IGameM
             _ => throw new ArgumentException("This kind of match is not supported.")
         };
         var steamId = candidate is { Source: SteamStoreProvider.ProviderId } steam && steam.Id.All(char.IsAsciiDigit) && steam.Id.Length is > 0 and <= 10 ? steam.Id : null;
-        var kept = document.Fields.Where(p => p.Value.UserEdited).ToDictionary(p => p.Key, p => p.Value);
-        await store.SaveMetadataAsync(document with { Fields = kept, SteamAppId = steamId, Identity = identity, LastSizeScan = null, LastRefresh = null }).ConfigureAwait(false);
-        return await RefreshAsync(id, false, cancellationToken).ConfigureAwait(false);
+        return (identity, steamId);
+    }
+
+    // ---------- list entries that are not in the library (ticket #97) ----------
+    /// <summary>Looks a title up like a library game, without anything about an installation: only the title or a store id is sent.</summary>
+    public async Task<MetadataResolution> RefreshTitleAsync(Guid entry, string title, bool replaceExisting, CancellationToken cancellationToken)
+    {
+        var settings = await LoadSettingsAsync().ConfigureAwait(false);
+        if (replaceExisting) settings = settings with { OnlyFillEmpty = false };
+        var stored = await store.LoadListGameInfoAsync(entry).ConfigureAwait(false);
+        JsonDocuments.RequireWritable(stored);
+        var existing = stored.Value ?? GameMetadataDocument.Empty(entry);
+        var request = new MetadataRequest(entry, title, "", null, existing.SteamAppId, null, null, false, false, existing.Identity ?? GameIdentity.Empty);
+        // The local readers need an installed game.
+        var online = providers.Where(p => p is not LocalInstallProvider and not LocalFileProvider).ToArray();
+        var result = await MetadataResolver.ResolveAsync(request, online, settings, existing, cancellationToken, _ => true).ConfigureAwait(false);
+        // A lookup that failed (offline) is not remembered, so it is tried again.
+        if (result.FieldsFilled > 0 || result.Problems.Length == 0)
+            await store.SaveListGameInfoAsync(result.Document with { LookupVersion = CurrentLookupVersion }).ConfigureAwait(false);
+        return result;
+    }
+
+    /// <summary>The player's choice of which game a list entry is.</summary>
+    public async Task<MetadataResolution> ApplyTitleMatchAsync(Guid entry, string title, MatchCandidate? candidate, CancellationToken cancellationToken)
+    {
+        var (identity, steamId) = Picked(candidate);
+        var stored = await store.LoadListGameInfoAsync(entry).ConfigureAwait(false);
+        JsonDocuments.RequireWritable(stored);
+        var document = stored.Value ?? GameMetadataDocument.Empty(entry);
+        await store.SaveListGameInfoAsync(document with { Fields = [], SteamAppId = steamId, Identity = identity, LastRefresh = null }).ConfigureAwait(false);
+        await store.ForgetListGameCoverAsync(entry).ConfigureAwait(false);
+        return await RefreshTitleAsync(entry, candidate?.Title ?? title, false, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>The owner's own description. It is marked as typed by the owner, so no provider ever replaces it. Empty text removes it.</summary>

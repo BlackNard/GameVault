@@ -301,6 +301,31 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 - [ ] The status can be changed with the button on a game's page and with **Status** in a card's three-dot (or right-click) menu, also while a status filter is on.
 - [ ] Playing a Backlog game makes it Playing; a Retired game can be reviewed; editing a game's name keeps its status.
 
+## 8ac. Playthroughs (issue #95)
+
+- [ ] On a game's Overview, **Playthroughs** > **Add playthrough…** saves a run; **Edit** changes and deletes it; leaving with unsaved typing asks first.
+- [ ] Without typed hours a run counts the recorded sessions between its dates, shown against the time to beat; a finished run counts as a completion in Statistics.
+
+## 8ad. Journal (issue #96)
+
+- [ ] **Journal** in the sidebar lists only your own entries (no sessions), newest first; the game filter (including **No game**) and period filter work.
+- [ ] **Add entry…** with and without a game, **Edit** and delete work; playtime and statistics do not change because of an entry.
+- [ ] **Export** on an entry (one at a time): entries of a game go to `<game>/Entries`, entries without a game to `Entries` at the top of the vault. Exporting again repeats nothing; an edited entry updates its note.
+- [ ] A game's **Sessions & notes** holds session notes and the review only; a newly exported session note goes to `<game>/Session notes` (notes exported before stay where they are).
+
+## 8ae. Lists and favourites (issue #97)
+
+- [ ] **Favourite** on a game's page and in a card's menu adds it to **Lists > Favourites**, where the order can be changed.
+- [ ] **New list…**, **Add a game…** from the library, notes, ranking, moving, removing and deleting the list work; **Add to list** in a card's menu works.
+- [ ] **Lists** shows a card per list with some of its covers; a card opens the list as game cards; **‹ All lists** and the sidebar return.
+- [ ] **Add a game…** with a name that is not in the library fetches its cover and details; its card opens them; **Not the right game?**, **Refresh info** and **Choose cover…** work; offline, nothing breaks.
+- [ ] On a card, ⋯ or right-click moves, adds a note and removes; ranked lists show numbers.
+- [ ] Drag a card in a list and in Favourites: it lifts and follows the pointer, the others slide aside, numbers update, and on release it settles and stays there after a restart; **Esc** puts it back; holding it near the top or bottom scrolls; a plain click still opens the game; **Reduce motion** removes the animations.
+
+## 8af. CSV export (issue #98)
+
+- [ ] **Settings > Backups and data > Export to CSV…** writes games, sessions, playthroughs, journal and lists into a new folder; the files open correctly in a spreadsheet, with accents intact.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

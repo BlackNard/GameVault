@@ -5,7 +5,7 @@ namespace GameVault.Infrastructure.Storage;
 public sealed partial class AppDataStore
 {
     private string ObsidianSettingsFile => Path.Combine(paths.Data, "obsidian.json");
-    private string ObsidianRecordFile(Guid id) => Path.Combine(Folder(id), "obsidian-export.json");
+    private string ObsidianRecordFile(Guid id) => id == Guid.Empty ? Path.Combine(paths.Data, "obsidian-entries.json") : Path.Combine(Folder(id), "obsidian-export.json");
 
     public Task<StoredDocument<ObsidianSettings>> LoadObsidianSettingsAsync() => Run(() =>
         documents.Read<ObsidianSettings>(ObsidianSettingsFile, ObsidianSettings.IsValid));
@@ -26,7 +26,7 @@ public sealed partial class AppDataStore
     {
         ArgumentNullException.ThrowIfNull(record);
         var file = ObsidianRecordFile(record.GameId);
-        if (LoadProfile(record.GameId).Profile.Value is null) throw new IOException("A readable game profile is required.");
+        if (record.GameId != Guid.Empty && LoadProfile(record.GameId).Profile.Value is null) throw new IOException("A readable game profile is required.");
         JsonDocuments.RequireWritable(documents.Read<ObsidianExportRecord>(file, value => ObsidianExportRecord.IsValid(value, record.GameId)));
         documents.Write(file, record, value => ObsidianExportRecord.IsValid(value, record.GameId));
     });

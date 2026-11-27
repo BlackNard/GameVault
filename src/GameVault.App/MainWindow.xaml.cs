@@ -95,7 +95,7 @@ public partial class MainWindow : Window
         busy = true; UpdateButtons();
         try
         {
-            recoveryNotices = await launches.RecoverAsync(); await RefreshLibrary(); _ = RefreshSteamHoursAtStartAsync();
+            recoveryNotices = await launches.RecoverAsync(); await RefreshLibrary(); _ = RefreshSteamHoursAtStartAsync(); _ = LoadListsAsync();
             _ = StartupInfoAsync();
             // Automatic discovery follows session signals; never block startup by scanning every game.
         }
@@ -174,6 +174,7 @@ public partial class MainWindow : Window
         DetailState.Text = item is null ? "Select a game to see its details or choose Add game to get started." :
             string.Join("\n", new[] { item.Playing is null ? item.Status : null, item.Availability, item.Game.Warning }.Where(s => !string.IsNullOrWhiteSpace(s)));
         ShowHeroStatus(item);
+        ShowFavourite(item);
         DetailFields.Visibility = item?.Game.Profile is not null ? Visibility.Visible : Visibility.Collapsed;
         if(item is null)summarizedGame=null;
         if (item?.Game.Profile is GameProfile profile)
@@ -201,6 +202,7 @@ public partial class MainWindow : Window
         _ = RefreshPlayActionsAsync(item);
         _ = RefreshSteamAsync(item);
         RefreshGameStats(item);
+        _ = RefreshPlaythroughsAsync(item);
         UpdateButtons();
         _=RefreshBackupDestinationsAsync();
         if(gameSection=="Media"&&!libraryVisible)_=RefreshCaptureMediaAsync();
@@ -225,7 +227,7 @@ public partial class MainWindow : Window
         GamePage.Visibility=Visibility.Collapsed;
         LibraryPanel.Visibility = showLibrary ? Visibility.Visible : Visibility.Collapsed;
         SettingsPanel.Visibility = showLibrary ? Visibility.Collapsed : Visibility.Visible;
-        OverviewPanel.Visibility = StatisticsPanel.Visibility = Visibility.Collapsed;
+        OverviewPanel.Visibility = StatisticsPanel.Visibility = JournalPanel.Visibility = ListsPanel.Visibility = Visibility.Collapsed;
         if(!showLibrary){_=RefreshBackupDestinationsAsync();RefreshSavedViewsManager();RefreshMetadataSettingsUi();RefreshSaveDatabaseStatus();_=RefreshObsidianAsync();}
         else if(IsLoaded)RestoreLibraryFocus();
         LibraryNav.SetResourceReference(Control.BorderBrushProperty, showLibrary ? "AppAccent" : "AppLine");

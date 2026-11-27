@@ -100,8 +100,8 @@ public sealed class ObsidianExportTests : IDisposable
         var result = await ExportAsync(entries: [Session(), Review()]);
         Assert.Equal((2, 0, 0), (result.Created, result.Updated, result.Unchanged));
         var folder = Path.Combine(DefaultVault, "Alpha Part 2");
-        Assert.Equal(["First night.md", "Review.md"], Notes(folder).Select(Path.GetFileName));   // no date in the name: it is in the properties
-        var text = File.ReadAllText(Notes(folder)[0]);
+        Assert.Equal(["Review.md", Path.Combine("Session notes", "First night.md")], Notes(folder).Select(f => Path.GetRelativePath(folder, f)));   // no date in the name: it is in the properties
+        var text = File.ReadAllText(Notes(folder)[1]);
         Assert.StartsWith("---\n", text);
         Assert.Contains($"gamevault-game: {game}", text);
         Assert.Contains($"gamevault-note: {session}", text);
@@ -109,7 +109,7 @@ public sealed class ObsidianExportTests : IDisposable
         Assert.Contains("started: 2026-11-20T21:15:00+02:00", text);
         Assert.Contains("duration-minutes: 60", text);
         Assert.Contains("We survived.", text);
-        Assert.Contains("rating: 4.5", File.ReadAllText(Notes(folder)[1]));
+        Assert.Contains("rating: 4.5", File.ReadAllText(Notes(folder)[0]));
     }
 
     [Fact]

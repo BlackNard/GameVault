@@ -91,39 +91,61 @@ public sealed class ObsidianVault(ApplicationPaths paths, AppDataStore store)
     }
 
     // ---------- exporting ----------
+    /// <summary>One note to be written: how it is recognised, where a new one goes and what it holds.</summary>
+    private sealed record Page(string Key, string Folder, string FileName, string Text);
+    /// <summary>The notes of one owner: a game, or no game (<see cref="Guid.Empty"/>), whose folder is "Entries" at the top of the vault.</summary>
+    private sealed record Batch(Guid Owner, string Name, Func<IEnumerable<Page>> Pages);
+
+    private const string SessionFolder = "Session notes", EntryFolder = "Entries";
+
+    /// <summary>Writes session notes and reviews: session notes in a game's "Session notes" folder, the review beside it.</summary>
+    public Task<ObsidianExportResult> ExportAsync(IReadOnlyList<NoteExportEntry> entries, Func<ObsidianConflict, Task<ObsidianConflictChoice>> resolve) =>
+        entries.Count == 0 ? throw new ArgumentException("There are no saved notes to export.") : ExportAsync(
+            [.. NoteExports.Sort(entries).GroupBy(e => e.Note.GameId).Select(group => new Batch(group.Key, group.First().GameName, () => group.Select(e =>
+                new Page(e.Note.SessionId?.ToString() ?? "review", e.Note.SessionId is null ? "" : SessionFolder, FileName(e), Render(e)))))], resolve);
+
+    /// <summary>Writes journal entries: into a game's "Entries" folder, or the vault's own "Entries" folder for an entry without a game.</summary>
+    public Task<ObsidianExportResult> ExportEntriesAsync(IReadOnlyList<JournalItem> items, Func<ObsidianConflict, Task<ObsidianConflictChoice>> resolve) =>
+        items.Count == 0 ? throw new ArgumentException("There are no entries to export.") : ExportAsync(
+            [.. items.GroupBy(i => i.GameId).Select(group => new Batch(group.Key, group.Key == Guid.Empty ? EntryFolder : group.First().Game ?? "Game",
+                () => group.OrderBy(i => i.Entry.Date).Select(i => new Page(i.Entry.Id.ToString(), group.Key == Guid.Empty ? "" : EntryFolder,
+                    SafeName(i.Entry.Title ?? "", "Entry"), Render(i)))))], resolve);
+
     /// <summary>Writes each note once. <paramref name="resolve"/> is asked before a note changed outside GameVault would be overwritten.</summary>
-    public async Task<ObsidianExportResult> ExportAsync(IReadOnlyList<NoteExportEntry> entries, Func<ObsidianConflict, Task<ObsidianConflictChoice>> resolve)
+    private async Task<ObsidianExportResult> ExportAsync(Batch[] batches, Func<ObsidianConflict, Task<ObsidianConflictChoice>> resolve)
     {
-        if (entries.Count == 0) throw new ArgumentException("There are no saved notes to export.");
         var status = await StatusAsync().ConfigureAwait(false);
         if (status.State != ObsidianVaultState.Ready) throw new IOException(status.Message ?? "No Obsidian vault is linked.");
         var vault = status.Path!;
         CheckLinks(vault);
         int created = 0, updated = 0, unchanged = 0, kept = 0;
         var failures = new List<string>();
-        foreach (var group in NoteExports.Sort(entries).GroupBy(e => e.Note.GameId))
+        foreach (var batch in batches)
         {
-            var name = group.First().GameName;
+            var name = batch.Name;
             try
             {
-                var stored = await store.LoadObsidianRecordAsync(group.Key).ConfigureAwait(false);
+                var stored = await store.LoadObsidianRecordAsync(batch.Owner).ConfigureAwait(false);
                 JsonDocuments.RequireWritable(stored);
                 var written = new Dictionary<string, string>(stored.Value?.Written ?? []);
-                var folder = GameFolder(vault, group.Key, name);
-                var existing = FindNotes(folder, group.Key);
-                foreach (var entry in group)
+                var folder = GameFolder(vault, batch.Owner, name);
+                var existing = FindNotes(folder, batch.Owner);
+                foreach (var page in batch.Pages())
                 {
-                    var key = entry.Note.SessionId?.ToString() ?? "review";
+                    var key = page.Key;
                     try
                     {
-                        var text = Render(entry);
+                        var text = page.Text;
                         var hash = Hash(text);
                         var candidates = existing.GetValueOrDefault(key) ?? [];
                         // A copy the player made carries the same ids: the one still as GameVault wrote it comes first.
                         var file = candidates.OrderByDescending(f => Hash(Read(f)) == written.GetValueOrDefault(key)).ThenBy(f => f, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
                         if (file is null)
                         {
-                            file = FreeName(folder, FileName(entry));
+                            var place = page.Folder.Length == 0 ? folder : System.IO.Path.Combine(folder, page.Folder);
+                            CheckLinks(place);
+                            Directory.CreateDirectory(place);
+                            file = FreeName(place, page.FileName);
                             Write(file, text);
                             existing[key] = [file];
                             created++;
@@ -138,7 +160,7 @@ public sealed class ObsidianVault(ApplicationPaths paths, AppDataStore store)
                                 var choice = await resolve(new(name, System.IO.Path.GetFileNameWithoutExtension(file), file)).ConfigureAwait(false);
                                 if (choice == ObsidianConflictChoice.Cancel)
                                 {
-                                    await SaveAsync(group.Key, written, failures, name).ConfigureAwait(false);
+                                    await SaveAsync(batch.Owner, written, failures, name).ConfigureAwait(false);
                                     return new(created, updated, unchanged, kept, true, [.. failures]);
                                 }
                                 if (choice == ObsidianConflictChoice.KeepTheirs) { kept++; continue; }
@@ -154,7 +176,7 @@ public sealed class ObsidianVault(ApplicationPaths paths, AppDataStore store)
                     }
                     catch (Exception error) when (IsFileError(error)) { failures.Add($"{name}: {error.Message}"); }
                 }
-                await SaveAsync(group.Key, written, failures, name).ConfigureAwait(false);
+                await SaveAsync(batch.Owner, written, failures, name).ConfigureAwait(false);
             }
             catch (Exception error) when (IsFileError(error)) { failures.Add($"{name}: {error.Message}"); }
         }
@@ -227,7 +249,6 @@ public sealed class ObsidianVault(ApplicationPaths paths, AppDataStore store)
         var note = entry.Note;
         var text = new StringBuilder("---\n");
         void Property(string name, string value) => text.Append(name).Append(": ").Append(value).Append('\n');
-        static string Quoted(string value) => "\"" + new string(value.Where(c => !char.IsControl(c)).ToArray()).Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
         static string Stamp(DateTimeOffset at) => at.ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture);
         Property("gamevault-game", note.GameId.ToString());
         Property("gamevault-note", note.SessionId?.ToString() ?? "review");
@@ -246,6 +267,27 @@ public sealed class ObsidianVault(ApplicationPaths paths, AppDataStore store)
         text.Append(Normalize(note.Body).TrimEnd('\n')).Append('\n');
         return text.ToString();
     }
+
+    /// <summary>A journal entry as GameVault writes it.</summary>
+    public static string Render(JournalItem item)
+    {
+        var entry = item.Entry;
+        var text = new StringBuilder("---\n");
+        void Property(string name, string value) => text.Append(name).Append(": ").Append(value).Append('\n');
+        Property("gamevault-game", item.GameId.ToString());
+        Property("gamevault-note", entry.Id.ToString());
+        if (item.Game is { } game) Property("game", Quoted(game));
+        Property("date", entry.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        if (entry.Minutes is { } minutes) Property("duration-minutes", minutes.ToString(CultureInfo.InvariantCulture));
+        if (entry.Tags.Length > 0) Property("tags", "[" + string.Join(", ", entry.Tags.Select(Quoted)) + "]");
+        text.Append("---\n\n");
+        var title = (entry.Title ?? "").ReplaceLineEndings(" ").Trim();
+        if (title.Length > 0) text.Append("# ").Append(title).Append("\n\n");
+        text.Append(Normalize(entry.Note).TrimEnd('\n')).Append('\n');
+        return text.ToString();
+    }
+
+    private static string Quoted(string value) => "\"" + new string(value.Where(c => !char.IsControl(c)).ToArray()).Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
 
     /// <summary>The note's title is its name in Obsidian; when the session was is among its properties.</summary>
     private static string FileName(NoteExportEntry entry) => entry.Note.SessionId is null ? "Review" : SafeName(entry.Note.Title, "Session");
