@@ -19,15 +19,15 @@ $repository = $env:GITHUB_REPOSITORY
 $api = 'https://api.github.com/repos/' + $repository
 $headers = @{ Authorization = 'Bearer ' + $env:GH_TOKEN; Accept = 'application/vnd.github+json'; 'User-Agent' = 'GameVault-Publish' }
 $version = Get-AppVersion $root
-$preview = Get-AppPreview $root
-$tag = "v$version-preview.$preview"
+$tag = "v$version"
 
 # ---------- everything that can be checked before the long run ----------
-$title = Get-ReleaseTitle $version $preview $ReleaseName
-$notes = Get-ReleaseNoteLines ([IO.File]::ReadAllText((Join-Path $root 'src/GameVault.Core/ReleaseNotes.cs'))) "$version-preview.$preview"
+$title = Get-ReleaseTitle $version $ReleaseName
+$notes = Get-ReleaseNoteLines ([IO.File]::ReadAllText((Join-Path $root 'src/GameVault.Core/ReleaseNotes.cs'))) $version
 $releases = Invoke-RestMethod "$api/releases?per_page=100" -Headers $headers
 $refs = Invoke-RestMethod ("$api/git/matching-refs/tags/" + [Uri]::EscapeDataString($tag)) -Headers $headers
-Assert-PreviewTagAvailable -Releases $releases -Refs $refs -Tag $tag
+Assert-TagAvailable -Releases $releases -Refs $refs -Tag $tag
+Assert-NewerVersion $releases $version
 Write-Host "Publishing $tag as '$title' from $($env:GITHUB_SHA)."
 
 function Get-BuildRuns { @((Invoke-RestMethod "$api/actions/workflows/build.yml/runs?event=workflow_dispatch&branch=main&per_page=30" -Headers $headers).workflow_runs) }

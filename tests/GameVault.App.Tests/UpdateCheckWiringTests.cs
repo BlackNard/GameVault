@@ -15,12 +15,10 @@ public sealed class UpdateCheckWiringTests
     private static string Source(string name) => File.ReadAllText(Path.Combine(Root(), "src", "GameVault.App", name));
 
     [Fact]
-    public void The_running_app_knows_its_preview_number_from_the_build_properties()
+    public void The_running_app_knows_its_version_from_the_build_properties()
     {
         var props = File.ReadAllText(Path.Combine(Root(), "Directory.Build.props"));
-        var version = Regex.Match(props, @"<GameVaultVersion>([^<]+)</GameVaultVersion>").Groups[1].Value;
-        var preview = Regex.Match(props, @"<GameVaultPreview>(\d+)</GameVaultPreview>").Groups[1].Value;
-        Assert.Equal($"{version}-preview.{preview}", AppVersionInfo.Current);
+        Assert.Equal(Regex.Match(props, @"<GameVaultVersion>([^<]+)</GameVaultVersion>").Groups[1].Value, AppVersionInfo.Current);
     }
 
     [Fact]

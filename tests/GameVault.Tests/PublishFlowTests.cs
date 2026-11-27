@@ -96,8 +96,8 @@ public sealed class PublishFlowTests : IDisposable
     public void GreenChecksArePublishedAsAPrereleaseThatIsNotLatest()
     {
         var log = Publish("success,success");
-        Assert.Equal(["start checks", "draft", "start smoke", "publish name=GameVault 0.1.0 — Update 8 prerelease=True latest=false", "left 0 draft"],
-            log.Select(l => System.Text.RegularExpressions.Regex.Replace(l, @"Update \d+", "Update 8")));
+        Assert.Equal(["start checks", "draft", "start smoke", "publish name=GameVault N prerelease=True latest=false", "left 0 draft"],
+            log.Select(l => System.Text.RegularExpressions.Regex.Replace(l, @"GameVault \d+(\.\d+)+", "GameVault N")));
     }
 
     [Fact]

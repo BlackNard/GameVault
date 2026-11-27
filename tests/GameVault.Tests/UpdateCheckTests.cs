@@ -229,17 +229,25 @@ public sealed class UpdateCheckTests : IDisposable
     }
 
     [Fact]
-    public void The_preview_number_lives_next_to_the_version_in_the_build_properties_and_makes_a_comparable_version()
+    public void The_version_in_the_build_properties_is_plain_and_newer_than_every_preview_that_was_published()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "GameVault.slnx"))) dir = dir.Parent;
         var props = File.ReadAllText(Path.Combine(dir!.FullName, "Directory.Build.props"));
         var version = System.Text.RegularExpressions.Regex.Match(props, @"<GameVaultVersion>([^<]+)</GameVaultVersion>").Groups[1].Value;
-        var preview = System.Text.RegularExpressions.Regex.Match(props, @"<GameVaultPreview>(\d+)</GameVaultPreview>").Groups[1].Value;
-        Assert.False(string.IsNullOrEmpty(preview), "GameVaultPreview must be set in Directory.Build.props.");
-        Assert.Contains("<InformationalVersion>$(Version)-preview.$(GameVaultPreview)</InformationalVersion>", props);
-        Assert.True(ReleaseVersion.TryParse($"{version}-preview.{preview}", out var built));
-        Assert.True(V($"v{version}-preview.{int.Parse(preview) + 1}") > built);                    // the next tag would be offered as an update
-        Assert.False(V($"v{version}-preview.{preview}") > built);
+        Assert.Contains("<InformationalVersion>$(Version)</InformationalVersion>", props);
+        Assert.True(ReleaseVersion.TryParse(version, out var built));
+        Assert.False(built.IsPreRelease);
+        Assert.True(built > V("0.1.0-preview.8"));
+    }
+
+    /// <summary>An installed preview 8 (the last with that numbering) is offered the first release with a plain number, and moves on from there.</summary>
+    [Fact]
+    public async Task A_preview_copy_is_offered_a_plain_version()
+    {
+        var (found, _) = await Check("0.1.0-preview.8", $"[{Release("v0.1.1")},{Release("v0.1.0-preview.8")}]");
+        Assert.Equal(("0.1.1", UpdateStatus.Available), (found.Update!.Version, found.Status));
+        Assert.Equal(UpdateStatus.UpToDate, (await Check("0.1.1", $"[{Release("v0.1.1")},{Release("v0.1.0-preview.8")}]")).Result.Status);
+        Assert.Equal("0.2.0", (await Check("0.1.1", $"[{Release("v0.2.0")},{Release("v0.1.1")}]")).Result.Update!.Version);
     }
 }
