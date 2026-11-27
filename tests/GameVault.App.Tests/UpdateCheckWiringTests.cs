@@ -24,13 +24,21 @@ public sealed class UpdateCheckWiringTests
     }
 
     [Fact]
-    public void The_start_up_check_is_throttled_optional_quiet_and_never_installs_or_opens_other_sites()
+    public void The_start_up_check_runs_at_every_start_is_optional_quiet_and_never_installs_or_opens_other_sites()
     {
         var window = Source("MainWindow.xaml.cs");
         Assert.Contains("Loaded += StartUpdateCheckLater", window);
         Assert.Contains("CheckForUpdatesChoice.IsChecked=settings.CheckForUpdates", window);
         var code = Source("MainWindow.Updates.cs");
-        Assert.Contains("UpdateCheckRules.ShouldCheckAtStart(settings.CheckForUpdates, UpdateCheckStamp.Read(paths.Root)", code);
+        Assert.Contains("if (settings.CheckForUpdates && !stoppingObservation && !quitPreparing) await CheckForUpdatesAsync(manual: false, StartupCheck);", code);
+        var start = Source("App.xaml.cs");
+        var asked = start.IndexOf("MainWindow.AskForUpdateAsync()", StringComparison.Ordinal);
+        var waited = start.IndexOf("await Task.WhenAny(updateCheck, Task.Delay(left))", StringComparison.Ordinal);
+        Assert.True(asked > start.IndexOf("ApplicationWorkspace.Open", StringComparison.Ordinal) && waited > asked && waited < start.IndexOf("MainWindow.Show();", StringComparison.Ordinal),
+            "Every start asks, and waits a moment for the answer before the window opens.");
+        Assert.Contains("UpdatePreferences.ParseCheckForUpdates(ReadSettingsText(paths))", start);
+        Assert.Contains("UpdateCheckRules.ShouldCheckWhenReopened(settings.CheckForUpdates", code);
+        Assert.Contains("CheckWhenReopened();", Source("MainWindow.Tray.cs"));
         Assert.Contains("if (result.Status == UpdateStatus.Failed && !manual)", code);                          // a quiet start-up check says nothing when offline
         Assert.Contains("UpdateChecker.IsReleaseLink(update.Url)", code);                                      // the link is checked again right before opening it
         Assert.Contains("\"Open release page\"", Source("MainWindow.Notices.cs"));

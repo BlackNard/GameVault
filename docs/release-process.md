@@ -38,6 +38,10 @@ The automatic in-place update ([docs/update-check.md](update-check.md)) download
 
 Before building the commit a preview release is made from, set `GameVaultPreview` in `Directory.Build.props` to that preview's number and create the draft with the matching tag (`-Tag v<version>-preview.N`). The app reports `<version>-preview.N` and the notify-only update check ([docs/update-check.md](update-check.md)) compares it with the GitHub release tags.
 
+## What's new notes
+
+Add the release's entry to `src/GameVault.Core/ReleaseNotes.cs` (newest first, short lines for players, **New** and **Fixed**) before the build it is made from; a test fails when the version being built has none. Prepare the GitHub release notes from the same text.
+
 ## Test the exact downloaded asset
 
 Manually dispatch the existing Windows build workflow on the intended reviewed branch with `draft_release_id` set to that draft's numeric ID. A smoke run does not repeat the release checks (the draft must already come from a successful release run). The separate `draft-asset-smoke` job gets contents-write scope because GitHub draft visibility requires push access; its script only reads release/asset/originating-CI metadata and does not create, update, publish or delete releases.

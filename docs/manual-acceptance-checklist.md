@@ -326,6 +326,11 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 
 - [ ] **Settings > Backups and data > Export to CSV…** writes games, sessions, playthroughs, journal and lists into a new folder; the files open correctly in a spreadsheet, with accents intact.
 
+## 8ag. What's new and update notice (issue #100)
+
+- [ ] The first start of a newer version shows **What's new** once; it does not come back at the next start, and a first install never shows it. **Settings > Updates > What's new** opens it again.
+- [ ] With a newer release published, starting GameVault shows it in **Notifications** without opening Settings, also when the last check was minutes ago; offline, the start is not held up for more than a few seconds; with the check turned off nothing is asked.
+
 ## 9. Existing acceptance issues (cannot be closed by tests)
 
 These need real games and real hardware. Tick them as you go; close the issue yourself when satisfied.

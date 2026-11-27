@@ -10,6 +10,18 @@ public sealed record PendingUpdate(string Tag, string Version, string InstallerN
 /// <summary>Whether updates install on their own. Default on; read tolerantly from settings.json before the library is opened (like the startup window).</summary>
 public static class UpdatePreferences
 {
+    /// <summary>The "check for new versions" setting, read before the library is opened. On unless the player turned it off.</summary>
+    public static bool ParseCheckForUpdates(string? settingsJson)
+    {
+        if (string.IsNullOrWhiteSpace(settingsJson)) return true;
+        try
+        {
+            using var document = JsonDocument.Parse(settingsJson);
+            return !(document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("checkForUpdates", out var c) && c.ValueKind == JsonValueKind.False);
+        }
+        catch (JsonException) { return true; }
+    }
+
     public static bool ParseAutoUpdate(string? settingsJson)
     {
         if (string.IsNullOrWhiteSpace(settingsJson)) return true;

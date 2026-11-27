@@ -15,6 +15,7 @@ namespace GameVault.App;
 public sealed class SplashWindow : Window
 {
     private bool closed;
+    private readonly TextBlock status = new() { Text = "Loading your library…", Margin = new Thickness(0, 6, 0, 18), HorizontalAlignment = HorizontalAlignment.Center };
 
     public SplashWindow(string theme, bool reduceMotion)
     {
@@ -41,7 +42,6 @@ public sealed class SplashWindow : Window
         var name = new TextBlock { Text = "GameVault", FontSize = 28, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 14, 0, 0) };
         name.SetResourceReference(TextBlock.ForegroundProperty, "AppText");
         stack.Children.Add(name);
-        var status = new TextBlock { Text = "Loading your library…", Margin = new Thickness(0, 6, 0, 18), HorizontalAlignment = HorizontalAlignment.Center };
         status.SetResourceReference(TextBlock.ForegroundProperty, "AppMuted");
         stack.Children.Add(status);
         var bar = new ProgressBar { Width = 160, Height = 3, IsIndeterminate = !reduceMotion, Value = reduceMotion ? 100 : 0, Maximum = 100, Focusable = false, BorderThickness = new Thickness(0) };
@@ -53,6 +53,8 @@ public sealed class SplashWindow : Window
     }
 
     public bool IsClosed => closed;
+
+    public void ShowStatus(string text) => status.Text = text;
 
     /// <summary>Closes the window once; calling it again (for example from a failure path) does nothing.</summary>
     public void CloseOnce()

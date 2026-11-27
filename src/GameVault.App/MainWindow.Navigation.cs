@@ -111,6 +111,7 @@ public partial class MainWindow
    MatchPickerView editor=>editor.CanLeaveAsync,
    ThemePickerView editor=>editor.CanLeaveAsync,
    WelcomeView editor=>editor.CanLeaveAsync,
+   WhatsNewView editor=>editor.CanLeaveAsync,
    ProfileImportView editor=>editor.CanLeaveAsync,
    FormView editor=>editor.CanLeaveAsync,
    CapturePreviewView editor=>editor.CanLeaveAsync,

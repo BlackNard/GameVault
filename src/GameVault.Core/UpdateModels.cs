@@ -18,20 +18,22 @@ public sealed record UpdateCheckResult(UpdateStatus Status, string CurrentVersio
     };
 }
 
-/// <summary>When the start-up update check may run.</summary>
+/// <summary>When GameVault looks for a newer release on its own (it also looks every few hours while it stays open).</summary>
 public static class UpdateCheckRules
 {
-    public static readonly TimeSpan MinimumInterval = TimeSpan.FromHours(12);
+    public static readonly TimeSpan ReopenInterval = TimeSpan.FromMinutes(10);
+    /// <summary>How long the start waits for the answer before the window opens anyway (the notice then arrives a moment later).</summary>
+    public static readonly TimeSpan StartWait = TimeSpan.FromSeconds(4);
 
     /// <summary>
-    /// On when the player allows it and no check happened in the last <see cref="MinimumInterval"/>. A time stamp in the future (a clock that
-    /// moved back) counts as "not recent", so a wrong clock can never stop the check for ever.
+    /// Whether to look again when the player brings a running GameVault back (every start of the app itself looks, issue #100): allowed and no check in the
+    /// last <see cref="ReopenInterval"/>. A time stamp in the future (a clock that moved back) counts as "not recent".
     /// </summary>
-    public static bool ShouldCheckAtStart(bool enabled, DateTimeOffset? lastCheck, DateTimeOffset now)
+    public static bool ShouldCheckWhenReopened(bool enabled, DateTimeOffset? lastCheck, DateTimeOffset now)
     {
         if (!enabled) return false;
         if (lastCheck is null) return true;
         var since = now - lastCheck.Value;
-        return since < TimeSpan.Zero || since >= MinimumInterval;
+        return since < TimeSpan.Zero || since >= ReopenInterval;
     }
 }
