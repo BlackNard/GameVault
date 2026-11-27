@@ -277,6 +277,7 @@ Same setup as 8f. Use a library that has some games, saves and backups.
 ## 8y. Obsidian vault (issue #80)
 
 - [ ] **Settings > Backups and data > Obsidian**: **Create vault** makes `Obsidian Vault` inside the GameVault folder; in Obsidian, **Open folder as vault** opens it, and **Open in Obsidian** then appears and works.
+- [ ] **Copy vault path** copies the folder, and the page and the export result name the one folder to open in Obsidian until Obsidian knows it.
 - [ ] A game's **Sessions & notes > Export… > Obsidian vault**: the selected note and all notes become readable notes in a folder for the game; the review is **Review**.
 - [ ] Export again: nothing is duplicated. Change a note in GameVault: the same file updates. Edit a note in Obsidian and export: you are asked, and **Yes** keeps a copy of your version.
 - [ ] Rename the game or move a note inside its folder: still no duplicates. With no vault linked, export asks once before creating one.

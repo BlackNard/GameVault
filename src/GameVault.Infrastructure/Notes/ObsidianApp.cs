@@ -25,5 +25,9 @@ public static class ObsidianApp
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException) { return null; }
     }
 
+    /// <summary>How to add the vault to Obsidian. Opening a folder inside it would make Obsidian treat that folder as another vault.</summary>
+    public static string OpenHint(string vaultPath) =>
+        "In Obsidian, choose Open folder as vault once and pick this folder itself, not a folder inside it:\n" + vaultPath;
+
     public static string OpenUri(string vaultId) => "obsidian://open?vault=" + Uri.EscapeDataString(vaultId);
 }

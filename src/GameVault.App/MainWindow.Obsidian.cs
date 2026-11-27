@@ -24,13 +24,14 @@ public partial class MainWindow
             obsidianKnownId = ready ? ObsidianApp.KnownVaultId(status.Path!, ObsidianApp.DefaultConfig) : null;
             ObsidianStatusText.Text = status.State switch
             {
-                ObsidianVaultState.Ready => obsidianKnownId is null ? status.Path + "\nIn Obsidian, choose Open folder as vault once." : status.Path!,
+                ObsidianVaultState.Ready => obsidianKnownId is null ? ObsidianApp.OpenHint(status.Path!) : status.Path!,
                 ObsidianVaultState.Missing => status.Message + (status.Path is null ? "" : "\n" + status.Path),
                 _ => "No vault yet. A new one goes in " + Obsidian.DefaultPath
             };
             static Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
             ObsidianCreateButton.Visibility = ObsidianElsewhereButton.Visibility = ObsidianExistingButton.Visibility = Show(!ready);
-            ObsidianFolderButton.Visibility = Show(ready);
+            ObsidianCopyButton.Visibility = ObsidianFolderButton.Visibility = Show(ready);
+            ObsidianCopyButton.Content = "Copy vault path";
             ObsidianAppButton.Visibility = Show(obsidianKnownId is not null);
             ObsidianUnlinkButton.Visibility = Show(status.State != ObsidianVaultState.NotLinked);
         }
@@ -59,6 +60,13 @@ public partial class MainWindow
     }
 
     private async void ObsidianUnlinkClicked(object sender, RoutedEventArgs e) => await ChangeVaultAsync(Obsidian.UnlinkAsync);
+
+    private void ObsidianCopyClicked(object sender, RoutedEventArgs e)
+    {
+        if (obsidianPath is not { } path) return;
+        try { Clipboard.SetText(path); ObsidianCopyButton.Content = "Copied"; }
+        catch (System.Runtime.InteropServices.ExternalException) { ShowToast("Could not copy the path", "Another program is using the clipboard. Try again.", true); }
+    }
 
     private void ObsidianFolderClicked(object sender, RoutedEventArgs e)
     {

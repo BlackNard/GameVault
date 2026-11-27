@@ -217,6 +217,15 @@ public sealed class ObsidianExportTests : IDisposable
         Assert.Equal("obsidian://open?vault=abc%20123", ObsidianApp.OpenUri("abc 123"));
     }
 
+    [Fact]
+    public void TheHintNamesTheOneFolderToOpenAsAVault()
+    {
+        var hint = ObsidianApp.OpenHint(DefaultVault);
+        Assert.Contains("Open folder as vault", hint);
+        Assert.Contains("not a folder inside it", hint);
+        Assert.EndsWith(DefaultVault, hint);
+    }
+
     // ---------- keeping the data ----------
     [Fact]
     public async Task TheDataBackupTakesTheVaultAlongAndRestoresIt()

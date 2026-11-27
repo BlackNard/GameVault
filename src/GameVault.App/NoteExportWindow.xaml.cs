@@ -101,8 +101,10 @@ public partial class NoteExportWindow : UserControl
                     "Note changed in Obsidian", MessageBoxButton.YesNoCancel, MessageBoxResult.Cancel) switch
                 { MessageBoxResult.Yes => ObsidianConflictChoice.Replace, MessageBoxResult.No => ObsidianConflictChoice.KeepTheirs, _ => ObsidianConflictChoice.Cancel });
             if (result.Failures.Length == 0 && !result.Cancelled) navigation.AcceptSaved(Snapshot());
+            var path = (await vault.StatusAsync()).Path!;
+            var where = ObsidianApp.KnownVaultId(path, ObsidianApp.DefaultConfig) is null ? ObsidianApp.OpenHint(path) : path;
             ResultNotice.Text = (result.Cancelled ? "Stopped. " : "") + $"{result.Created} new, {result.Updated} updated, {result.Unchanged} already exported, {result.Kept} kept as in Obsidian.\n" +
-                (await vault.StatusAsync()).Path + (result.Failures.Length == 0 ? "" : "\nFailures:\n" + string.Join("\n", result.Failures));
+                where + (result.Failures.Length == 0 ? "" : "\nFailures:\n" + string.Join("\n", result.Failures));
         }
         catch (Exception error) when (Expected(error)) { ResultNotice.Text = "Could not export. " + error.Message; }
         finally { SetBusy(false); }
