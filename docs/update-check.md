@@ -33,6 +33,6 @@ After an update, the first start shows the notes of every version since the one 
 `GameVault.Core/ReleaseVersion.cs` follows semantic versioning with an optional leading `v` and a fourth number: `0.1.0-preview.3` is newer than `0.1.0-preview.2`, `preview.10` is newer than `preview.9`, and `0.1.0` is newer than every `0.1.0-preview.N`. Draft releases and entries without a valid tag are ignored. A link is only accepted (and only opened, when you click it) if it points at `https://github.com/BlackNard/GameVault/releases/...`.
 
 ## When you prepare a release
-The app's own version is `<GameVaultVersion>-preview.<GameVaultPreview>` from `Directory.Build.props` (shown by `AppVersionInfo.Current`). **Set `GameVaultPreview` to the number of the preview you are about to publish** (the draft tag is `v<version>-preview.N`, pass it with `-Tag` to `create-draft-release.ps1`) before the build the release is made from. Builds made after publishing a preview and before the next bump report that same preview and are not offered an update by themselves.
+The app's own version is `GameVaultVersion` from `Directory.Build.props` (shown by `AppVersionInfo.Current`), and the release tag is `v<version>`. **Raise it for every release** before the build the release is made from (see `docs/release-process.md`). Builds made after publishing and before the next raise report the published number and are not offered an update by themselves.
 
 If the repository is renamed again, update `UpdateChecker.DefaultRepository`.

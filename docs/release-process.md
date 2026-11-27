@@ -4,7 +4,7 @@ GameVault releases are published only by the owner, normally with one click (bel
 
 ## One-click publishing
 
-1. Merge everything for the release, including its entry in `src/GameVault.Core/ReleaseNotes.cs` and the preview number in `Directory.Build.props`.
+1. Merge everything for the release, including the new `GameVaultVersion` in `Directory.Build.props` and that version's entry in `src/GameVault.Core/ReleaseNotes.cs`.
 2. On GitHub (a phone browser works): **Actions > Publish release > Run workflow**, branch `main`. Optionally type a release name; tick **dry_run** to try everything without publishing.
 3. Nothing else is needed; the PC can be off. The workflow checks that the version is new and has notes, runs the release checks of `build.yml`, creates the draft from their bundle, smoke-tests that draft and publishes it. Failed check jobs are run once more.
 
@@ -34,7 +34,7 @@ After CI succeeds, download the complete `private-draft-assets` artifact, extrac
 ./scripts/create-draft-release.ps1 -BundleDirectory '<verified bundle folder>'
 ```
 
-This tool checks that the manifest names a successful matching CI run and source commit, and the preview tag is new. Every candidate file must additionally match the named run's authenticated `private-draft-assets` artifact, including its GitHub-provided ZIP digest and expected workflow identity. An expired/missing origin artifact requires a fresh verified build; recomputed local checksums alone are insufficient. On a public repository it also requires `GAMEVAULT_PUBLIC_REPOSITORY_APPROVED=true` in the environment, as the owner's confirmation (the draft smoke workflow sets it). It creates **only a draft prerelease** (default `v<version>-preview.1`), uploads the nine checked assets, downloads them again and verifies their checksums. Existing releases are not replaced. A later preview can use `-Tag 'v<version>-preview.2'`. The result is recorded in ignored `artifacts/draft-release.json`; partial failures leave an unpublished draft for inspection, never a published release.
+This tool checks that the manifest names a successful matching CI run and source commit, and the tag is new. Every candidate file must additionally match the named run's authenticated `private-draft-assets` artifact, including its GitHub-provided ZIP digest and expected workflow identity. An expired/missing origin artifact requires a fresh verified build; recomputed local checksums alone are insufficient. On a public repository it also requires `GAMEVAULT_PUBLIC_REPOSITORY_APPROVED=true` in the environment, as the owner's confirmation (the draft smoke workflow sets it). It creates **only a draft prerelease** (tag `v<version>`), uploads the nine checked assets, downloads them again and verifies their checksums. Existing releases are not replaced. The result is recorded in ignored `artifacts/draft-release.json`; partial failures leave an unpublished draft for inspection, never a published release.
 
 GitHub may display an untagged URL for a draft. This is normal; the tool does not explicitly push tags. Private draft downloads require repository access/push privileges. Signing checksums provide integrity checks, not publisher authentication.
 
@@ -42,13 +42,9 @@ GitHub may display an untagged URL for a draft. This is normal; the tool does no
 
 The automatic in-place update ([docs/update-check.md](update-check.md)) downloads the release's `GameVault-Setup-<version>-win-x64.exe` and verifies it against the digest GitHub computes for the asset and the `GameVault-Setup-<version>-win-x64.exe.sha256` asset; both are already part of the nine-file bundle. Keep those two names exactly (the installer name must match the tag's version) and never remove them from a published release, or "Update now" falls back to the release-page link.
 
-## Preview number (update check)
+## Version numbers
 
-Before building the commit a preview release is made from, set `GameVaultPreview` in `Directory.Build.props` to that preview's number and create the draft with the matching tag (`-Tag v<version>-preview.N`). The app reports `<version>-preview.N` and the notify-only update check ([docs/update-check.md](update-check.md)) compares it with the GitHub release tags.
-
-## Release names
-
-A release's name does not contain the word "Preview" (the owner's choice, from the release after preview 7). Version numbers and tags are unchanged unless the owner decides otherwise: installed copies compare them to find updates.
+Every release gets a new `GameVaultVersion` in `Directory.Build.props`: raise the last number for fixes and small changes (0.1.1), the middle one when it brings many features (0.2.0). The tag is `v<version>`, the release is named `GameVault <version>`, and the app reports the same number; the update check ([docs/update-check.md](update-check.md)) compares it with the release tags. Publishing refuses a number that is not newer than what is published. Releases up to preview 8 were numbered `0.1.0-preview.N`; every later plain number is newer than they are.
 
 ## What's new notes
 

@@ -1,13 +1,12 @@
 <Project>
   <PropertyGroup>
     <!-- The single source of the app version. Installer and release scripts read it through scripts/AppVersion.psm1;
-         scripts/test-version.ps1 checks that they agree. Format: major.minor.patch[.revision]. -->
-    <GameVaultVersion>0.1.0</GameVaultVersion>
+         scripts/test-version.ps1 checks that they agree. Format: major.minor.patch[.revision]. The release tag is v<version>, and installed copies
+         compare it with their own version to find updates: raise it for every release (the last number for fixes and small changes, the middle one
+         when a release brings many features) and give it an entry in src/GameVault.Core/ReleaseNotes.cs. -->
+    <GameVaultVersion>0.1.1</GameVaultVersion>
     <Version>$(GameVaultVersion)</Version>
-    <!-- The preview number of the next/current preview release (v$(GameVaultVersion)-preview.N). Bump it when a release is prepared, so the app can tell
-         0.1.0-preview.2 from 0.1.0-preview.3 (the update check compares it with GitHub release tags). -->
-    <GameVaultPreview>8</GameVaultPreview>
-    <InformationalVersion>$(Version)-preview.$(GameVaultPreview)</InformationalVersion>
+    <InformationalVersion>$(Version)</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

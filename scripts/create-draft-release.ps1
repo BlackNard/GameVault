@@ -18,13 +18,13 @@ $origin=Assert-ReleaseOrigin -BundleDirectory $BundleDirectory -Api $api -Header
 if($manifest.checks.appWorkflowsPassed -ne $true -or $manifest.checks.installerLifecyclePassed -ne $true -or $manifest.checks.sourceHistoryAuditPassed -ne $true){throw 'Missing passed release checks.'}
 $commit=Invoke-RestMethod ($api+'/commits/'+$manifest.sourceCommit) -Headers $headers
 if($manifest.sourceCommit -cne $manifest.headCommit -and $manifest.headCommit -cnotin @($commit.parents.sha)){throw 'Release source is not the matching branch commit/PR merge.'}
-if([string]::IsNullOrWhiteSpace($Tag)){$Tag='v'+$manifest.version+'-preview.1'}
-if($Tag -notmatch ('^v'+[regex]::Escape($manifest.version)+'-preview\.[1-9][0-9]*$')){throw 'Only an explicit versioned preview tag is permitted.'}
+if([string]::IsNullOrWhiteSpace($Tag)){$Tag='v'+$manifest.version}
+if($Tag -cne ('v'+$manifest.version)){throw 'The tag must be v followed by the version of the bundle.'}
 $existing=Invoke-RestMethod ($api+'/releases?per_page=100') -Headers $headers
 $refs=Invoke-RestMethod ($api+'/git/matching-refs/tags/'+[Uri]::EscapeDataString($Tag)) -Headers $headers
-Assert-PreviewTagAvailable -Releases $existing -Refs $refs -Tag $Tag
+Assert-TagAvailable -Releases $existing -Refs $refs -Tag $Tag
 $notes=[IO.File]::ReadAllText((Join-Path $BundleDirectory 'RELEASE-NOTES.md'))+"`n`nBuild evidence: https://github.com/$repository/actions/runs/$($manifest.buildRunId)`n"
-$body=@{tag_name=$Tag;target_commitish=$manifest.sourceCommit;name=('GameVault '+$manifest.version+' — Development preview');body=$notes;draft=$true;prerelease=$true;make_latest='false'}|ConvertTo-Json -Depth 4
+$body=@{tag_name=$Tag;target_commitish=$manifest.sourceCommit;name=('GameVault '+$manifest.version);body=$notes;draft=$true;prerelease=$true;make_latest='false'}|ConvertTo-Json -Depth 4
 $release=Invoke-RestMethod ($api+'/releases') -Headers $headers -Method Post -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body))
 if($release.draft -ne $true -or $null -ne $release.published_at){throw 'GitHub did not return an unpublished draft.'}
 $id=$release.id

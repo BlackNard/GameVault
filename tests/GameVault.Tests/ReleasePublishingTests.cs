@@ -48,10 +48,22 @@ public sealed class ReleasePublishingTests
     [Fact]
     public void TheReleaseNameNeverSaysPreview()
     {
-        var (code, output) = Pwsh("Get-ReleaseTitle '0.1.0' '8' ''; Get-ReleaseTitle '0.1.0' '8' ' Journal and lists '");
+        var (code, output) = Pwsh("Get-ReleaseTitle '0.1.1' ''; Get-ReleaseTitle '0.1.1' ' Journal and lists '");
         Assert.True(code == 0, output);
-        Assert.Equal(["GameVault 0.1.0 — Update 8", "Journal and lists"], output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
-        Assert.NotEqual(0, Pwsh("Get-ReleaseTitle '0.1.0' '8' 'GameVault Preview 8'").Code);
+        Assert.Equal(["GameVault 0.1.1", "Journal and lists"], output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        Assert.NotEqual(0, Pwsh("Get-ReleaseTitle '0.1.1' 'GameVault Preview 8'").Code);
+    }
+
+    [Theory]
+    [InlineData("0.1.1", true)]
+    [InlineData("0.2.0", true)]
+    [InlineData("0.1.0", true)]          // the plain number is newer than its own previews
+    [InlineData("0.0.9", false)]
+    public void AReleaseMustBeNewerThanWhatIsPublished(string version, bool allowed)
+    {
+        var (code, output) = Pwsh($"Assert-NewerVersion @([pscustomobject]@{{tag_name='v0.1.0-preview.8';draft=$false}},[pscustomobject]@{{tag_name='v9.9.9';draft=$true}}) '{version}'");
+        Assert.True(code == 0 == allowed, output);
+        Assert.NotEqual(0, Pwsh("Assert-NewerVersion @([pscustomobject]@{tag_name='v0.2.0';draft=$false}) '0.1.5'").Code);
     }
 
     [Fact]
