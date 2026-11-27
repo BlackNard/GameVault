@@ -4,7 +4,7 @@
          scripts/test-version.ps1 checks that they agree. Format: major.minor.patch[.revision]. The release tag is v<version>, and installed copies
          compare it with their own version to find updates: raise it for every release (the last number for fixes and small changes, the middle one
          when a release brings many features) and give it an entry in src/GameVault.Core/ReleaseNotes.cs. -->
-    <GameVaultVersion>0.1.1</GameVaultVersion>
+    <GameVaultVersion>0.1.2</GameVaultVersion>
     <Version>$(GameVaultVersion)</Version>
     <InformationalVersion>$(Version)</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
