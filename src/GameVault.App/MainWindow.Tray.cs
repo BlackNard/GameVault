@@ -92,7 +92,7 @@ public partial class MainWindow
             try{await launches.DisposeAsync();}
             finally
             {
-                try{await discoveryCoordinator.DisposeAsync();}
+                try{try{await saveWatcher.DisposeAsync();}finally{await discoveryCoordinator.DisposeAsync();}}
                 finally{try{await backupCoordinator.FlushAsync();}finally{await backupCoordinator.DisposeAsync();}}
             }
         }

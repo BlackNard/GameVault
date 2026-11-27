@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     private readonly BackupCoordinator backupCoordinator;
     private readonly SaveDiscoveryService discovery;
     private readonly SaveDiscoveryCoordinator discoveryCoordinator;
+    private readonly SaveActivityWatcher saveWatcher;
     private SaveSourcesView? saveSourcesView;
     private readonly AppDataStore store;
     private readonly ApplicationPaths paths;
@@ -45,9 +46,11 @@ public partial class MainWindow : Window
         this.paths = paths;
         library = new(paths, store);
         saveLocations = new(paths);
-        discovery = new(paths, store, SaveDiscoveryEnvironment.Current() with { Database = saveLocations });
+        var saveEnvironment = SaveDiscoveryEnvironment.Current() with { Database = saveLocations };
+        discovery = new(paths, store, saveEnvironment);
         launches = new(paths, store, new WindowsGameProcessSystem());
         discoveryCoordinator = new(launches, discovery);
+        saveWatcher = new(launches, store, discovery, _ => saveEnvironment.WatchedRoots, () => true);
         backups=new(paths,store,discovery,new GameOperationLeases(),launches.IsGameRunningAsync);
         backupCoordinator=new(launches,backups,launches.WaitForIdleAsync);
         backupHistory=new(paths,store,new(),launches.IsGameRunningAsync);

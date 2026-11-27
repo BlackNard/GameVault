@@ -8,6 +8,8 @@ public sealed record SaveDiscoveryEnvironment(string Home,string Documents,strin
     // Beside the public documents unless told otherwise, so a made-up environment never reaches the real one.
     public string ProgramData { get => programData ?? Path.Combine(Path.GetDirectoryName(PublicDocuments)??PublicDocuments,"ProgramData"); init => programData = value; }
     public string[] BroadRoots=>[Home,Documents,Path.Combine(Documents,"My Games"),SavedGames,Roaming,Local,LocalLow,PublicDocuments,ProgramData,..SteamRoots.Select(r=>Path.Combine(r,"userdata"))];
+    /// <summary>Where writes are noted while a game runs (the game's own folder is added to these).</summary>
+    public string[] WatchedRoots=>[Roaming,Local,LocalLow,Documents,Path.Combine(Documents,"My Games"),SavedGames,PublicDocuments,..SteamRoots.Select(r=>Path.Combine(r,"userdata"))];
     public static SaveDiscoveryEnvironment Current()
     {
         var home=Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);var saved=Path.Combine(home,"Saved Games");
