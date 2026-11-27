@@ -1,0 +1,47 @@
+name: Publish release
+
+# One click, then nobody has to wait (issue #107): runs the release checks of build.yml, creates the draft from their bundle, smoke-tests it and publishes
+# it only when everything passed. Only the repository owner can start it. The version comes from Directory.Build.props, the notes from
+# src/GameVault.Core/ReleaseNotes.cs. Never add a push, pull_request or schedule trigger: publishing is always the owner's own act.
+on:
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: 'Name of the release (empty: "GameVault <version> — Update <number>"; the word Preview is not allowed)'
+        required: false
+        type: string
+      dry_run:
+        description: 'Run every check but publish nothing (the draft is removed at the end)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# One publish at a time, never cancelled halfway.
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main' && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: windows-latest
+    timeout-minutes: 180
+    permissions:
+      contents: write   # create the draft and publish it
+      actions: write    # start the release checks and the draft smoke test
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Run the checks, then publish
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_NAME: ${{ inputs.release_name }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: ./scripts/publish-release.ps1 -ReleaseName $env:RELEASE_NAME -DryRun:($env:DRY_RUN -ceq 'true')
