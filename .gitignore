@@ -1,6 +1,7 @@
 # User data and game save backups
 /Data/
 /Profiles/
+/Obsidian Vault/
 **/Backups/
 *.sav
 

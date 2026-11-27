@@ -28,10 +28,11 @@ public static class DataArchive
     public static IReadOnlyList<string> Enumerate(ApplicationPaths paths, bool includeBulky)
     {
         var result = new List<string>();
-        foreach (var top in new[] { paths.Data, paths.Profiles })
+        // An Obsidian vault kept inside the GameVault folder holds the player's notes, so it belongs in the backup too.
+        foreach (var top in new[] { paths.Data, paths.Profiles, VaultFolder(paths) })
         {
-            if (!Directory.Exists(top)) continue;
-            foreach (var file in Directory.EnumerateFiles(top, "*", SearchOption.AllDirectories))
+            if (!Directory.Exists(top) || (File.GetAttributes(top) & FileAttributes.ReparsePoint) != 0) continue;
+            foreach (var file in Directory.EnumerateFiles(top, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint }))
             {
                 var relative = Path.GetRelativePath(paths.Root, file).Replace('\\', '/');
                 var name = Path.GetFileName(file);
@@ -70,8 +71,8 @@ public static class DataArchive
         if (string.IsNullOrWhiteSpace(destinationFolder) || !Path.IsPathFullyQualified(destinationFolder) || !Directory.Exists(destinationFolder))
             throw new IOException("Choose an existing folder for the backup.");
         var destination = Path.GetFullPath(destinationFolder);
-        foreach (var inside in new[] { paths.Data, paths.Profiles })
-            if (IsInside(destination, inside)) throw new IOException("Save the backup outside GameVault's own Data and Profiles folders.");
+        foreach (var inside in new[] { paths.Data, paths.Profiles, VaultFolder(paths) })
+            if (IsInside(destination, inside)) throw new IOException("Save the backup outside GameVault's own Data, Profiles and Obsidian Vault folders.");
 
         var finalPath = Path.Combine(destination, $"GameVault-data-{DateTime.Now:yyyyMMdd-HHmmss}.zip");
         var temporary = finalPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
@@ -167,7 +168,7 @@ public static class DataArchive
     private static void CheckName(string name)
     {
         var parts = name.Split('/');
-        var ok = parts.Length >= 2 && (parts[0] == "Data" || parts[0] == "Profiles") && !name.Contains('\\') && !name.Contains(':') &&
+        var ok = parts.Length >= 2 && (parts[0] == "Data" || parts[0] == "Profiles" || parts[0] == ObsidianSettings.DefaultFolder) && !name.Contains('\\') && !name.Contains(':') &&
                  parts.All(p => p.Length > 0 && p != "." && p != ".." && p.IndexOfAny(Path.GetInvalidFileNameChars()) < 0);
         if (!ok) throw new IOException($"The backup contains an unsafe path: {name}");
     }
@@ -185,6 +186,10 @@ public static class DataArchive
         var replaced = Path.Combine(paths.Root, $"Replaced-{stamp}");
         var movedData = false;
         var movedProfiles = false;
+        var movedVault = false;
+        var vault = VaultFolder(paths);
+        // The vault is replaced only by a backup that has one; otherwise it stays as it is.
+        var hasVault = info.Manifest.Files.Any(f => f.Path.StartsWith(ObsidianSettings.DefaultFolder + "/", StringComparison.Ordinal));
         try
         {
             Directory.CreateDirectory(staging);
@@ -205,8 +210,10 @@ public static class DataArchive
             Directory.CreateDirectory(replaced);
             if (Directory.Exists(paths.Data)) { Directory.Move(paths.Data, Path.Combine(replaced, "Data")); movedData = true; }
             if (Directory.Exists(paths.Profiles)) { Directory.Move(paths.Profiles, Path.Combine(replaced, "Profiles")); movedProfiles = true; }
+            if (hasVault && Directory.Exists(vault)) { Directory.Move(vault, Path.Combine(replaced, ObsidianSettings.DefaultFolder)); movedVault = true; }
             Directory.Move(Path.Combine(staging, "Data"), paths.Data);
             Directory.Move(Path.Combine(staging, "Profiles"), paths.Profiles);
+            if (hasVault) Directory.Move(Path.Combine(staging, ObsidianSettings.DefaultFolder), vault);
             return new(replaced, info.Manifest.Files.Length);
         }
         catch
@@ -221,6 +228,8 @@ public static class DataArchive
                 }
                 if (movedProfiles && !Directory.Exists(paths.Profiles))
                     Directory.Move(Path.Combine(replaced, "Profiles"), paths.Profiles);
+                if (movedVault && !Directory.Exists(vault))
+                    Directory.Move(Path.Combine(replaced, ObsidianSettings.DefaultFolder), vault);
             }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
             throw;
@@ -233,6 +242,8 @@ public static class DataArchive
             catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
         }
     }
+
+    private static string VaultFolder(ApplicationPaths paths) => Path.Combine(paths.Root, ObsidianSettings.DefaultFolder);
 
     private static bool IsInside(string folder, string parent)
     {

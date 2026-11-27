@@ -211,7 +211,7 @@ public partial class MainWindow : Window
         LibraryPanel.Visibility = showLibrary ? Visibility.Visible : Visibility.Collapsed;
         SettingsPanel.Visibility = showLibrary ? Visibility.Collapsed : Visibility.Visible;
         OverviewPanel.Visibility = StatisticsPanel.Visibility = Visibility.Collapsed;
-        if(!showLibrary){_=RefreshBackupDestinationsAsync();RefreshSavedViewsManager();RefreshMetadataSettingsUi();RefreshSaveDatabaseStatus();}
+        if(!showLibrary){_=RefreshBackupDestinationsAsync();RefreshSavedViewsManager();RefreshMetadataSettingsUi();RefreshSaveDatabaseStatus();_=RefreshObsidianAsync();}
         else if(IsLoaded)RestoreLibraryFocus();
         LibraryNav.SetResourceReference(Control.BorderBrushProperty, showLibrary ? "AppAccent" : "AppLine");
         SettingsNav.SetResourceReference(Control.BorderBrushProperty, showLibrary ? "AppLine" : "AppAccent");
