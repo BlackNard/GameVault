@@ -247,12 +247,8 @@ public sealed class ObsidianVault(ApplicationPaths paths, AppDataStore store)
         return text.ToString();
     }
 
-    private static string FileName(NoteExportEntry entry)
-    {
-        if (entry.Note.SessionId is null) return "Review";
-        var when = entry.Session?.StartedAt ?? entry.Note.CreatedAt;
-        return when.ToString("yyyy-MM-dd HH-mm", CultureInfo.InvariantCulture) + " - " + SafeName(entry.Note.Title, "Session");
-    }
+    /// <summary>The note's title is its name in Obsidian; when the session was is among its properties.</summary>
+    private static string FileName(NoteExportEntry entry) => entry.Note.SessionId is null ? "Review" : SafeName(entry.Note.Title, "Session");
 
     private static string FreeName(string folder, string name)
     {

@@ -100,7 +100,7 @@ public sealed class ObsidianExportTests : IDisposable
         var result = await ExportAsync(entries: [Session(), Review()]);
         Assert.Equal((2, 0, 0), (result.Created, result.Updated, result.Unchanged));
         var folder = Path.Combine(DefaultVault, "Alpha Part 2");
-        Assert.Equal(["2026-11-20 21-15 - First night.md", "Review.md"], Notes(folder).Select(Path.GetFileName));
+        Assert.Equal(["First night.md", "Review.md"], Notes(folder).Select(Path.GetFileName));   // no date in the name: it is in the properties
         var text = File.ReadAllText(Notes(folder)[0]);
         Assert.StartsWith("---\n", text);
         Assert.Contains($"gamevault-game: {game}", text);
